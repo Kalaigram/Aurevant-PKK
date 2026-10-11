@@ -14,6 +14,13 @@ coverage/
 !.env.example
 *.pem
 *.key
+*.jks
+*.keystore
+*.p12
+*.pfx
+auth.json
+google-services.json
+serviceAccount*.json
 
 # OS
 .DS_Store
