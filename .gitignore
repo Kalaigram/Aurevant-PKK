@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+coverage/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Android
+*.apk
+*.aab
+*.dex
+local.properties
+.gradle/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Python (jika dipakai di server)
+__pycache__/
+*.py[cod]
+venv/
+.pytest_cache/
