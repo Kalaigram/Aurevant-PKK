@@ -1,6 +1,6 @@
 # Peta Halaman per Hak Akses — Aurevant PKK
 
-> Progres UI Web: **14 / 40 halaman selesai** — rincian per halaman di §13.
+> Progres UI Web: **15 / 40 halaman selesai** — rincian per halaman di §13.
 > Tanda: `[ ]` belum dikerjakan, `[~]` prompt Stitch sudah dibuat, `[x]` layar selesai + terverifikasi API.
 
 Acuan API: `server/routes/api.php` (prefix `/api/v1`). Izin: `app/Domain/Access/Services/PermissionCatalog.php`.
@@ -234,11 +234,12 @@ menempel ke API-nya; `[~]` bila prompt sudah dibuat tapi layar belum jadi.
 - [~] Pembelian (PO + penerimaan)
 - [~] Katalog (kategori + item + supplier)
 
-### C. Manajemen — 3/9 (prompt: 9/9, layar: 3/9)
+### C. Manajemen — 4/9 (prompt: 9/9, layar: 4/9)
 
 - [x] Cabang
 - [x] Role & Akses
 - [x] Karyawan & Penempatan
+- [x] Audit Log
 - [~] Harga per Cabang
 - [~] Jadwal & Shift
 - [~] Kehadiran & Cuti (kelola HR)
