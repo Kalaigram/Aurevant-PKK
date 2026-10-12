@@ -11,10 +11,10 @@ import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
 import AppPager from '../components/ui/AppPager.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
 
 interface Approval {
   id: number
-  branchId: number | null
   entityType: string | null
   entityId: number | null
   action: string
@@ -96,7 +96,12 @@ onMounted(() => muat())
 
 <template>
   <div>
-    <h1 class="mb-4 text-xl font-bold">Persetujuan</h1>
+    <div class="mb-4 flex items-center gap-3">
+      <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary">
+        <AppIcon name="fact_check" :size="28" />
+      </div>
+      <h1 class="font-display text-xl font-semibold">Kotak persetujuan</h1>
+    </div>
     <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="error" />
 
@@ -104,22 +109,22 @@ onMounted(() => muat())
       <div>
         <AppCard title="Ajukan baru">
           <AppField label="Aksi">
-            <select v-model="form.action" class="w-full rounded-lg border border-slate-300 px-3 py-2.5">
+            <select v-model="form.action" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none">
               <option v-for="a in ACTIONS" :key="a" :value="a">{{ a }}</option>
             </select>
           </AppField>
           <div v-if="NEED_ENTITY.includes(form.action)" class="mt-3">
             <AppField label="ID data (mis. ID nota / PO)">
-              <input v-model="form.entity_id" type="number" class="w-full rounded-lg border border-slate-300 px-3 py-2.5" />
+              <input v-model="form.entity_id" type="number" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none" />
             </AppField>
           </div>
           <div class="mt-3">
             <AppField label="Alasan">
-              <textarea v-model="form.reason" class="w-full rounded-lg border border-slate-300 px-3 py-2.5" rows="2" />
+              <textarea v-model="form.reason" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none" rows="2" />
             </AppField>
           </div>
           <AppButton :loading="loading" class="mt-3" @click="ajukan">Kirim pengajuan</AppButton>
-          <p class="mt-2 text-xs text-slate-500">Nota diskon & retur diajukan dari halaman Nota (Batch B).</p>
+          <p class="mt-2 text-xs text-secondary">Nota diskon & retur diajukan dari halaman Nota (Batch B).</p>
         </AppCard>
       </div>
 
@@ -131,20 +136,20 @@ onMounted(() => muat())
           >{{ s }}</AppButton>
         </div>
         <AppEmpty v-if="!loading && !list.length" message="Tidak ada pengajuan." />
-        <AppCard v-for="a in list" :key="a.id" class="cursor-pointer" @click="lihat(a.id)">
+        <AppCard v-for="a in list" :key="a.id" class="cursor-pointer transition hover:shadow" @click="lihat(a.id)">
           <div class="flex items-center justify-between gap-2">
-            <p class="font-semibold">{{ a.actionLabel }} <span class="font-normal text-slate-500">#{{ a.id }}</span></p>
+            <p class="font-semibold">{{ a.actionLabel }} <span class="font-normal text-secondary">#{{ a.id }}</span></p>
             <AppBadge :tone="tone(a.status)">{{ a.status }}</AppBadge>
           </div>
-          <p class="text-sm text-slate-500">{{ a.action }}{{ a.entityId ? ` · data #${a.entityId}` : '' }}</p>
+          <p class="font-mono text-xs text-secondary">{{ a.action }}{{ a.entityId ? ` · data #${a.entityId}` : '' }}</p>
         </AppCard>
         <AppPager :meta="meta" @page="muat" />
 
         <AppCard v-if="detail" title="Detail pengajuan" class="mt-4">
           <p class="text-sm"><strong>{{ detail.actionLabel }}</strong> · <AppBadge :tone="tone(detail.status)">{{ detail.status }}</AppBadge></p>
-          <pre class="mt-2 overflow-x-auto rounded-lg bg-slate-100 p-3 text-xs">{{ JSON.stringify(detail.payload, null, 2) }}</pre>
-          <p v-if="detail.note" class="mt-2 text-sm text-slate-500">Catatan: {{ detail.note }}</p>
-          <p v-if="detail.decidedAt" class="text-xs text-slate-400">Diputus {{ tanggal(detail.decidedAt) }}</p>
+          <pre class="mt-2 overflow-x-auto rounded-lg bg-surface-low p-3 text-xs">{{ JSON.stringify(detail.payload, null, 2) }}</pre>
+          <p v-if="detail.note" class="mt-2 text-sm text-secondary">Catatan: {{ detail.note }}</p>
+          <p v-if="detail.decidedAt" class="text-xs text-secondary">Diputus {{ tanggal(detail.decidedAt) }}</p>
           <div v-if="detail.status === 'diajukan'" class="mt-3 flex gap-2">
             <AppButton :loading="loading" @click="putuskan(true)">Setujui & jalankan</AppButton>
             <AppButton variant="danger" :loading="loading" @click="putuskan(false)">Tolak</AppButton>

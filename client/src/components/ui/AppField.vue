@@ -4,8 +4,8 @@ defineProps<{ label: string; error?: string }>()
 
 <template>
   <div>
-    <label class="mb-1 block text-sm text-slate-500">{{ label }}</label>
+    <label class="mb-1 block text-sm text-secondary">{{ label }}</label>
     <slot />
-    <p v-if="error" class="mt-1 text-sm text-red-600">{{ error }}</p>
+    <p v-if="error" class="mt-1 text-sm text-danger">{{ error }}</p>
   </div>
 </template>

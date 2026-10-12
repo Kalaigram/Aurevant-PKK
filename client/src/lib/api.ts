@@ -35,7 +35,7 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string |
   if (init.body !== undefined && !(init.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json'
   }
-  const res = await fetch(BASE + path, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> ?? {}) } })
+  const res = await fetch(BASE + path, { ...init, headers: { ...headers, ...init.headers } })
   if (res.status === 401) {
     onUnauthorized?.()
     throw new ApiError(401, 'Sesi berakhir. Silakan login lagi.')

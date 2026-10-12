@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import AppIcon from './components/ui/AppIcon.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -17,15 +18,15 @@ const menu = computed(() => {
   if (!id) return []
   const c = `/c/${id}`
   return [
-    { to: `${c}/dashboard`, label: 'Dashboard' },
-    { to: `${c}/notifications`, label: 'Notifikasi' },
-    { to: `${c}/approvals`, label: 'Persetujuan' },
-    { to: `${c}/attendance`, label: 'Absensi' },
-    { to: `${c}/leaves`, label: 'Cuti' },
-    { to: `${c}/slip`, label: 'Slip Gaji' },
-    { to: `${c}/card`, label: 'Kartu' },
-    { to: `${c}/subscription`, label: 'Langganan' },
-    { to: `${c}/profile`, label: 'Profil' },
+    { to: `${c}/dashboard`, label: 'Dashboard', icon: 'dashboard' },
+    { to: `${c}/notifications`, label: 'Notifikasi', icon: 'notifications' },
+    { to: `${c}/approvals`, label: 'Persetujuan', icon: 'fact_check' },
+    { to: `${c}/attendance`, label: 'Absensi', icon: 'fingerprint' },
+    { to: `${c}/leaves`, label: 'Cuti', icon: 'event_note' },
+    { to: `${c}/slip`, label: 'Slip Gaji', icon: 'receipt_long' },
+    { to: `${c}/card`, label: 'Kartu', icon: 'badge' },
+    { to: `${c}/subscription`, label: 'Langganan', icon: 'workspace_premium' },
+    { to: `${c}/profile`, label: 'Profil', icon: 'account_circle' },
   ]
 })
 </script>
@@ -33,23 +34,30 @@ const menu = computed(() => {
 <template>
   <div v-if="!auth.loggedIn"><RouterView /></div>
   <div v-else class="flex min-h-screen">
-    <nav class="sticky top-0 flex h-screen w-56 flex-col gap-1 bg-primary-900 p-4 text-white max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:h-auto max-md:flex-row max-md:overflow-x-auto max-md:p-2">
-      <div class="px-2 pb-4 pt-2 text-lg font-extrabold max-md:hidden">Aurevant PKK</div>
+    <nav class="sticky top-0 flex h-screen w-60 flex-col gap-1 bg-primary p-4 text-white max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:h-auto max-md:flex-row max-md:overflow-x-auto max-md:p-2">
+      <div class="px-2 pb-5 pt-2 max-md:hidden">
+        <p class="font-display text-lg font-bold">Aurevant PKK</p>
+        <p class="text-xs text-emerald-100/80">Operasional Multi-Cabang</p>
+      </div>
       <RouterLink
         v-for="m in menu"
         :key="m.to"
         :to="m.to"
-        class="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-emerald-100 hover:bg-white/10 hover:text-white max-md:whitespace-nowrap"
+        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-emerald-50/90 transition-colors hover:bg-white/10 hover:text-white max-md:whitespace-nowrap"
         active-class="bg-white/15! text-white!"
-      >{{ m.label }}</RouterLink>
+      ><AppIcon :name="m.icon" :size="20" />{{ m.label }}</RouterLink>
       <div class="flex-1 max-md:hidden" />
-      <RouterLink to="/companies" class="rounded-lg px-3 py-2 text-sm text-emerald-100 hover:bg-white/10 max-md:whitespace-nowrap">Ganti Perusahaan</RouterLink>
-      <a href="#" class="rounded-lg px-3 py-2 text-sm text-emerald-100 hover:bg-white/10 max-md:whitespace-nowrap" @click.prevent="keluar">Keluar</a>
+      <RouterLink to="/companies" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-emerald-50/90 hover:bg-white/10 max-md:whitespace-nowrap">
+        <AppIcon name="domain" :size="20" />Ganti Perusahaan
+      </RouterLink>
+      <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-emerald-50/90 hover:bg-white/10 max-md:whitespace-nowrap" @click.prevent="keluar">
+        <AppIcon name="logout" :size="20" />Keluar
+      </a>
     </nav>
-    <main class="min-w-0 flex-1 p-5 max-md:pb-20">
+    <main class="min-w-0 flex-1 p-4 md:p-6 max-md:pb-24">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <strong>{{ auth.companyName ?? 'Perusahaan #' + (auth.companyId ?? '-') }}</strong>
-        <span class="text-sm text-slate-500">{{ auth.user?.name }}</span>
+        <strong class="font-display">{{ auth.companyName ?? 'Perusahaan #' + (auth.companyId ?? '-') }}</strong>
+        <span class="text-sm text-secondary">{{ auth.user?.name }}</span>
       </div>
       <RouterView :key="$route.fullPath" />
     </main>

@@ -11,6 +11,7 @@ import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
 import AppPager from '../components/ui/AppPager.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
 
 interface Cuti { id: number; userId: number; type: string; fromDate: string; toDate: string; reason: string; status: string }
 
@@ -57,23 +58,28 @@ onMounted(() => muat())
 
 <template>
   <div>
-    <h1 class="mb-4 text-xl font-bold">Cuti saya</h1>
+    <div class="mb-4 flex items-center gap-3">
+      <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary">
+        <AppIcon name="event_note" :size="28" />
+      </div>
+      <h1 class="font-display text-xl font-semibold">Cuti saya</h1>
+    </div>
     <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="error" />
     <div class="grid gap-4 lg:grid-cols-2">
       <AppCard title="Ajukan izin / sakit / cuti">
         <AppField label="Jenis">
-          <select v-model="form.type" class="w-full rounded-lg border border-slate-300 px-3 py-2.5">
+          <select v-model="form.type" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none">
             <option v-for="t in TYPES" :key="t" :value="t">{{ t }}</option>
           </select>
         </AppField>
         <div class="mt-3 grid grid-cols-2 gap-2">
-          <AppField label="Dari tanggal"><input v-model="form.from_date" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2.5" /></AppField>
-          <AppField label="Sampai tanggal"><input v-model="form.to_date" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2.5" /></AppField>
+          <AppField label="Dari tanggal"><input v-model="form.from_date" type="date" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none" /></AppField>
+          <AppField label="Sampai tanggal"><input v-model="form.to_date" type="date" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none" /></AppField>
         </div>
         <div class="mt-3">
           <AppField label="Alasan">
-            <textarea v-model="form.reason" rows="3" maxlength="500" class="w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="Contoh: kontrol ke dokter gigi" />
+            <textarea v-model="form.reason" rows="3" maxlength="500" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none" placeholder="Contoh: kontrol ke dokter gigi" />
           </AppField>
         </div>
         <AppButton :loading="loading" class="mt-3" @click="ajukan">Kirim pengajuan</AppButton>
@@ -89,10 +95,10 @@ onMounted(() => muat())
         <AppEmpty v-if="!loading && !list.length" message="Belum ada pengajuan." />
         <AppCard v-for="c in list" :key="c.id">
           <div class="flex items-center justify-between gap-2">
-            <p class="font-semibold capitalize">{{ c.type }} <span class="font-normal text-slate-500">{{ tanggal(c.fromDate) }} – {{ tanggal(c.toDate) }}</span></p>
+            <p class="font-semibold capitalize">{{ c.type }} <span class="font-normal text-secondary">{{ tanggal(c.fromDate) }} – {{ tanggal(c.toDate) }}</span></p>
             <AppBadge :tone="tone(c.status)">{{ c.status }}</AppBadge>
           </div>
-          <p class="mt-1 text-sm text-slate-500">{{ c.reason }}</p>
+          <p class="mt-1 text-sm text-secondary">{{ c.reason }}</p>
         </AppCard>
         <AppPager :meta="meta" @page="muat" />
       </div>

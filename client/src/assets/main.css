@@ -1,14 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 @theme {
-  --color-primary-900: #064e3b;
-  --color-primary-700: #047857;
-  --font-sans: 'Fira Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+
+  --color-primary: #005d42;
+  --color-primary-container: #047857;
+  --color-on-primary: #ffffff;
+  --color-tertiary: #005d3e;
+  --color-secondary: #545f73;
+  --color-surface: #f9f9ff;
+  --color-surface-low: #f1f3ff;
+  --color-card: #ffffff;
+  --color-ink: #141b2b;
+  --color-outline: #bdc9c1;
+  --color-danger: #ba1a1a;
+  --color-danger-bg: #ffdad6;
+  --color-warn: #d97706;
+  --color-ok: #16a34a;
 }
 
 body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+  @apply bg-surface text-ink antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  user-select: none;
 }
 
 @media print {

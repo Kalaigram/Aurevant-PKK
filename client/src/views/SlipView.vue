@@ -9,6 +9,7 @@ import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
 
 interface SlipLine { label: string; amount: string; isManual: boolean }
 interface Slip {
@@ -36,14 +37,17 @@ function cetak() {
 
 <template>
   <div class="mx-auto max-w-2xl">
-    <h1 class="mb-4 text-xl font-bold">Slip gaji saya</h1>
+    <div class="mb-4 flex items-center gap-3">
+      <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary">
+        <AppIcon name="receipt_long" :size="28" />
+      </div>
+      <h1 class="font-display text-xl font-semibold">Slip gaji saya</h1>
+    </div>
     <AppBanner tone="red" :message="error" />
     <AppCard title="Pilih periode">
-      <div class="flex gap-2">
-        <AppField label="ID periode (tanya HR bila belum tahu)">
-          <input v-model="periodId" type="number" class="w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="cth. 3" />
-        </AppField>
-      </div>
+      <AppField label="ID periode (tanya HR bila belum tahu)">
+        <input v-model="periodId" type="number" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none" placeholder="cth. 3" />
+      </AppField>
       <AppButton :loading="loading" class="mt-3" @click="lihat">Lihat slip</AppButton>
     </AppCard>
 
@@ -52,15 +56,15 @@ function cetak() {
       <div class="mb-3 flex items-center justify-between">
         <div>
           <p class="font-semibold">{{ slip.period.name }}</p>
-          <p class="text-sm text-slate-500">{{ tanggal(slip.period.from) }} – {{ tanggal(slip.period.to) }} · status {{ slip.period.status }}</p>
+          <p class="text-sm text-secondary">{{ tanggal(slip.period.from) }} – {{ tanggal(slip.period.to) }} · status {{ slip.period.status }}</p>
         </div>
         <AppButton variant="ghost" class="no-print" @click="cetak">Cetak</AppButton>
       </div>
       <table class="w-full text-sm">
         <tbody>
-          <tr v-for="(l, i) in slip.lines" :key="i" class="border-b border-slate-100 last:border-0">
+          <tr v-for="(l, i) in slip.lines" :key="i" class="border-b border-surface-low last:border-0">
             <td class="py-2">{{ l.label }}</td>
-            <td class="py-2 text-right font-medium" :class="Number(l.amount) < 0 ? 'text-red-600' : ''">{{ rupiah(l.amount) }}</td>
+            <td class="py-2 text-right font-medium" :class="Number(l.amount) < 0 ? 'text-danger' : ''">{{ rupiah(l.amount) }}</td>
           </tr>
           <tr>
             <td class="py-2 font-extrabold">Gaji bersih</td>

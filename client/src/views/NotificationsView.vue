@@ -10,13 +10,13 @@ import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
 import AppPager from '../components/ui/AppPager.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
 
 interface Notif {
   id: number
   type: string
   title: string
   body: string | null
-  link: string | null
   read_at: string | null
   created_at?: string
 }
@@ -37,7 +37,7 @@ async function muat(page = 1) {
   const res = await run(() => api.get<{ data: Notif[]; meta: PageMeta }>(`/notifications${q}`, auth.token))
   if (res) {
     const raw = res as unknown as { data: Notif[]; meta?: PageMeta } | Notif[]
-    if (Array.isArray(raw)) { list.value = raw }
+    if (Array.isArray(raw)) list.value = raw
     else { list.value = raw.data; meta.value = raw.meta ?? null }
   }
   const c = await run(() => api.get<{ unread: number }>('/notifications/unread-count', auth.token))
@@ -74,7 +74,12 @@ onUnmounted(() => window.clearInterval(timer))
 <template>
   <div>
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <h1 class="text-xl font-bold">Notifikasi <AppBadge tone="red">{{ unread }} belum dibaca</AppBadge></h1>
+      <div class="flex items-center gap-3">
+        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary">
+          <AppIcon name="notifications" :size="28" />
+        </div>
+        <h1 class="font-display text-xl font-semibold">Notifikasi <AppBadge tone="red">{{ unread }} belum dibaca</AppBadge></h1>
+      </div>
       <AppButton variant="ghost" @click="bacaSemua">Tandai semua dibaca</AppButton>
     </div>
     <AppBanner tone="red" :message="error" />
@@ -82,21 +87,22 @@ onUnmounted(() => window.clearInterval(timer))
       <AppButton :variant="tab === 'semua' ? 'primary' : 'ghost'" @click="tab = 'semua'; muat()">Semua</AppButton>
       <AppButton :variant="tab === 'belum' ? 'primary' : 'ghost'" @click="tab = 'belum'; muat()">Belum dibaca</AppButton>
     </div>
-    <p v-if="loading" class="text-sm text-slate-500">Memuat…</p>
+    <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
     <AppEmpty v-else-if="!list.length" message="Tidak ada notifikasi." />
-    <AppCard v-for="n in list" :key="n.id" class="cursor-pointer" @click="baca(n)">
-      <div class="flex items-start justify-between gap-2">
-        <div>
+    <AppCard v-for="n in list" :key="n.id" class="cursor-pointer transition hover:shadow" @click="baca(n)">
+      <div class="flex items-start gap-3">
+        <AppIcon name="info" :size="20" />
+        <div class="min-w-0">
           <p class="font-semibold">{{ n.title }} <AppBadge v-if="!n.read_at" tone="blue">baru</AppBadge></p>
-          <p class="text-sm text-slate-500">{{ n.body }}</p>
-          <p class="mt-1 text-xs text-slate-400">{{ n.type }} · {{ waktuRelatif(n.created_at) }}</p>
+          <p class="text-sm text-secondary">{{ n.body }}</p>
+          <p class="mt-1 font-mono text-xs text-secondary">{{ n.type }} · {{ waktuRelatif(n.created_at) }}</p>
         </div>
       </div>
     </AppCard>
     <AppPager :meta="meta" @page="muat" />
     <AppCard title="Preferensi" class="mt-4">
-      <div v-for="p in prefs" :key="p.type" class="flex items-center justify-between border-b border-slate-100 py-2 text-sm last:border-0">
-        <span>{{ p.type }}</span>
+      <div v-for="p in prefs" :key="p.type" class="flex items-center justify-between border-b border-surface-low py-2 text-sm last:border-0">
+        <span class="font-mono text-xs">{{ p.type }}</span>
         <AppButton variant="ghost" @click="togglePref(p)">{{ p.enabled ? 'Matikan' : 'Nyalakan' }}</AppButton>
       </div>
     </AppCard>

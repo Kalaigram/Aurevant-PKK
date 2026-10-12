@@ -11,7 +11,7 @@ const emit = defineEmits<{ page: [n: number] }>()
     <AppButton variant="ghost" :disabled="meta.current_page <= 1" @click="emit('page', meta.current_page - 1)">
       ‹ Prev
     </AppButton>
-    <span class="text-sm text-slate-500">Hal {{ meta.current_page }} / {{ meta.last_page }} ({{ meta.total }})</span>
+    <span class="text-sm text-secondary">Hal {{ meta.current_page }} / {{ meta.last_page }} ({{ meta.total }})</span>
     <AppButton variant="ghost" :disabled="meta.current_page >= meta.last_page" @click="emit('page', meta.current_page + 1)">
       Next ›
     </AppButton>

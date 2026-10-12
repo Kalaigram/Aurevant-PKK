@@ -3,7 +3,7 @@ defineProps<{ message?: string }>()
 </script>
 
 <template>
-  <p class="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
+  <p class="rounded-xl border border-dashed border-outline bg-card p-6 text-center text-sm text-secondary">
     {{ message ?? 'Belum ada data.' }}
   </p>
 </template>

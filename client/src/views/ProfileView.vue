@@ -2,6 +2,7 @@
 import { useAuthStore } from '../stores/auth'
 import AppCard from '../components/ui/AppCard.vue'
 import AppButton from '../components/ui/AppButton.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
 
 const auth = useAuthStore()
 
@@ -13,14 +14,19 @@ async function keluar() {
 
 <template>
   <div class="mx-auto max-w-xl">
-    <h1 class="mb-4 text-xl font-bold">Profil saya</h1>
+    <div class="mb-4 flex items-center gap-3">
+      <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary">
+        <AppIcon name="account_circle" :size="28" />
+      </div>
+      <h1 class="font-display text-xl font-semibold">Profil saya</h1>
+    </div>
     <AppCard title="Data diri">
       <dl class="space-y-2 text-sm">
-        <div class="flex justify-between"><dt class="text-slate-500">Nama</dt><dd class="font-medium">{{ auth.user?.name }}</dd></div>
-        <div class="flex justify-between"><dt class="text-slate-500">Email</dt><dd class="font-medium">{{ auth.user?.email }}</dd></div>
-        <div class="flex justify-between"><dt class="text-slate-500">No. HP</dt><dd class="font-medium">{{ auth.user?.phone ?? '–' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-secondary">Nama</dt><dd class="font-medium">{{ auth.user?.name }}</dd></div>
+        <div class="flex justify-between"><dt class="text-secondary">Email</dt><dd class="font-medium">{{ auth.user?.email }}</dd></div>
+        <div class="flex justify-between"><dt class="text-secondary">No. HP</dt><dd class="font-medium">{{ auth.user?.phone ?? '–' }}</dd></div>
       </dl>
-      <p class="mt-3 text-xs text-slate-500">Hak akses diatur oleh pemilik perusahaan.</p>
+      <p class="mt-3 text-xs text-secondary">Hak akses diatur oleh pemilik perusahaan.</p>
     </AppCard>
     <AppButton variant="danger" @click="keluar">Keluar dari akun</AppButton>
   </div>

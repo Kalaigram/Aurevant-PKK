@@ -5,10 +5,10 @@ withDefaults(
 )
 
 const styles: Record<string, string> = {
-  primary: 'bg-primary-700 text-white hover:bg-primary-900',
-  secondary: 'bg-slate-700 text-white hover:bg-slate-800',
-  danger: 'bg-red-600 text-white hover:bg-red-700',
-  ghost: 'bg-transparent text-primary-700 border border-slate-300 hover:bg-slate-100',
+  primary: 'bg-primary-container text-on-primary hover:bg-primary',
+  secondary: 'bg-surface-low text-ink hover:bg-outline/40',
+  danger: 'bg-danger text-white hover:brightness-95',
+  ghost: 'bg-transparent text-primary border border-outline hover:bg-surface-low',
 }
 </script>
 
@@ -16,7 +16,7 @@ const styles: Record<string, string> = {
   <button
     :type="type"
     :disabled="loading"
-    class="rounded-lg px-4 py-2.5 text-sm font-semibold disabled:cursor-wait disabled:opacity-60"
+    class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60"
     :class="styles[variant]"
   >
     <slot>{{ loading ? 'Memproses…' : '' }}</slot>
