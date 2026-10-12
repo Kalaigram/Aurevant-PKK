@@ -111,7 +111,6 @@ di/                   → modul Hilt
   butuh, bukan di depan.
 
 ## 5. Alur UI (Stitch, selalu belakangan)
-
 - UI dikerjakan setelah API selesai dan terverifikasi. Jangan bikin halaman dulu.
 - Setiap API selesai: saya siapkan daftar halaman apa saja + prompt siap-pakai
   untuk di-generate di Stitch.
@@ -129,3 +128,32 @@ di/                   → modul Hilt
   (S3/minio), bukan disk lokal.
 - LB-nya sendiri (Nginx upstream / LB cloud) dipasang saat deployment, tidak
   di repo ini.
+
+## 7. Bahasa UI (manusiawi, bukan teknis)
+
+- Semua teks yang dibaca user (judul, label, tombol, error, empty state) harus
+  bahasa manusia yang wajar: kalimat lengkap, sopan, tanpa istilah teknis
+  (tanpa: ID/entitas/payload/token/endpoint/HTTP/422/due/Sanctum/dll).
+  Pengecualian: istilah bisnis yang memang dipakai user (nota, shift, opname,
+  PO, DP, BPJS, PPh) boleh dipakai apa adanya.
+- ID/nomor teknis (ID nota, UUID, token) boleh tampil sebagai data, tapi label
+  dan penjelasnya harus manusiawi ("Nomor nota", bukan "entity_id").
+- Pesan error validasi tampil apa adanya dari server (`errors`), tapi kalimat
+  tambahan di sekitarnya harus manusiawi. Jangan menampilkan kode HTTP mentah
+  ke user (401/403/422/500 diterjemahkan jadi kalimat).
+- Menu dan tombol aksi disesuaikan ke izin user (lihat §8): yang tidak boleh
+  dipakai disembunyikan, bukan sekadar menunggu 403.
+- Nama permission mentah (`transaksi.void`, `izin: keuangan.lihat`) dilarang
+  muncul di UI. Peta izin → label manusiawi tinggal di frontend.
+
+## 8. Menu & halaman per role (frontend)
+
+- Frontend wajib tahu izin user: `GET /companies/{company}/access/my-permissions`
+  → `{permissions: [...]}`. Di-cache per perusahaan aktif, di-refresh saat
+  ganti perusahaan / login ulang.
+- Setiap item menu mendeklarasikan syarat izinnya; tanpa izin itu menu
+  disembunyikan. Halaman global (dashboard, notifikasi, absensi, cuti, slip,
+  kartu, langganan, profil) tampil untuk semua role.
+- Tombol aksi dalam halaman ikut izin yang sama (setujui/tolak, hapus, bayar).
+  Aturan tampil = aturan backend (middleware `permission:...`), jangan longgar,
+  jangan ketat sendiri.

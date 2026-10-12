@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { api, type PageMeta } from '../lib/api'
 import { tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
+import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
@@ -25,10 +26,23 @@ interface Approval {
   decidedAt: string | null
 }
 
-const ACTIONS = ['sale.void', 'sale.discount', 'sale.refund', 'po.approve', 'transfer.approve', 'opname.approve']
+const ACTIONS = [
+  { value: 'sale.void', label: 'Void nota', req: 'transaksi.buat', decide: 'transaksi.void' },
+  { value: 'sale.discount', label: 'Nota diskon', req: 'transaksi.buat', decide: 'transaksi.diskon' },
+  { value: 'sale.refund', label: 'Retur / refund', req: 'retur.buat', decide: 'retur.setujui' },
+  { value: 'po.approve', label: 'Setujui PO', req: 'po.buat', decide: 'po.setujui' },
+  { value: 'transfer.approve', label: 'Setujui transfer', req: 'stok.transfer', decide: 'stok.transfer' },
+  { value: 'opname.approve', label: 'Setujui opname', req: 'stok.opname', decide: 'stok.opname' },
+] as const
 const NEED_ENTITY = ['sale.void', 'sale.refund', 'po.approve', 'transfer.approve', 'opname.approve']
 
 const { auth, companyId } = useCompany()
+const access = useAccessStore()
+const bolehAjukan = computed(() => ACTIONS.filter((a) => access.can(a.req)))
+const bolehPutuskan = (action: string) => {
+  const found = ACTIONS.find((a) => a.value === action)
+  return found ? access.can(found.decide) : false
+}
 const { loading, error, run } = useAsync()
 const list = ref<Approval[]>([])
 const meta = ref<PageMeta | null>(null)
@@ -91,7 +105,12 @@ async function putuskan(setuju: boolean) {
   }
 }
 
-onMounted(() => muat())
+onMounted(async () => {
+  await access.load(companyId.value, auth.token)
+  if (!bolehAjukan.value.length) form.value.action = ''
+  else if (!bolehAjukan.value.some((a) => a.value === form.value.action)) form.value.action = bolehAjukan.value[0]!.value
+  muat()
+})
 </script>
 
 <template>
@@ -108,13 +127,17 @@ onMounted(() => muat())
     <div class="grid gap-4 lg:grid-cols-2">
       <div>
         <AppCard title="Ajukan baru">
-          <AppField label="Aksi">
+          <template v-if="!bolehAjukan.length">
+            <p class="text-sm text-secondary">Anda tidak punya hak mengajukan persetujuan apa pun.</p>
+          </template>
+          <template v-else>
+          <AppField label="Jenis pengajuan">
             <select v-model="form.action" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none">
-              <option v-for="a in ACTIONS" :key="a" :value="a">{{ a }}</option>
+              <option v-for="a in bolehAjukan" :key="a.value" :value="a.value">{{ a.label }}</option>
             </select>
           </AppField>
           <div v-if="NEED_ENTITY.includes(form.action)" class="mt-3">
-            <AppField label="ID data (mis. ID nota / PO)">
+            <AppField label="Nomor data (ID nota, PO, transfer, atau opname)">
               <input v-model="form.entity_id" type="number" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none" />
             </AppField>
           </div>
@@ -125,6 +148,7 @@ onMounted(() => muat())
           </div>
           <AppButton :loading="loading" class="mt-3" @click="ajukan">Kirim pengajuan</AppButton>
           <p class="mt-2 text-xs text-secondary">Nota diskon & retur diajukan dari halaman Nota (Batch B).</p>
+          </template>
         </AppCard>
       </div>
 
@@ -141,7 +165,7 @@ onMounted(() => muat())
             <p class="font-semibold">{{ a.actionLabel }} <span class="font-normal text-secondary">#{{ a.id }}</span></p>
             <AppBadge :tone="tone(a.status)">{{ a.status }}</AppBadge>
           </div>
-          <p class="font-mono text-xs text-secondary">{{ a.action }}{{ a.entityId ? ` · data #${a.entityId}` : '' }}</p>
+          <p class="text-sm text-secondary">{{ a.entityId ? `Data #${a.entityId}` : 'Tanpa data terkait' }}</p>
         </AppCard>
         <AppPager :meta="meta" @page="muat" />
 
@@ -150,10 +174,11 @@ onMounted(() => muat())
           <pre class="mt-2 overflow-x-auto rounded-lg bg-surface-low p-3 text-xs">{{ JSON.stringify(detail.payload, null, 2) }}</pre>
           <p v-if="detail.note" class="mt-2 text-sm text-secondary">Catatan: {{ detail.note }}</p>
           <p v-if="detail.decidedAt" class="text-xs text-secondary">Diputus {{ tanggal(detail.decidedAt) }}</p>
-          <div v-if="detail.status === 'diajukan'" class="mt-3 flex gap-2">
+          <div v-if="detail.status === 'diajukan' && bolehPutuskan(detail.action)" class="mt-3 flex gap-2">
             <AppButton :loading="loading" @click="putuskan(true)">Setujui & jalankan</AppButton>
             <AppButton variant="danger" :loading="loading" @click="putuskan(false)">Tolak</AppButton>
           </div>
+          <p v-else-if="detail.status === 'diajukan'" class="mt-3 text-sm text-secondary">Hanya atasan yang berhak memutuskan pengajuan ini.</p>
         </AppCard>
       </div>
     </div>

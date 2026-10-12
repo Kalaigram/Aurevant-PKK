@@ -63,7 +63,7 @@ function cetak() {
         <div class="text-xs text-emerald-50/85">
           <p>{{ card.email }}</p>
           <p>{{ card.phone ?? '' }}</p>
-          <p class="mt-1 font-mono">{{ card.employeeUuid }}</p>
+          <p class="mt-1 font-mono text-xs">ID kartu: {{ card.employeeUuid }}</p>
         </div>
         <img v-if="qrUrl" :src="qrUrl" alt="QR kartu karyawan" class="h-24 w-24 rounded-lg bg-white p-1" />
       </div>

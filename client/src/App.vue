@@ -1,26 +1,39 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import { useAccessStore } from './stores/access'
 import AppIcon from './components/ui/AppIcon.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
+const access = useAccessStore()
 const companyId = computed(() => Number(route.params.companyId ?? auth.companyId ?? 0))
+
+watch(companyId, (id) => {
+  if (id) void access.load(id, auth.token)
+}, { immediate: true })
 
 async function keluar() {
   await auth.logout()
+  access.reset()
   window.location.href = '/login'
 }
+
+const APPROVAL_PERMS = [
+  'transaksi.buat', 'transaksi.void', 'transaksi.diskon',
+  'retur.buat', 'retur.setujui', 'po.buat', 'po.setujui',
+  'stok.transfer', 'stok.opname',
+]
 
 const menu = computed(() => {
   const id = companyId.value
   if (!id) return []
   const c = `/c/${id}`
-  return [
+  const items = [
     { to: `${c}/dashboard`, label: 'Dashboard', icon: 'dashboard' },
     { to: `${c}/notifications`, label: 'Notifikasi', icon: 'notifications' },
-    { to: `${c}/approvals`, label: 'Persetujuan', icon: 'fact_check' },
+    { to: `${c}/approvals`, label: 'Persetujuan', icon: 'fact_check', perms: APPROVAL_PERMS },
     { to: `${c}/attendance`, label: 'Absensi', icon: 'fingerprint' },
     { to: `${c}/leaves`, label: 'Cuti', icon: 'event_note' },
     { to: `${c}/slip`, label: 'Slip Gaji', icon: 'receipt_long' },
@@ -28,6 +41,7 @@ const menu = computed(() => {
     { to: `${c}/subscription`, label: 'Langganan', icon: 'workspace_premium' },
     { to: `${c}/profile`, label: 'Profil', icon: 'account_circle' },
   ]
+  return items.filter((m) => !('perms' in m) || !access.loaded || access.can(...(m.perms as string[])))
 })
 </script>
 

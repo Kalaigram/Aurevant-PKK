@@ -32,6 +32,25 @@ const tab = ref<'semua' | 'belum'>('semua')
 const prefs = ref<Prefs[]>([])
 let timer: number | undefined
 
+const JENIS: Record<string, string> = {
+  'transfer.diajukan': 'Transfer diajukan',
+  'transfer.disetujui': 'Transfer disetujui',
+  'transfer.dikirim': 'Transfer dikirim',
+  'transfer.diterima': 'Transfer diterima',
+  'po.diajukan': 'PO diajukan',
+  'po.disetujui': 'PO disetujui',
+  'po.diterima': 'PO diterima',
+  'sale.void': 'Nota dibatalkan',
+  'sale.retur': 'Ada retur',
+  'opname.disetujui': 'Opname disetujui',
+  'shift.selisih': 'Selisih kas shift',
+  'approval.diajukan': 'Minta persetujuan',
+}
+
+function jenisLabel(t: string) {
+  return JENIS[t] ?? 'Pemberitahuan'
+}
+
 async function muat(page = 1) {
   const q = `?per_page=15&page=${page}&company_id=${companyId.value}` + (tab.value === 'belum' ? '&unread=1' : '')
   const res = await run(() => api.get<{ data: Notif[]; meta: PageMeta }>(`/notifications${q}`, auth.token))
@@ -95,7 +114,7 @@ onUnmounted(() => window.clearInterval(timer))
         <div class="min-w-0">
           <p class="font-semibold">{{ n.title }} <AppBadge v-if="!n.read_at" tone="blue">baru</AppBadge></p>
           <p class="text-sm text-secondary">{{ n.body }}</p>
-          <p class="mt-1 font-mono text-xs text-secondary">{{ n.type }} · {{ waktuRelatif(n.created_at) }}</p>
+          <p class="mt-1 text-xs text-secondary">{{ jenisLabel(n.type) }} · {{ waktuRelatif(n.created_at) }}</p>
         </div>
       </div>
     </AppCard>

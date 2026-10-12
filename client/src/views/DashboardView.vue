@@ -61,7 +61,6 @@ const subTone = () => {
         <div class="mb-2 flex items-center gap-2">
           <span class="h-2.5 w-2.5 rounded-full bg-primary-container" />
           <h2 class="font-display text-base font-semibold">Likuiditas & Ringkasan Finansial</h2>
-          <span class="rounded bg-surface-low px-1.5 py-0.5 font-mono text-[11px] uppercase text-secondary">izin: keuangan.lihat</span>
         </div>
         <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <AppCard>
@@ -87,7 +86,6 @@ const subTone = () => {
         <div class="mb-2 flex items-center gap-2">
           <span class="h-2.5 w-2.5 rounded-full bg-primary-container" />
           <h2 class="font-display text-base font-semibold">Penjualan Hari Ini</h2>
-          <span class="rounded bg-surface-low px-1.5 py-0.5 font-mono text-[11px] uppercase text-secondary">izin: nota.lihat</span>
         </div>
         <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <AppCard>

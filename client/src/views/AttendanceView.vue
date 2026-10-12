@@ -134,9 +134,9 @@ onMounted(async () => {
           </select>
         </AppField>
         <div class="mt-3 rounded-lg bg-surface-low p-3 text-center">
-          <p class="text-xs text-secondary">Token QR cabang</p>
+          <p class="text-xs text-secondary">Kode dari layar cabang</p>
           <p class="break-all font-mono text-sm font-semibold">{{ qr?.token ?? '—' }}</p>
-          <p v-if="qr" class="text-xs text-secondary">berlaku ±{{ qr.expires_in }} dtk · <button class="text-primary underline" @click="muatQr">muat ulang</button></p>
+          <p v-if="qr" class="text-xs text-secondary">berlaku sekitar {{ qr.expires_in }} detik · <button class="text-primary underline" @click="muatQr">minta kode baru</button></p>
         </div>
         <div class="mt-3">
           <AppField label="Foto selfie (wajib clock-in, maks 2 MB)">
