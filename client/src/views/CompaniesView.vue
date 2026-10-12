@@ -90,13 +90,20 @@ onMounted(muat)
 
     <div class="grid gap-3 md:grid-cols-2">
       <div v-for="c in list" :key="c.id" class="rounded-xl bg-card p-4 shadow-sm transition hover:shadow">
-        <div class="flex items-start justify-between gap-2">
-          <h2 class="font-display font-semibold">{{ c.name }}</h2>
-          <AppBadge :tone="extra[c.id]?.sub === 'aktif' || extra[c.id]?.sub === 'trial' ? 'green' : 'red'">
-            {{ extra[c.id]?.sub ?? c.status }}
-          </AppBadge>
+        <div class="flex items-start gap-3">
+          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-container font-display text-lg font-bold text-on-primary">
+            {{ c.name.charAt(0).toUpperCase() }}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="font-display truncate font-semibold">{{ c.name }}</h2>
+              <AppBadge :tone="extra[c.id]?.sub === 'aktif' || extra[c.id]?.sub === 'trial' ? 'green' : 'red'">
+                {{ extra[c.id]?.sub ?? c.status }}
+              </AppBadge>
+            </div>
+            <p class="mt-0.5 font-mono text-xs text-secondary">{{ c.slug }}</p>
+          </div>
         </div>
-        <p class="mt-1 font-mono text-xs text-secondary">{{ c.slug }}</p>
         <p v-if="extra[c.id]?.branches.length" class="mt-2 text-sm">
           <span class="text-secondary">Cabang: </span>{{ extra[c.id]!.branches.join(', ') }}
         </p>

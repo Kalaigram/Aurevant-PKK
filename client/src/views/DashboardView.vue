@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { api } from '../lib/api'
+import { api, ApiError } from '../lib/api'
 import { rupiah } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAsync } from '../composables/useAsync'
@@ -13,10 +13,34 @@ import AppIcon from '../components/ui/AppIcon.vue'
 const { auth, companyId } = useCompany()
 const { loading, error, run } = useAsync()
 const data = ref<Record<string, unknown> | null>(null)
+const tren = ref<number[]>([])
 
 onMounted(async () => {
   data.value = await run(() => api.get<Record<string, unknown>>(`/companies/${companyId.value}/dashboard`, auth.token))
+  if (section('penjualan')) {
+    try {
+      const d = data.value as Record<string, string>
+      const res = await api.get<{ rows: { date: string; netOmzet: string }[] }>(
+        `/companies/${companyId.value}/reports/daily?from=${d.month_start}&to=${d.today}`, auth.token,
+      )
+      const perTanggal = new Map<string, number>()
+      for (const r of res.rows ?? []) perTanggal.set(r.date, (perTanggal.get(r.date) ?? 0) + Number(r.netOmzet))
+      tren.value = [...perTanggal.entries()].sort().map(([, v]) => v)
+    } catch (e) {
+      if (!(e instanceof ApiError && e.status === 403)) throw e
+    }
+  }
 })
+
+function sparkline(): string {
+  const vals = tren.value
+  if (vals.length < 2) return ''
+  const max = Math.max(...vals)
+  const min = Math.min(...vals)
+  const span = max - min || 1
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * 100},${34 - ((v - min) / span) * 30}`)
+  return `M0,36 L${pts.join(' L')} L100,36 Z`
+}
 
 function section(key: string): Record<string, number> | null {
   const s = data.value?.[key]
@@ -85,15 +109,19 @@ const subTone = () => {
         </div>
         <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <AppCard v-for="k in [
-            { icon: 'payments', label: 'Omzet hari ini', value: rupiah(section('penjualan')!.omzet_hari_ini) },
-            { icon: 'receipt_long', label: 'Transaksi hari ini', value: String(section('penjualan')!.transaksi_hari_ini) },
-            { icon: 'point_of_sale', label: 'Shift terbuka', value: String(section('penjualan')!.shift_terbuka) },
+            { icon: 'payments', label: 'Omzet hari ini', value: rupiah(section('penjualan')!.omzet_hari_ini), spark: true },
+            { icon: 'receipt_long', label: 'Transaksi hari ini', value: String(section('penjualan')!.transaksi_hari_ini), spark: false },
+            { icon: 'point_of_sale', label: 'Shift terbuka', value: String(section('penjualan')!.shift_terbuka), spark: false },
           ]" :key="k.label">
             <div class="flex items-center gap-2 text-sm text-secondary">
               <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-low text-primary"><AppIcon :name="k.icon" :size="18" /></span>
               {{ k.label }}
             </div>
             <p class="font-display mt-2 text-xl font-bold">{{ k.value }}</p>
+            <svg v-if="k.spark && tren.length > 1" viewBox="0 0 100 36" class="mt-2 h-9 w-full" aria-hidden="true">
+              <path :d="sparkline()" class="fill-primary-container/25" stroke="none" />
+            </svg>
+            <p v-if="k.spark && tren.length > 1" class="mt-1 text-[11px] text-secondary">Tren omzet harian bulan ini</p>
           </AppCard>
         </div>
       </section>
