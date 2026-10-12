@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from './lib/api'
 import { useAuthStore } from './stores/auth'
 import { useAccessStore } from './stores/access'
 import AppIcon from './components/ui/AppIcon.vue'
 
-interface Item { to?: string; label: string; icon: string; perms?: string[]; segera?: boolean }
+interface Item { to: string; label: string; icon: string; perms?: string[] }
 interface Group { title: string; items: Item[] }
 
 const route = useRoute()
@@ -15,6 +15,7 @@ const access = useAccessStore()
 const companyId = computed(() => Number(route.params.companyId ?? auth.companyId ?? 0))
 const unread = ref(0)
 const jam = ref('')
+const buka = ref<Record<string, boolean>>({})
 let timer: number | undefined
 
 function tick() {
@@ -37,41 +38,52 @@ const groups = computed<Group[]>(() => {
   const id = companyId.value
   if (!id) return []
   const c = `/c/${id}`
-  const semu = (label: string, icon: string, to: string, perms?: string[]): Item => ({ label, icon, to, perms })
-  const nanti = (label: string, icon: string): Item => ({ label, icon, segera: true })
-  const lihat = (it: Item) => !it.perms || !access.loaded || access.can(...it.perms)
-  const g = (title: string, items: Item[]): Group => ({ title, items: items.filter(lihat) })
-  return [
-    g('Utama', [semu('Dashboard', 'dashboard', `${c}/dashboard`)]),
-    g('Operasional & Penjualan', [
-      semu('Persetujuan', 'fact_check', `${c}/approvals`, APPROVAL_PERMS),
-      nanti('Kasir / POS', 'point_of_sale'), nanti('Nota', 'receipt_long'),
-      nanti('Pelanggan', 'group'), nanti('Order Jasa', 'engineering'),
-      nanti('Katalog', 'category'), nanti('Stok', 'inventory_2'),
-      nanti('Transfer Stok', 'swap_horiz'), nanti('Opname', 'content_paste_search'),
-      nanti('Pembelian (PO)', 'shopping_cart'),
-    ]),
-    g('SDM', [
-      semu('Absensi', 'fingerprint', `${c}/attendance`),
-      semu('Cuti', 'event_note', `${c}/leaves`),
-      semu('Slip Gaji', 'receipt_long', `${c}/slip`),
-      semu('Kartu', 'badge', `${c}/card`),
-      nanti('Jadwal & Shift', 'schedule'), nanti('Kehadiran', 'how_to_reg'),
-      nanti('Penggajian', 'payments'), nanti('Karyawan', 'groups'),
-    ]),
-    g('Keuangan', [
-      nanti('Biaya', 'request_quote'), nanti('Hutang', 'credit_card'),
-      nanti('Piutang', 'receipt'), nanti('Jurnal', 'book'),
-      nanti('Laporan', 'assessment'), nanti('Tutup Periode', 'lock_clock'),
-    ]),
-    g('Sistem', [
-      semu('Notifikasi', 'notifications', `${c}/notifications`),
-      semu('Langganan', 'workspace_premium', `${c}/subscription`),
-      semu('Profil', 'account_circle', `${c}/profile`),
-      nanti('Role & Akses', 'manage_accounts'), nanti('Audit Log', 'plagiarism'),
-      nanti('Impor / Ekspor', 'upload_file'),
-    ]),
-  ].filter((gr) => gr.items.length > 0)
+  const item = (to: string, label: string, icon: string, perms?: string[]): Item => ({ to, label, icon, perms })
+  const semua = [
+    { title: 'Utama', items: [item(`${c}/dashboard`, 'Dashboard', 'dashboard')] },
+    {
+      title: 'Operasional', items: [
+        item(`${c}/approvals`, 'Persetujuan', 'fact_check', APPROVAL_PERMS),
+      ],
+    },
+    {
+      title: 'SDM', items: [
+        item(`${c}/attendance`, 'Absensi', 'fingerprint'),
+        item(`${c}/leaves`, 'Cuti', 'event_note'),
+        item(`${c}/slip`, 'Slip Gaji', 'receipt_long'),
+        item(`${c}/card`, 'Kartu', 'badge'),
+      ],
+    },
+    {
+      title: 'Sistem', items: [
+        item(`${c}/notifications`, 'Notifikasi', 'notifications'),
+        item(`${c}/subscription`, 'Langganan', 'workspace_premium'),
+        item(`${c}/profile`, 'Profil', 'account_circle'),
+      ],
+    },
+  ]
+  return semua
+    .map((g) => ({ ...g, items: g.items.filter((m) => !m.perms || !access.loaded || access.can(...m.perms)) }))
+    .filter((g) => g.items.length > 0)
+})
+
+function aktifDiGrup(g: Group) {
+  return g.items.some((m) => route.path === m.to || route.path.startsWith(m.to + '/'))
+}
+
+watch(companyId, (id) => {
+  if (id) {
+    void access.load(id, auth.token)
+    for (const g of groups.value) {
+      if (!(g.title in buka.value)) buka.value[g.title] = true
+    }
+  }
+}, { immediate: true })
+
+watch(() => route.path, () => {
+  for (const g of groups.value) {
+    if (aktifDiGrup(g)) buka.value[g.title] = true
+  }
 })
 
 async function muatBadge() {
@@ -99,27 +111,49 @@ onUnmounted(() => window.clearInterval(timer))
         <p class="text-xs text-emerald-50/75">Operasional Multi-Cabang</p>
       </div>
       <template v-for="gr in groups" :key="gr.title">
-        <p class="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-emerald-50/60 max-md:hidden">{{ gr.title }}</p>
-        <template v-for="m in gr.items" :key="m.label">
+        <div class="max-md:hidden">
+          <button
+            class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-emerald-50/60 hover:bg-white/5"
+            :aria-expanded="buka[gr.title] ?? true"
+            @click="buka[gr.title] = !(buka[gr.title] ?? true)"
+          >
+            {{ gr.title }}
+            <AppIcon
+              name="expand_more" :size="16"
+              class="transition-transform duration-200 motion-reduce:transition-none"
+              :class="(buka[gr.title] ?? true) ? '' : '-rotate-90'"
+            />
+          </button>
+          <div
+            class="grid transition-[grid-template-rows] duration-200 ease-in-out motion-reduce:transition-none"
+            :class="(buka[gr.title] ?? true) ? '[grid-template-rows:1fr]' : '[grid-template-rows:0fr]'"
+          >
+            <div class="overflow-hidden">
+              <RouterLink
+                v-for="m in gr.items" :key="m.to"
+                :to="m.to"
+                class="mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-emerald-50/90 transition-colors hover:bg-white/10 hover:text-white"
+                active-class="bg-white/15! text-white!"
+              ><AppIcon :name="m.icon" :size="20" />{{ m.label }}
+                <span v-if="m.label === 'Notifikasi' && unread" class="ml-auto rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">{{ unread }}</span>
+              </RouterLink>
+            </div>
+          </div>
+        </div>
+        <template v-for="m in gr.items" :key="m.to">
           <RouterLink
-            v-if="m.to" :to="m.to"
-            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-emerald-50/90 transition-colors hover:bg-white/10 hover:text-white max-md:whitespace-nowrap"
+            :to="m.to"
+            class="hidden items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm text-emerald-50/90 hover:bg-white/10 max-md:flex"
             active-class="bg-white/15! text-white!"
           ><AppIcon :name="m.icon" :size="20" />{{ m.label }}</RouterLink>
-          <span
-            v-else
-            class="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm text-emerald-50/40 max-md:whitespace-nowrap"
-            :title="`${m.label} — segera hadir`"
-          ><AppIcon :name="m.icon" :size="20" />{{ m.label }}
-            <span class="rounded bg-white/10 px-1.5 text-[10px]">Segera</span></span>
         </template>
       </template>
       <div class="flex-1 max-md:hidden" />
       <RouterLink to="/companies" class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-emerald-50/90 hover:bg-white/10 max-md:whitespace-nowrap">
-        <AppIcon name="domain" :size="20" />Ganti Perusahaan
+        <AppIcon name="domain" :size="20" /><span class="max-md:hidden">Ganti Perusahaan</span>
       </RouterLink>
       <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-emerald-50/90 hover:bg-white/10 max-md:whitespace-nowrap" @click.prevent="keluar">
-        <AppIcon name="logout" :size="20" />Keluar
+        <AppIcon name="logout" :size="20" /><span class="max-md:hidden">Keluar</span>
       </a>
     </nav>
     <div class="flex min-w-0 flex-1 flex-col">
