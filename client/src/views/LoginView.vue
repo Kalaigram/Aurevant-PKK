@@ -66,6 +66,7 @@ async function masuk() {
           <li><button type="button" class="font-mono text-primary underline" @click="login = 'kasir@demo.id'">kasir@demo.id</button> — kasir & pengajuan</li>
           <li><button type="button" class="font-mono text-primary underline" @click="login = 'teknisi@demo.id'">teknisi@demo.id</button> — eksekusi jasa</li>
           <li><button type="button" class="font-mono text-primary underline" @click="login = 'keuangan@demo.id'">keuangan@demo.id</button> — biaya & laporan</li>
+          <li><button type="button" class="font-mono text-primary underline" @click="login = 'superadmin@demo.id'">superadmin@demo.id</button> — admin platform</li>
         </ul>
       </details>
     </form>
