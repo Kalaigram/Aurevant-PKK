@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { api, type PageMeta } from '../lib/api'
 import { waktuRelatif } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
@@ -17,12 +18,35 @@ interface Notif {
   type: string
   title: string
   body: string | null
+  link: string | null
   read_at: string | null
   created_at?: string
 }
 
 interface Prefs { type: string; enabled: boolean }
 
+const JENIS: Record<string, { label: string; icon: string; hint: string }> = {
+  'transfer.diajukan': { label: 'Transfer diajukan', icon: 'swap_horiz', hint: 'Cabang lain memohon stok' },
+  'transfer.disetujui': { label: 'Transfer disetujui', icon: 'swap_horiz', hint: 'Pengeluaran stok terverifikasi' },
+  'transfer.dikirim': { label: 'Transfer dikirim', icon: 'local_shipping', hint: 'Barang dalam perjalanan' },
+  'transfer.diterima': { label: 'Transfer diterima', icon: 'inventory', hint: 'Barang sampai di cabang tujuan' },
+  'po.diajukan': { label: 'PO diajukan', icon: 'shopping_cart', hint: 'Pesanan pembelian butuh otorisasi' },
+  'po.disetujui': { label: 'PO disetujui', icon: 'shopping_cart', hint: 'Pesanan diteruskan ke vendor' },
+  'po.diterima': { label: 'PO diterima', icon: 'package_2', hint: 'Gudang mencatat penerimaan barang' },
+  'sale.void': { label: 'Nota dibatalkan', icon: 'cancel', hint: 'Pembatalan nota transaksi' },
+  'sale.retur': { label: 'Ada retur', icon: 'assignment_return', hint: 'Pengembalian barang pelanggan' },
+  'opname.disetujui': { label: 'Opname disetujui', icon: 'fact_check', hint: 'Selisih stok disetujui' },
+  'shift.selisih': { label: 'Selisih kas shift', icon: 'warning', hint: 'Kas fisik beda dengan catatan' },
+  'approval.diajukan': { label: 'Minta persetujuan', icon: 'approval', hint: 'Perlu respon atasan' },
+}
+
+const GROUPS: { title: string; types: string[] }[] = [
+  { title: 'Logistik & perpindahan stok', types: ['transfer.diajukan', 'transfer.disetujui', 'transfer.dikirim', 'transfer.diterima'] },
+  { title: 'Pengadaan barang (PO)', types: ['po.diajukan', 'po.disetujui', 'po.diterima'] },
+  { title: 'Penjualan, shift & otorisasi', types: ['sale.void', 'sale.retur', 'shift.selisih', 'opname.disetujui', 'approval.diajukan'] },
+]
+
+const router = useRouter()
 const { auth, companyId } = useCompany()
 const { loading, error, run } = useAsync()
 const list = ref<Notif[]>([])
@@ -30,25 +54,11 @@ const meta = ref<PageMeta | null>(null)
 const unread = ref(0)
 const tab = ref<'semua' | 'belum'>('semua')
 const prefs = ref<Prefs[]>([])
+const showPrefs = ref(false)
 let timer: number | undefined
 
-const JENIS: Record<string, string> = {
-  'transfer.diajukan': 'Transfer diajukan',
-  'transfer.disetujui': 'Transfer disetujui',
-  'transfer.dikirim': 'Transfer dikirim',
-  'transfer.diterima': 'Transfer diterima',
-  'po.diajukan': 'PO diajukan',
-  'po.disetujui': 'PO disetujui',
-  'po.diterima': 'PO diterima',
-  'sale.void': 'Nota dibatalkan',
-  'sale.retur': 'Ada retur',
-  'opname.disetujui': 'Opname disetujui',
-  'shift.selisih': 'Selisih kas shift',
-  'approval.diajukan': 'Minta persetujuan',
-}
-
-function jenisLabel(t: string) {
-  return JENIS[t] ?? 'Pemberitahuan'
+function jenis(t: string) {
+  return JENIS[t] ?? { label: 'Pemberitahuan', icon: 'info', hint: '' }
 }
 
 async function muat(page = 1) {
@@ -63,8 +73,12 @@ async function muat(page = 1) {
   if (c) unread.value = c.unread
 }
 
-async function baca(n: Notif) {
+async function buka(n: Notif) {
   await run(() => api.post(`/notifications/${n.id}/read`, undefined, auth.token))
+  if (n.link?.startsWith('/approvals/')) {
+    router.push(`/c/${companyId.value}/approvals`)
+    return
+  }
   muat(meta.value?.current_page ?? 1)
 }
 
@@ -82,6 +96,10 @@ async function togglePref(p: Prefs) {
   muatPrefs()
 }
 
+function prefOf(type: string): Prefs | undefined {
+  return prefs.value.find((p) => p.type === type)
+}
+
 onMounted(() => {
   muat()
   muatPrefs()
@@ -92,38 +110,63 @@ onUnmounted(() => window.clearInterval(timer))
 
 <template>
   <div>
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-3">
-        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary">
-          <AppIcon name="notifications" :size="28" />
-        </div>
-        <h1 class="font-display text-xl font-semibold">Notifikasi <AppBadge tone="red">{{ unread }} belum dibaca</AppBadge></h1>
+    <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Monitoring kanal pusat</p>
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <h1 class="font-display text-xl font-semibold">Notifikasi & aktivitas bisnis</h1>
+      <div class="flex gap-2">
+        <AppButton variant="ghost" @click="bacaSemua">Tandai semua dibaca</AppButton>
+        <AppButton variant="ghost" @click="showPrefs = !showPrefs"><AppIcon name="settings" :size="18" />Preferensi</AppButton>
       </div>
-      <AppButton variant="ghost" @click="bacaSemua">Tandai semua dibaca</AppButton>
     </div>
     <AppBanner tone="red" :message="error" />
+
+    <div class="mb-4 grid grid-cols-2 gap-3">
+      <AppCard>
+        <p class="text-xs uppercase tracking-wider text-secondary">Belum ditindaklanjuti</p>
+        <p class="font-display mt-1 text-2xl font-bold">{{ unread }}</p>
+      </AppCard>
+      <AppCard>
+        <p class="text-xs uppercase tracking-wider text-secondary">Total periode ini</p>
+        <p class="font-display mt-1 text-2xl font-bold">{{ meta?.total ?? list.length }}</p>
+      </AppCard>
+    </div>
+
+    <div v-if="showPrefs" class="mb-4">
+      <AppCard title="Preferensi notifikasi">
+        <div v-for="g in GROUPS" :key="g.title" class="mb-3 last:mb-0">
+          <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-secondary">{{ g.title }}</p>
+          <div v-for="t in g.types" :key="t" class="flex items-center justify-between border-b border-surface-low py-2 text-sm last:border-0">
+            <div>
+              <p class="font-medium">{{ jenis(t).label }}</p>
+              <p class="text-xs text-secondary">{{ jenis(t).hint }}</p>
+            </div>
+            <AppButton v-if="prefOf(t)" variant="ghost" @click="togglePref(prefOf(t)!)">{{ prefOf(t)!.enabled ? 'Matikan' : 'Nyalakan' }}</AppButton>
+          </div>
+        </div>
+      </AppCard>
+    </div>
+
     <div class="mb-3 flex gap-2">
       <AppButton :variant="tab === 'semua' ? 'primary' : 'ghost'" @click="tab = 'semua'; muat()">Semua</AppButton>
       <AppButton :variant="tab === 'belum' ? 'primary' : 'ghost'" @click="tab = 'belum'; muat()">Belum dibaca</AppButton>
     </div>
     <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
     <AppEmpty v-else-if="!list.length" message="Tidak ada notifikasi." />
-    <AppCard v-for="n in list" :key="n.id" class="cursor-pointer transition hover:shadow" @click="baca(n)">
+    <AppCard v-for="n in list" :key="n.id" class="cursor-pointer transition hover:shadow" @click="buka(n)">
       <div class="flex items-start gap-3">
-        <AppIcon name="info" :size="20" />
-        <div class="min-w-0">
-          <p class="font-semibold">{{ n.title }} <AppBadge v-if="!n.read_at" tone="blue">baru</AppBadge></p>
-          <p class="text-sm text-secondary">{{ n.body }}</p>
-          <p class="mt-1 text-xs text-secondary">{{ jenisLabel(n.type) }} · {{ waktuRelatif(n.created_at) }}</p>
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-low text-primary">
+          <AppIcon :name="jenis(n.type).icon" :size="20" />
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center justify-between gap-2">
+            <p class="font-semibold">{{ n.title }}</p>
+            <AppBadge :tone="n.read_at ? 'gray' : 'red'">{{ n.read_at ? 'Dibaca' : 'Baru' }}</AppBadge>
+          </div>
+          <p class="mt-0.5 text-sm text-secondary">{{ n.body }}</p>
+          <p class="mt-1 text-xs text-secondary">{{ jenis(n.type).label }} · {{ waktuRelatif(n.created_at) }}</p>
         </div>
       </div>
     </AppCard>
     <AppPager :meta="meta" @page="muat" />
-    <AppCard title="Preferensi" class="mt-4">
-      <div v-for="p in prefs" :key="p.type" class="flex items-center justify-between border-b border-surface-low py-2 text-sm last:border-0">
-        <span class="font-mono text-xs">{{ p.type }}</span>
-        <AppButton variant="ghost" @click="togglePref(p)">{{ p.enabled ? 'Matikan' : 'Nyalakan' }}</AppButton>
-      </div>
-    </AppCard>
   </div>
 </template>

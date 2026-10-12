@@ -63,21 +63,17 @@ const subTone = () => {
           <h2 class="font-display text-base font-semibold">Likuiditas & Ringkasan Finansial</h2>
         </div>
         <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <AppCard>
-            <div class="flex items-center gap-2 text-sm text-secondary"><AppIcon name="account_balance_wallet" :size="18" />Kas bersih bulan ini</div>
-            <p class="font-display mt-1 text-xl font-bold">{{ rupiah(section('keuangan')!.kas_bersih_bulan_ini) }}</p>
-          </AppCard>
-          <AppCard>
-            <div class="flex items-center gap-2 text-sm text-secondary"><AppIcon name="trending_up" :size="18" />Laba bersih bulan ini</div>
-            <p class="font-display mt-1 text-xl font-bold">{{ rupiah(section('keuangan')!.laba_bersih_bulan_ini) }}</p>
-          </AppCard>
-          <AppCard>
-            <div class="flex items-center gap-2 text-sm text-secondary"><AppIcon name="credit_card" :size="18" />Total hutang</div>
-            <p class="font-display mt-1 text-xl font-bold">{{ rupiah(section('keuangan')!.hutang_total) }}</p>
-          </AppCard>
-          <AppCard>
-            <div class="flex items-center gap-2 text-sm text-secondary"><AppIcon name="receipt" :size="18" />Total piutang</div>
-            <p class="font-display mt-1 text-xl font-bold">{{ rupiah(section('keuangan')!.piutang_total) }}</p>
+          <AppCard v-for="k in [
+            { icon: 'account_balance_wallet', label: 'Kas bersih bulan ini', value: rupiah(section('keuangan')!.kas_bersih_bulan_ini) },
+            { icon: 'trending_up', label: 'Laba bersih bulan ini', value: rupiah(section('keuangan')!.laba_bersih_bulan_ini) },
+            { icon: 'credit_card', label: 'Total hutang', value: rupiah(section('keuangan')!.hutang_total) },
+            { icon: 'receipt', label: 'Total piutang', value: rupiah(section('keuangan')!.piutang_total) },
+          ]" :key="k.label">
+            <div class="flex items-center gap-2 text-sm text-secondary">
+              <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-low text-primary"><AppIcon :name="k.icon" :size="18" /></span>
+              {{ k.label }}
+            </div>
+            <p class="font-display mt-2 text-xl font-bold">{{ k.value }}</p>
           </AppCard>
         </div>
       </section>
@@ -88,17 +84,16 @@ const subTone = () => {
           <h2 class="font-display text-base font-semibold">Penjualan Hari Ini</h2>
         </div>
         <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <AppCard>
-            <div class="flex items-center gap-2 text-sm text-secondary"><AppIcon name="payments" :size="18" />Omzet</div>
-            <p class="font-display mt-1 text-xl font-bold">{{ rupiah(section('penjualan')!.omzet_hari_ini) }}</p>
-          </AppCard>
-          <AppCard>
-            <div class="flex items-center gap-2 text-sm text-secondary"><AppIcon name="receipt_long" :size="18" />Transaksi</div>
-            <p class="font-display mt-1 text-xl font-bold">{{ section('penjualan')!.transaksi_hari_ini }}</p>
-          </AppCard>
-          <AppCard>
-            <div class="flex items-center gap-2 text-sm text-secondary"><AppIcon name="point_of_sale" :size="18" />Shift terbuka</div>
-            <p class="font-display mt-1 text-xl font-bold">{{ section('penjualan')!.shift_terbuka }}</p>
+          <AppCard v-for="k in [
+            { icon: 'payments', label: 'Omzet hari ini', value: rupiah(section('penjualan')!.omzet_hari_ini) },
+            { icon: 'receipt_long', label: 'Transaksi hari ini', value: String(section('penjualan')!.transaksi_hari_ini) },
+            { icon: 'point_of_sale', label: 'Shift terbuka', value: String(section('penjualan')!.shift_terbuka) },
+          ]" :key="k.label">
+            <div class="flex items-center gap-2 text-sm text-secondary">
+              <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-low text-primary"><AppIcon :name="k.icon" :size="18" /></span>
+              {{ k.label }}
+            </div>
+            <p class="font-display mt-2 text-xl font-bold">{{ k.value }}</p>
           </AppCard>
         </div>
       </section>
