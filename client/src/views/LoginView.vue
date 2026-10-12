@@ -59,6 +59,15 @@ async function masuk() {
       <AppButton type="submit" :loading="loading" class="mt-4 w-full">
         <AppIcon name="arrow_forward" :size="18" />Masuk ke perusahaan
       </AppButton>
+      <details class="mt-4 rounded-lg bg-surface-low p-3 text-xs text-secondary">
+        <summary class="cursor-pointer font-semibold text-primary">Coba akun demo (sandi: password123)</summary>
+        <ul class="mt-2 space-y-1">
+          <li><button type="button" class="font-mono text-primary underline" @click="login = 'pemilik@demo.id'">pemilik@demo.id</button> — akses penuh</li>
+          <li><button type="button" class="font-mono text-primary underline" @click="login = 'kasir@demo.id'">kasir@demo.id</button> — kasir & pengajuan</li>
+          <li><button type="button" class="font-mono text-primary underline" @click="login = 'teknisi@demo.id'">teknisi@demo.id</button> — eksekusi jasa</li>
+          <li><button type="button" class="font-mono text-primary underline" @click="login = 'keuangan@demo.id'">keuangan@demo.id</button> — biaya & laporan</li>
+        </ul>
+      </details>
     </form>
   </AuthLayout>
 </template>
