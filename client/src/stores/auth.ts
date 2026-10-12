@@ -6,6 +6,7 @@ export interface AuthUser {
   name: string
   email: string
   phone: string | null
+  isSuperAdmin: boolean
 }
 
 interface Stored {

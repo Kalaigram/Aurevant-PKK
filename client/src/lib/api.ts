@@ -56,6 +56,8 @@ export const api = {
     request<T>(path, { method: 'POST', body: form }, token),
   put: <T>(path: string, payload: unknown, token?: string | null) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(payload) }, token),
+  patch: <T>(path: string, payload: unknown, token?: string | null) =>
+    request<T>(path, { method: 'PATCH', body: JSON.stringify(payload) }, token),
   del: <T>(path: string, token?: string | null) => request<T>(path, { method: 'DELETE' }, token),
 }
 

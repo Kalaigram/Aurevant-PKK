@@ -36,7 +36,14 @@ const APPROVAL_PERMS = [
 
 const groups = computed<Group[]>(() => {
   const id = companyId.value
-  if (!id) return []
+  const all: Group[] = []
+  if (auth.user?.isSuperAdmin) {
+    all.push({
+      title: 'Platform',
+      items: [{ to: '/admin/tenants', label: 'Perusahaan', icon: 'domain' }],
+    })
+  }
+  if (!id) return all
   const c = `/c/${id}`
   const item = (to: string, label: string, icon: string, perms?: string[]): Item => ({ to, label, icon, perms })
   const semua = [
@@ -66,9 +73,9 @@ const groups = computed<Group[]>(() => {
       ],
     },
   ]
-  return semua
+  return [...all, ...semua
     .map((g) => ({ ...g, items: g.items.filter((m) => !m.perms || !access.loaded || access.can(...m.perms)) }))
-    .filter((g) => g.items.length > 0)
+    .filter((g) => g.items.length > 0)]
 })
 
 function aktifDiGrup(g: Group) {

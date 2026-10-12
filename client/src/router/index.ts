@@ -9,6 +9,7 @@ const router = createRouter({
     { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
     { path: '/register', name: 'register', component: () => import('../views/RegisterView.vue') },
     { path: '/companies', name: 'companies', component: () => import('../views/CompaniesView.vue'), meta: { auth: true } },
+    { path: '/admin/tenants', name: 'tenants', component: () => import('../views/TenantsView.vue'), meta: { auth: true, superAdmin: true } },
     {
       path: '/c/:companyId',
       component: () => import('../views/CompanyShell.vue'),
@@ -46,6 +47,7 @@ router.beforeEach((to) => {
   const auth = useAuthStore()
   if (to.meta.auth && !auth.loggedIn) return '/login'
   if ((to.name === 'login' || to.name === 'register') && auth.loggedIn) return '/companies'
+  if (to.meta.superAdmin && !auth.user?.isSuperAdmin) return '/companies'
   if (to.meta.company) {
     const id = Number(to.params.companyId)
     if (!Number.isFinite(id)) return '/companies'
