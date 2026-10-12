@@ -51,9 +51,9 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 
 - [x] Jurnal otomatis penuh + laba rugi per cabang & konsolidasi
 - [x] Hutang/piutang + aging + biaya operasional + tutup periode (blokir posting + buka lagi)
-- [x] BPJS + PPh 21 sederhana dari flag komponen (annualisasi + PTKP menyusul)
-- [x] Invoice langganan manual + bayar perpanjang 30 hari (otomatis penuh menyusul)
-- [ ] Audit log diperluas + laporan keuangan lanjutan
+- [x] BPJS + PPh 21 annualisasi + PTKP per status (TER bulanan menyusul bila perlu)
+- [x] Invoice langganan manual + otomatis harian + bayar perpanjang 30 hari
+- [x] Audit log diperluas (keuangan + langganan + periode) + arus kas + neraca
 
 ## Ditunda (di luar scope)
 
