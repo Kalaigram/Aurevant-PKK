@@ -50,7 +50,7 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 ## Fase 3 — Keuangan lanjutan
 
 - [x] Jurnal otomatis penuh + laba rugi per cabang & konsolidasi
-- [x] Hutang/piutang + aging + biaya operasional (tutup periode menyusul)
+- [x] Hutang/piutang + aging + biaya operasional + tutup periode (blokir posting + buka lagi)
 - [x] BPJS + PPh 21 sederhana dari flag komponen (annualisasi + PTKP menyusul)
 - [x] Invoice langganan manual + bayar perpanjang 30 hari (otomatis penuh menyusul)
 - [ ] Audit log diperluas + laporan keuangan lanjutan
