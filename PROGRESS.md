@@ -10,7 +10,7 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] `server/` — Laravel 13 API-only + Sanctum + `.env` MySQL (`aurevant_pkk`)
 - [x] `android/` — project Kotlin ter-commit terpisah
 - [x] `.gitignore` diperkuat (env, keystore, service-account)
-- [ ] MySQL Laragon jalan + `CREATE DATABASE aurevant_pkk` + `php artisan migrate` lolos
+- [x] MySQL Laragon jalan + `CREATE DATABASE aurevant_pkk` + `php artisan migrate` lolos
 
 ## Fase 1 — MVP
 
@@ -26,7 +26,7 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] Penerimaan barang (stok & HPP berubah saat diterima; retur supplier ditunda)
 - [x] Kasir: shift (buka/tutup + selisih), nota campur barang+jasa, snapshot harga, split payment, DP
 - [x] Void/retur/refund (approval langsung; PIN manajer + batas diskon per role ditunda)
-- [ ] Mesin approval tunggal (void, diskon, refund, PO, transfer, opname)
+- [x] Mesin approval tunggal (inbox + eksekusi: void, diskon, refund, PO, transfer, opname)
 - [x] Nomor nota atomik `{kode cabang}-{yyMMdd}-{urut}` + idempotency key
 - [ ] Struk PDF + cetak thermal (Android)
 - [x] Laporan dasar + tabel ringkasan harian per cabang
@@ -38,14 +38,14 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 
 ## Fase 2 — SDM
 
-- [ ] Penempatan karyawan (riwayat cabang + role + tanggal)
-- [ ] Jadwal: master shift + pola mingguan + roster/override per tanggal
-- [ ] Absensi QR dinamis (HP) + geofence + 1 akun 1 perangkat + selfie + waktu server
-- [ ] Jalur cadangan: kartu QR (UUID) + selfie + PIN di perangkat cabang
-- [ ] Deteksi alpa otomatis + status (hadir/terlambat/alpa/izin/sakit/cuti + flag potong gaji)
-- [ ] Kartu karyawan PDF/PNG + versi digital di mobile
-- [ ] Penggajian komponen fleksibel (1/30, per-hari-hadir, komisi) + periode + kunci + slip PDF
-- [ ] Dashboard per role lengkap
+- [x] Penempatan karyawan (riwayat cabang + role + tanggal)
+- [x] Jadwal: master shift + pola mingguan + roster/override per tanggal
+- [x] Absensi QR dinamis (HP) + geofence + 1 akun 1 perangkat + selfie + waktu server
+- [x] Jalur cadangan: kartu QR (UUID) + selfie + PIN di perangkat cabang
+- [x] Deteksi alpa otomatis + status (hadir/terlambat/alpa/izin/sakit/cuti + flag potong gaji)
+- [x] Kartu karyawan PDF/PNG + versi digital di mobile
+- [x] Penggajian komponen fleksibel (1/30, per-hari-hadir, komisi) + periode + kunci + slip PDF
+- [x] Dashboard per role (keuangan/penjualan/operasional/SDM/penggajian/karyawan)
 
 ## Fase 3 — Keuangan lanjutan
 
