@@ -1,5 +1,8 @@
 # Peta Halaman per Hak Akses — Aurevant PKK
 
+> Progres UI Web: **11 / 40 halaman selesai** — rincian per halaman di §13.
+> Tanda: `[ ]` belum dikerjakan, `[~]` prompt Stitch sudah dibuat, `[x]` layar selesai + terverifikasi API.
+
 Acuan API: `server/routes/api.php` (prefix `/api/v1`). Izin: `app/Domain/Access/Services/PermissionCatalog.php`.
 Template role: `app/Domain/Access/Services/RoleTemplates.php` (Pemilik, Manajer Cabang, Kasir,
 Staf Gudang, Pelaksana Jasa, Admin Keuangan, HR). Super admin: flag `users.is_super_admin`
@@ -198,3 +201,67 @@ Tiga izin ada di katalog + template tapi **belum dienforce backend** — jangan 
 satu-satunya di frontend: `langganan.kelola` (langganan dikunci `super.admin`),
 `pelanggan.ekspor` (belum ada endpoint ekspor pelanggan — hanya item), `gaji.lihat_sendiri`
 (slip dijaga aturan "milik sendiri atau `gaji.kelola`" di controller, bukan izin ini).
+
+## 13. Progres UI Web (Stitch) per halaman
+
+Satu halaman = satu prompt Stitch + satu layar Vue. Centang `[x]` bila layar selesai dan
+menempel ke API-nya; `[~]` bila prompt sudah dibuat tapi layar belum jadi.
+
+### A. Global — 11/11 (prompt: 11/11, layar: 11/11)
+
+- [x] Login / Register
+- [x] Pilih Perusahaan
+- [x] Profil Saya
+- [x] Dashboard
+- [x] Notifikasi
+- [x] Persetujuan (inbox)
+- [x] Absensi Saya
+- [x] Cuti Saya
+- [x] Slip Gaji Saya
+- [x] Kartu Karyawan
+- [x] Langganan (lihat)
+
+### B. Operasional — 0/10 (prompt: 10/10)
+
+- [~] Kasir / POS
+- [~] Nota
+- [~] Void & Retur
+- [~] Pelanggan
+- [~] Order Jasa
+- [~] Stok (saldo + mutasi)
+- [~] Transfer Stok
+- [~] Opname
+- [~] Pembelian (PO + penerimaan)
+- [~] Katalog (kategori + item + supplier)
+
+### C. Manajemen — 0/9 (prompt: 9/9)
+
+- [~] Cabang
+- [~] Harga per Cabang
+- [~] Role & Akses
+- [~] Karyawan & Penempatan
+- [~] Jadwal & Shift
+- [~] Kehadiran & Cuti (kelola HR)
+- [~] Penggajian (komponen + periode)
+- [~] Audit Log
+- [~] Impor / Ekspor
+
+### D. Keuangan — 0/6 (prompt: 6/6)
+
+- [~] Biaya
+- [~] Hutang
+- [~] Piutang
+- [~] Jurnal (entri + neraca saldo)
+- [~] Laporan (laba rugi, harian, arus kas, neraca, konsolidasi)
+- [~] Tutup Periode
+
+### E. Super Admin — 0/4 (prompt: 4/4)
+
+- [~] Paket
+- [~] Langganan Perusahaan (kelola)
+- [~] Invoice Langganan
+- [~] Libur Nasional
+
+### F. Langganan (perusahaan, lihat) — 0/1
+
+- [ ] Status Langganan (sudah tercakup halaman global "Langganan (lihat)" — tidak dihitung ganda)
