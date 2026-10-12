@@ -26,6 +26,7 @@ const router = createRouter({
         { path: 'profile', name: 'profile', component: () => import('../views/ProfileView.vue') },
         { path: 'branches', name: 'branches', component: () => import('../views/BranchesView.vue') },
         { path: 'roles', name: 'roles', component: () => import('../views/RolesView.vue') },
+        { path: 'employees', name: 'employees', component: () => import('../views/EmployeesView.vue') },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/companies' },

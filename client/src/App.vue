@@ -60,6 +60,7 @@ const groups = computed<Group[]>(() => {
         item(`${c}/subscription`, 'Langganan', 'workspace_premium'),
         item(`${c}/branches`, 'Cabang', 'domain'),
         item(`${c}/roles`, 'Role & Akses', 'manage_accounts', ['pengaturan.kelola']),
+        item(`${c}/employees`, 'Karyawan', 'groups', ['karyawan.kelola']),
         item(`${c}/profile`, 'Profil', 'account_circle'),
       ],
     },
