@@ -14,27 +14,27 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 
 ## Fase 1 — MVP
 
-- [ ] Tenant: `companies`, registrasi perusahaan, suspend/aktif
-- [ ] Autentikasi: Sanctum (web SPA + mobile), login email/HP, 2FA opsional, rate limit
-- [ ] RBAC custom: `roles` + `permissions` + scope (sendiri/cabang/perusahaan), template subrole
-- [ ] Cabang: CRUD + zona waktu (WIB/WITA/WIT), tipe gudang
-- [ ] Katalog: kategori, item barang/jasa, pajak, diskon, harga per cabang
-- [ ] Stok: `stock_movements` append-only, saldo turunan, moving average, alert stok minimum
-- [ ] Transfer antar cabang (draft → diajukan → disetujui → dikirim → diterima + in transit)
-- [ ] Stok opname (hitung → selisih → penyesuaian + approval)
-- [ ] PO supplier: draft → diajukan → disetujui → dipesan → diterima → ditutup, approval nominal
-- [ ] Penerimaan barang + retur supplier (stok & HPP berubah saat diterima)
-- [ ] Kasir: shift (buka/tutup + selisih), nota campur barang+jasa, snapshot harga, split payment, DP
-- [ ] Void/retur/refund + batas diskon per role + PIN manajer
+- [x] Tenant: `companies`, registrasi perusahaan, suspend/aktif
+- [x] Autentikasi: Sanctum (web SPA + mobile), login email/HP, rate limit (2FA opsional ditunda)
+- [x] RBAC custom: `roles` + `permissions` + scope (sendiri/cabang/perusahaan), template subrole
+- [x] Cabang: CRUD + zona waktu (WIB/WITA/WIT), tipe gudang
+- [x] Katalog: kategori, item barang/jasa, harga per cabang (pajak/diskon per dokumen ditunda)
+- [x] Stok: `stock_movements` append-only, saldo turunan, moving average (alert stok minimum ditunda)
+- [x] Transfer antar cabang (draft → diajukan → disetujui → dikirim → diterima + in transit)
+- [x] Stok opname (hitung → selisih → penyesuaian + approval)
+- [x] PO supplier: draft → diajukan → disetujui → dipesan → diterima → selesai, approval nominal ditunda
+- [x] Penerimaan barang (stok & HPP berubah saat diterima; retur supplier ditunda)
+- [x] Kasir: shift (buka/tutup + selisih), nota campur barang+jasa, snapshot harga, split payment, DP
+- [x] Void/retur/refund (approval langsung; PIN manajer + batas diskon per role ditunda)
 - [ ] Mesin approval tunggal (void, diskon, refund, PO, transfer, opname)
-- [ ] Nomor nota atomik `{kode cabang}-{yyMMdd}-{urut}` + idempotency key
+- [x] Nomor nota atomik `{kode cabang}-{yyMMdd}-{urut}` + idempotency key
 - [ ] Struk PDF + cetak thermal (Android)
-- [ ] Laporan dasar + tabel ringkasan harian per cabang
-- [ ] Audit log append-only (event + queue)
-- [ ] Notifikasi in-app (polling dulu)
-- [ ] Onboarding wizard + impor/ekspor Excel/CSV
-- [ ] Langganan: paket + status trial/aktif/grace/read-only/suspend, konfirmasi manual
-- [ ] Tes isolasi tenant (A tidak bisa akses data B) lolos 100%
+- [x] Laporan dasar + tabel ringkasan harian per cabang
+- [x] Audit log append-only (event + queue)
+- [x] Notifikasi in-app (polling dulu; FCM/email ditunda)
+- [x] Onboarding wizard (buat company) + impor/ekspor CSV (Excel + undangan karyawan ditunda)
+- [x] Langganan: paket + status trial/aktif/grace/read-only/suspend, konfirmasi manual
+- [x] Tes isolasi tenant (A tidak bisa akses data B) lolos 100%
 
 ## Fase 2 — SDM
 

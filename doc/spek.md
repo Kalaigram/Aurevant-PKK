@@ -778,10 +778,17 @@ Mode offline kasir, payment gateway, loyalty dan poin, notifikasi WhatsApp, prom
 • Selisih stok dan kas per shift dapat ditelusuri sampai ke mutasi atau transaksi penyebabnya.
 • Laporan laba rugi konsolidasi cocok dengan jumlah laporan per cabang.
 • Jumlah kasus titip absen yang lolos mendekati nol (diukur dari tinjauan manajer).
-20. Pertanyaan Terbuka
-• Nama produk dan identitas visual.
-• Cara pembayaran langganan di tahap awal dan rincian paketnya.
-• Template role default yang final untuk tiap jenis bisnis.
-• Tipe bisnis pertama yang dijadikan pilot untuk menguji alur.
-• Kebutuhan perangkat di cabang: tablet untuk QR dinamis dan printer thermal.
-• Detail tampilan dan desain antarmuka (belum dibahas).
+
+Primary: Emerald #047857
+
+Background: Putih #FFFFFF
+
+Surface: Abu-abu sangat muda #F9FAFB
+
+Text: Abu-abu gelap #111827
+
+Success: Hijau #16A34A
+
+Warning: Amber #D97706
+
+Danger: Merah #DC2626
