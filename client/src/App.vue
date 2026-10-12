@@ -58,6 +58,7 @@ const groups = computed<Group[]>(() => {
       title: 'Sistem', items: [
         item(`${c}/notifications`, 'Notifikasi', 'notifications'),
         item(`${c}/subscription`, 'Langganan', 'workspace_premium'),
+        item(`${c}/branches`, 'Cabang', 'domain'),
         item(`${c}/profile`, 'Profil', 'account_circle'),
       ],
     },

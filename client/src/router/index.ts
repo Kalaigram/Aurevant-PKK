@@ -24,6 +24,7 @@ const router = createRouter({
         { path: 'card', name: 'card', component: () => import('../views/CardView.vue') },
         { path: 'subscription', name: 'subscription', component: () => import('../views/SubscriptionView.vue') },
         { path: 'profile', name: 'profile', component: () => import('../views/ProfileView.vue') },
+        { path: 'branches', name: 'branches', component: () => import('../views/BranchesView.vue') },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/companies' },
