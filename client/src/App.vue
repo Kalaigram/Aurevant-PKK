@@ -6,8 +6,16 @@ import { useAuthStore } from './stores/auth'
 import { useAccessStore } from './stores/access'
 import AppIcon from './components/ui/AppIcon.vue'
 
-interface Item { to: string; label: string; icon: string; perms?: string[] }
-interface Group { title: string; items: Item[] }
+interface Item {
+  to: string
+  label: string
+  icon: string
+  perms?: string[]
+}
+interface Group {
+  title: string
+  items: Item[]
+}
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -29,9 +37,15 @@ async function keluar() {
 }
 
 const APPROVAL_PERMS = [
-  'transaksi.buat', 'transaksi.void', 'transaksi.diskon',
-  'retur.buat', 'retur.setujui', 'po.buat', 'po.setujui',
-  'stok.transfer', 'stok.opname',
+  'transaksi.buat',
+  'transaksi.void',
+  'transaksi.diskon',
+  'retur.buat',
+  'retur.setujui',
+  'po.buat',
+  'po.setujui',
+  'stok.transfer',
+  'stok.opname',
 ]
 
 const groups = computed<Group[]>(() => {
@@ -45,16 +59,36 @@ const groups = computed<Group[]>(() => {
   }
   if (!id) return all
   const c = `/c/${id}`
-  const item = (to: string, label: string, icon: string, perms?: string[]): Item => ({ to, label, icon, perms })
+  const item = (to: string, label: string, icon: string, perms?: string[]): Item => ({
+    to,
+    label,
+    icon,
+    perms,
+  })
   const semua = [
     { title: 'Utama', items: [item(`${c}/dashboard`, 'Dashboard', 'dashboard')] },
     {
-      title: 'Operasional', items: [
+      title: 'Operasional',
+      items: [
         item(`${c}/approvals`, 'Persetujuan', 'fact_check', APPROVAL_PERMS),
+        item(`${c}/pos`, 'Kasir / POS', 'point_of_sale', [
+          'transaksi.buat',
+          'shift.buka',
+          'shift.tutup',
+        ]),
+        item(`${c}/sales`, 'Nota', 'receipt_long', ['nota.lihat']),
+        item(`${c}/customers`, 'Pelanggan', 'group', ['pelanggan.lihat', 'pelanggan.kelola']),
+        item(`${c}/services`, 'Order Jasa', 'engineering', ['transaksi.buat', 'jasa.proses']),
+        item(`${c}/catalog`, 'Katalog', 'category', ['katalog.kelola', 'harga.atur']),
+        item(`${c}/stock`, 'Stok', 'inventory_2', ['stok.transfer', 'stok.opname', 'po.buat']),
+        item(`${c}/transfers`, 'Transfer Stok', 'swap_horiz', ['stok.transfer']),
+        item(`${c}/opnames`, 'Opname', 'content_paste_search', ['stok.opname']),
+        item(`${c}/purchase`, 'Pembelian', 'shopping_cart', ['po.buat', 'po.setujui']),
       ],
     },
     {
-      title: 'SDM', items: [
+      title: 'SDM',
+      items: [
         item(`${c}/attendance`, 'Absensi', 'fingerprint'),
         item(`${c}/leaves`, 'Cuti', 'event_note'),
         item(`${c}/slip`, 'Slip Gaji', 'receipt_long'),
@@ -62,7 +96,8 @@ const groups = computed<Group[]>(() => {
       ],
     },
     {
-      title: 'Sistem', items: [
+      title: 'Sistem',
+      items: [
         item(`${c}/notifications`, 'Notifikasi', 'notifications'),
         item(`${c}/subscription`, 'Langganan', 'workspace_premium'),
         item(`${c}/branches`, 'Cabang', 'domain'),
@@ -73,36 +108,51 @@ const groups = computed<Group[]>(() => {
       ],
     },
   ]
-  return [...all, ...semua
-    .map((g) => ({ ...g, items: g.items.filter((m) => !m.perms || !access.loaded || access.can(...m.perms)) }))
-    .filter((g) => g.items.length > 0)]
+  return [
+    ...all,
+    ...semua
+      .map((g) => ({
+        ...g,
+        items: g.items.filter((m) => !m.perms || !access.loaded || access.can(...m.perms)),
+      }))
+      .filter((g) => g.items.length > 0),
+  ]
 })
 
 function aktifDiGrup(g: Group) {
   return g.items.some((m) => route.path === m.to || route.path.startsWith(m.to + '/'))
 }
 
-watch(companyId, (id) => {
-  if (id) {
-    void access.load(id, auth.token)
-    for (const g of groups.value) {
-      if (!(g.title in buka.value)) buka.value[g.title] = true
+watch(
+  companyId,
+  (id) => {
+    if (id) {
+      void access.load(id, auth.token)
+      for (const g of groups.value) {
+        if (!(g.title in buka.value)) buka.value[g.title] = true
+      }
     }
-  }
-}, { immediate: true })
+  },
+  { immediate: true },
+)
 
-watch(() => route.path, () => {
-  for (const g of groups.value) {
-    if (aktifDiGrup(g)) buka.value[g.title] = true
-  }
-})
+watch(
+  () => route.path,
+  () => {
+    for (const g of groups.value) {
+      if (aktifDiGrup(g)) buka.value[g.title] = true
+    }
+  },
+)
 
 async function muatBadge() {
   if (!auth.token) return
   try {
     const c = await api.get<{ unread: number }>('/notifications/unread-count', auth.token)
     unread.value = c.unread
-  } catch { /* badge opsional */ }
+  } catch {
+    /* badge opsional */
+  }
 }
 
 onMounted(() => {
@@ -116,7 +166,9 @@ onUnmounted(() => window.clearInterval(timer))
 <template>
   <div v-if="!auth.loggedIn"><RouterView /></div>
   <div v-else class="flex min-h-screen">
-    <nav class="sticky top-0 flex h-screen w-60 shrink-0 flex-col gap-0.5 overflow-y-auto bg-primary p-3 text-white max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:h-auto max-md:flex-row max-md:overflow-x-auto max-md:p-2">
+    <nav
+      class="sticky top-0 flex h-screen w-60 shrink-0 flex-col gap-0.5 overflow-y-auto bg-primary p-3 text-white max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:h-auto max-md:flex-row max-md:overflow-x-auto max-md:p-2"
+    >
       <div class="px-2 pb-3 pt-2 max-md:hidden">
         <p class="font-display text-lg font-bold">Aurevant PKK</p>
         <p class="text-xs text-emerald-50/75">Operasional Multi-Cabang</p>
@@ -130,23 +182,31 @@ onUnmounted(() => window.clearInterval(timer))
           >
             {{ gr.title }}
             <AppIcon
-              name="expand_more" :size="16"
+              name="expand_more"
+              :size="16"
               class="transition-transform duration-200 motion-reduce:transition-none"
               :class="(buka[gr.title] ?? true) ? '' : '-rotate-90'"
             />
           </button>
           <div
             class="grid transition-[grid-template-rows] duration-200 ease-in-out motion-reduce:transition-none"
-            :class="(buka[gr.title] ?? true) ? '[grid-template-rows:1fr]' : '[grid-template-rows:0fr]'"
+            :class="
+              (buka[gr.title] ?? true) ? '[grid-template-rows:1fr]' : '[grid-template-rows:0fr]'
+            "
           >
             <div class="overflow-hidden">
               <RouterLink
-                v-for="m in gr.items" :key="m.to"
+                v-for="m in gr.items"
+                :key="m.to"
                 :to="m.to"
                 class="mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-emerald-50/90 transition-colors hover:bg-white/10 hover:text-white"
                 active-class="bg-white/15! text-white!"
-              ><AppIcon :name="m.icon" :size="20" />{{ m.label }}
-                <span v-if="m.label === 'Notifikasi' && unread" class="ml-auto rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">{{ unread }}</span>
+                ><AppIcon :name="m.icon" :size="20" />{{ m.label }}
+                <span
+                  v-if="m.label === 'Notifikasi' && unread"
+                  class="ml-auto rounded-full bg-danger px-1.5 text-[10px] font-bold text-white"
+                  >{{ unread }}</span
+                >
               </RouterLink>
             </div>
           </div>
@@ -156,27 +216,49 @@ onUnmounted(() => window.clearInterval(timer))
             :to="m.to"
             class="hidden items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm text-emerald-50/90 hover:bg-white/10 max-md:flex"
             active-class="bg-white/15! text-white!"
-          ><AppIcon :name="m.icon" :size="20" />{{ m.label }}</RouterLink>
+            ><AppIcon :name="m.icon" :size="20" />{{ m.label }}</RouterLink
+          >
         </template>
       </template>
       <div class="flex-1 max-md:hidden" />
-      <RouterLink to="/companies" class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-emerald-50/90 hover:bg-white/10 max-md:whitespace-nowrap">
+      <RouterLink
+        to="/companies"
+        class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-emerald-50/90 hover:bg-white/10 max-md:whitespace-nowrap"
+      >
         <AppIcon name="domain" :size="20" /><span class="max-md:hidden">Ganti Perusahaan</span>
       </RouterLink>
-      <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-emerald-50/90 hover:bg-white/10 max-md:whitespace-nowrap" @click.prevent="keluar">
+      <a
+        href="#"
+        class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-emerald-50/90 hover:bg-white/10 max-md:whitespace-nowrap"
+        @click.prevent="keluar"
+      >
         <AppIcon name="logout" :size="20" /><span class="max-md:hidden">Keluar</span>
       </a>
     </nav>
     <div class="flex min-w-0 flex-1 flex-col">
-      <header class="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-outline/60 bg-card px-4 py-2.5 md:px-6">
-        <strong class="font-display truncate">{{ auth.companyName ?? 'Perusahaan #' + (auth.companyId ?? '-') }}</strong>
+      <header
+        class="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-outline/60 bg-card px-4 py-2.5 md:px-6"
+      >
+        <strong class="font-display truncate">{{
+          auth.companyName ?? 'Perusahaan #' + (auth.companyId ?? '-')
+        }}</strong>
         <div class="flex items-center gap-3 text-sm text-secondary">
           <span class="font-mono text-xs max-sm:hidden">{{ jam }}</span>
-          <RouterLink :to="`/c/${companyId}/notifications`" class="relative rounded-full p-1.5 hover:bg-surface-low" aria-label="Notifikasi">
+          <RouterLink
+            :to="`/c/${companyId}/notifications`"
+            class="relative rounded-full p-1.5 hover:bg-surface-low"
+            aria-label="Notifikasi"
+          >
             <AppIcon name="notifications" :size="22" />
-            <span v-if="unread" class="absolute -right-0.5 -top-0.5 rounded-full bg-danger px-1 text-[10px] font-bold text-white">{{ unread }}</span>
+            <span
+              v-if="unread"
+              class="absolute -right-0.5 -top-0.5 rounded-full bg-danger px-1 text-[10px] font-bold text-white"
+              >{{ unread }}</span
+            >
           </RouterLink>
-          <span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary">
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary"
+          >
             {{ (auth.user?.name ?? '?').charAt(0).toUpperCase() }}
           </span>
         </div>
@@ -184,7 +266,9 @@ onUnmounted(() => window.clearInterval(timer))
       <main class="min-w-0 flex-1 p-4 md:p-6 max-md:pb-24">
         <RouterView :key="$route.fullPath" />
       </main>
-      <footer class="flex flex-col items-center justify-between gap-1 border-t border-outline/60 bg-card px-4 py-2 text-xs text-secondary sm:flex-row md:px-6">
+      <footer
+        class="flex flex-col items-center justify-between gap-1 border-t border-outline/60 bg-card px-4 py-2 text-xs text-secondary sm:flex-row md:px-6"
+      >
         <span>Aurevant PKK · operasional multi-cabang</span>
         <span>{{ auth.user?.name }}</span>
       </footer>
