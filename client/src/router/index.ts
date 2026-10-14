@@ -92,6 +92,8 @@ const router = createRouter({
           name: 'purchase',
           component: () => import('../views/PurchaseView.vue'),
         },
+        { path: 'prices', name: 'prices', component: () => import('../views/PricesView.vue') },
+        { path: 'import', name: 'import', component: () => import('../views/ImportView.vue') },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/companies' },
