@@ -88,6 +88,17 @@ const groups = computed<Group[]>(() => {
       ],
     },
     {
+      title: 'Keuangan',
+      items: [
+        item(`${c}/expenses`, 'Biaya', 'receipt', ['biaya.input', 'biaya.setujui']),
+        item(`${c}/debts`, 'Hutang', 'arrow_upward', ['biaya.setujui', 'keuangan.lihat']),
+        item(`${c}/receivables`, 'Piutang', 'arrow_downward', ['biaya.setujui', 'keuangan.lihat']),
+        item(`${c}/journal`, 'Jurnal', 'menu_book', ['keuangan.lihat']),
+        item(`${c}/reports`, 'Laporan', 'bar_chart', ['keuangan.lihat', 'laporan.konsolidasi']),
+        item(`${c}/periods`, 'Tutup Periode', 'lock', ['periode.tutup']),
+      ],
+    },
+    {
       title: 'SDM',
       items: [
         item(`${c}/attendance`, 'Absensi', 'fingerprint'),
