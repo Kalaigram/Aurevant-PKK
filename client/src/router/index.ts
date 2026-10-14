@@ -21,6 +21,18 @@ const router = createRouter({
       meta: { auth: true, superAdmin: true },
     },
     {
+      path: '/admin/plans',
+      name: 'plans',
+      component: () => import('../views/PlansView.vue'),
+      meta: { auth: true, superAdmin: true },
+    },
+    {
+      path: '/admin/holidays',
+      name: 'national-holidays',
+      component: () => import('../views/NationalHolidaysView.vue'),
+      meta: { auth: true, superAdmin: true },
+    },
+    {
       path: '/c/:companyId',
       component: () => import('../views/CompanyShell.vue'),
       meta: { auth: true, company: true },

@@ -7,6 +7,9 @@ import { useAsync } from '../composables/useAsync'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
+import AppButton from '../components/ui/AppButton.vue'
+import AppField from '../components/ui/AppField.vue'
+import AppEmpty from '../components/ui/AppEmpty.vue'
 
 interface Sub {
   planId: number | null
@@ -16,7 +19,40 @@ interface Sub {
   endsAt: string | null
   allowsWrites: boolean
 }
-interface Plan { id: number; name: string; maxBranches: number; maxEmployees: number; features: string[] | null; price: string }
+interface Plan {
+  id: number
+  name: string
+  maxBranches: number
+  maxEmployees: number
+  features: string[] | null
+  price: string
+}
+interface Tagihan {
+  id: number
+  plan?: { id: number; name: string } | null
+  amount: string
+  status: string
+  dueAt?: string | null
+  paidAt?: string | null
+  note?: string | null
+}
+
+interface Sub {
+  planId: number | null
+  planName: string | null
+  status: string
+  trialEndsAt: string | null
+  endsAt: string | null
+  allowsWrites: boolean
+}
+interface Plan {
+  id: number
+  name: string
+  maxBranches: number
+  maxEmployees: number
+  features: string[] | null
+  price: string
+}
 
 const TAHAP = [
   { key: 'trial', nama: 'Uji coba', ket: 'Akses tulis 14 hari, kuota terbatas.' },
@@ -30,26 +66,110 @@ const { auth, companyId } = useCompany()
 const { loading, error, run } = useAsync()
 const sub = ref<Sub | null>(null)
 const plan = ref<Plan | null>(null)
+const plans = ref<Plan[]>([])
 const jumlahCabang = ref(0)
+const okMsg = ref('')
 
-const tone = (s: string) => (s === 'aktif' || s === 'trial' ? 'green' : s === 'tenggang' ? 'amber' : 'red')
+const adminLayanan = computed(() => auth.user?.isSuperAdmin ?? false)
+const fKelola = ref({ status: '', plan_id: '', ends_at: '' })
+const tagihan = ref<Tagihan[]>([])
+const fTagihan = ref({ plan_id: '', amount: 0, due_at: '', note: '' })
+
+async function muatTagihan() {
+  const res = await run(() =>
+    api.get<Tagihan[]>(
+      `/companies/${companyId.value}/subscription-invoices?per_page=50`,
+      auth.token,
+    ),
+  )
+  if (res)
+    tagihan.value = (
+      Array.isArray(res) ? res : ((res as unknown as { data: Tagihan[] }).data ?? [])
+    ) as Tagihan[]
+}
+
+async function simpanKelola() {
+  const res = await run(() =>
+    api.put(
+      `/companies/${companyId.value}/subscription`,
+      {
+        status: fKelola.value.status,
+        plan_id: fKelola.value.plan_id === '' ? undefined : Number(fKelola.value.plan_id),
+        ends_at: fKelola.value.ends_at || undefined,
+      },
+      auth.token,
+    ),
+  )
+  if (res || !error.value) {
+    okMsg.value = 'Langganan perusahaan diperbarui (tercatat di audit).'
+    muatAwal()
+  }
+}
+
+async function terbitkan() {
+  const res = await run(() =>
+    api.post(
+      `/companies/${companyId.value}/subscription-invoices`,
+      {
+        plan_id: fTagihan.value.plan_id === '' ? undefined : Number(fTagihan.value.plan_id),
+        amount: Number(fTagihan.value.amount),
+        due_at: fTagihan.value.due_at,
+        note: fTagihan.value.note || undefined,
+      },
+      auth.token,
+    ),
+  )
+  if (res) {
+    okMsg.value = 'Tagihan diterbitkan. Tagihan otomatis juga dibuat sistem H-7.'
+    fTagihan.value = { plan_id: '', amount: 0, due_at: '', note: '' }
+    muatTagihan()
+    muatAwal()
+  }
+}
+
+async function lunaskan(t: Tagihan) {
+  const res = await run(() =>
+    api.post(`/companies/${companyId.value}/subscription-invoices/${t.id}/pay`, {}, auth.token),
+  )
+  if (res || !error.value) {
+    okMsg.value = 'Tagihan lunas — masa aktif +30 hari.'
+    muatTagihan()
+    muatAwal()
+  }
+}
+
+async function muatAwal() {
+  sub.value = await run(() =>
+    api.get<Sub>(`/companies/${companyId.value}/subscription`, auth.token),
+  )
+  if (sub.value) {
+    plans.value = (await run(() => api.get<Plan[]>('/plans', auth.token))) ?? []
+    plan.value = plans.value.find((p) => p.id === sub.value!.planId) ?? null
+    const branches =
+      (await run(() => api.get<unknown[]>(`/companies/${companyId.value}/branches`, auth.token))) ??
+      []
+    jumlahCabang.value = branches.length
+    fKelola.value = {
+      status: sub.value.status,
+      plan_id: sub.value.planId === null ? '' : String(sub.value.planId),
+      ends_at: (sub.value.endsAt ?? '').slice(0, 10),
+    }
+    if (adminLayanan.value) muatTagihan()
+  }
+}
+
+const tone = (s: string) =>
+  s === 'aktif' || s === 'trial' ? 'green' : s === 'tenggang' ? 'amber' : 'red'
 const tahapAktif = computed(() => TAHAP.findIndex((t) => t.key === sub.value?.status))
 
-onMounted(async () => {
-  sub.value = await run(() => api.get<Sub>(`/companies/${companyId.value}/subscription`, auth.token))
-  if (sub.value) {
-    const plans = (await run(() => api.get<Plan[]>('/plans', auth.token))) ?? []
-    plan.value = plans.find((p) => p.id === sub.value!.planId) ?? null
-    const branches = (await run(() => api.get<unknown[]>(`/companies/${companyId.value}/branches`, auth.token))) ?? []
-    jumlahCabang.value = branches.length
-  }
-})
+onMounted(muatAwal)
 </script>
 
 <template>
   <div class="mx-auto max-w-2xl">
     <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Pengaturan sistem</p>
     <h1 class="font-display mb-4 text-xl font-semibold">Status langganan perusahaan</h1>
+    <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="error" />
     <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
 
@@ -73,10 +193,12 @@ onMounted(async () => {
           </div>
         </div>
         <div v-if="plan" class="mt-2 text-sm text-secondary">
-          Harga paket {{ rupiah(plan.price) }} · maks {{ plan.maxBranches }} cabang & {{ plan.maxEmployees }} karyawan.
+          Harga paket {{ rupiah(plan.price) }} · maks {{ plan.maxBranches }} cabang &
+          {{ plan.maxEmployees }} karyawan.
         </div>
         <AppBanner
-          v-if="!sub.allowsWrites" tone="red"
+          v-if="!sub.allowsWrites"
+          tone="red"
           message="Penulisan diblokir, namun laporan dan riwayat tetap bisa dibaca. Hubungi pemilik perusahaan."
         />
       </AppCard>
@@ -86,8 +208,15 @@ onMounted(async () => {
           <li v-for="(t, i) in TAHAP" :key="t.key" class="flex items-start gap-3">
             <span
               class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-              :class="i === tahapAktif ? 'bg-primary-container text-on-primary' : i < tahapAktif ? 'bg-primary-container/20 text-primary' : 'bg-surface-low text-secondary'"
-            >{{ i < tahapAktif ? '✓' : i + 1 }}</span>
+              :class="
+                i === tahapAktif
+                  ? 'bg-primary-container text-on-primary'
+                  : i < tahapAktif
+                    ? 'bg-primary-container/20 text-primary'
+                    : 'bg-surface-low text-secondary'
+              "
+              >{{ i < tahapAktif ? '✓' : i + 1 }}</span
+            >
             <div>
               <p class="text-sm font-semibold" :class="i === tahapAktif ? 'text-primary' : ''">
                 {{ t.nama }}<span v-if="i === tahapAktif"> (sekarang)</span>
@@ -105,7 +234,12 @@ onMounted(async () => {
         <div v-if="plan?.features?.length" class="mt-3">
           <p class="text-xs uppercase tracking-wider text-secondary">Fitur paket aktif</p>
           <div class="mt-1 flex flex-wrap gap-1.5">
-            <span v-for="f in plan.features" :key="f" class="rounded-full bg-surface-low px-2.5 py-0.5 text-xs font-medium">{{ f }}</span>
+            <span
+              v-for="f in plan.features"
+              :key="f"
+              class="rounded-full bg-surface-low px-2.5 py-0.5 text-xs font-medium"
+              >{{ f }}</span
+            >
           </div>
         </div>
       </AppCard>
@@ -116,6 +250,94 @@ onMounted(async () => {
           <li>Aktivasi setelah pembayaran terkonfirmasi manual.</li>
         </ul>
       </AppCard>
+
+      <template v-if="adminLayanan">
+        <AppCard title="Kelola langganan (admin layanan)" class="mt-4">
+          <div class="grid gap-2 md:grid-cols-3">
+            <AppField label="Status">
+              <select
+                v-model="fKelola.status"
+                class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm"
+              >
+                <option value="trial">Uji coba</option>
+                <option value="aktif">Aktif</option>
+                <option value="tenggang">Tenggang (masih bisa tulis)</option>
+                <option value="read_only">Hanya baca (tulis diblokir)</option>
+                <option value="ditangguhkan">Ditangguhkan (tulis diblokir)</option>
+              </select>
+            </AppField>
+            <AppField label="Paket">
+              <select
+                v-model="fKelola.plan_id"
+                class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm"
+              >
+                <option value="">— tetap —</option>
+                <option v-for="p in plans" :key="p.id" :value="p.id">{{ p.name }}</option>
+              </select>
+            </AppField>
+            <AppField label="Aktif sampai"
+              ><input
+                v-model="fKelola.ends_at"
+                type="date"
+                class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm"
+            /></AppField>
+          </div>
+          <AppButton class="mt-2" @click="simpanKelola">Simpan perubahan</AppButton>
+        </AppCard>
+
+        <AppCard title="Tagihan langganan" class="mt-4">
+          <div class="grid gap-2 md:grid-cols-2">
+            <AppField label="Paket (opsional)"
+              ><select
+                v-model="fTagihan.plan_id"
+                class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm"
+              >
+                <option value="">— ikut paket aktif —</option>
+                <option v-for="p in plans" :key="p.id" :value="p.id">{{ p.name }}</option>
+              </select></AppField
+            >
+            <AppField label="Nominal (Rp)"
+              ><input
+                v-model.number="fTagihan.amount"
+                type="number"
+                min="0"
+                class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm"
+            /></AppField>
+            <AppField label="Jatuh tempo"
+              ><input
+                v-model="fTagihan.due_at"
+                type="date"
+                class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm"
+            /></AppField>
+            <AppField label="Catatan"
+              ><input
+                v-model="fTagihan.note"
+                maxlength="500"
+                class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm"
+            /></AppField>
+          </div>
+          <AppButton class="mt-2" @click="terbitkan">Terbitkan tagihan</AppButton>
+          <AppEmpty v-if="!tagihan.length" message="Belum ada tagihan untuk perusahaan ini." />
+          <ul v-else class="mt-3 divide-y divide-outline/60">
+            <li
+              v-for="t in tagihan"
+              :key="t.id"
+              class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
+            >
+              <span
+                ><strong>#{{ t.id }}</strong> · {{ t.plan?.name ?? '—' }} · {{ rupiah(t.amount) }} ·
+                jatuh tempo {{ tanggal(t.dueAt) }} ·
+                <AppBadge :tone="t.status === 'lunas' ? 'green' : 'amber'">{{
+                  t.status
+                }}</AppBadge></span
+              >
+              <AppButton v-if="t.status !== 'lunas'" variant="ghost" @click="lunaskan(t)"
+                >Tandai lunas (+30 hari)</AppButton
+              >
+            </li>
+          </ul>
+        </AppCard>
+      </template>
     </template>
   </div>
 </template>

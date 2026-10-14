@@ -54,7 +54,11 @@ const groups = computed<Group[]>(() => {
   if (auth.user?.isSuperAdmin) {
     all.push({
       title: 'Platform',
-      items: [{ to: '/admin/tenants', label: 'Perusahaan', icon: 'domain' }],
+      items: [
+        { to: '/admin/tenants', label: 'Perusahaan', icon: 'domain' },
+        { to: '/admin/plans', label: 'Paket', icon: 'workspace_premium' },
+        { to: '/admin/holidays', label: 'Libur Nasional', icon: 'event' },
+      ],
     })
   }
   if (!id) return all
