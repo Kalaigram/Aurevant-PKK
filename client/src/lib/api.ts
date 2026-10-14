@@ -1,4 +1,5 @@
-const BASE = (import.meta.env.VITE_API_URL as string | undefined ?? 'http://127.0.0.1:8000') + '/api/v1'
+const BASE =
+  ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://127.0.0.1:8000') + '/api/v1'
 
 export class ApiError extends Error {
   status: number
@@ -51,7 +52,11 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string |
 export const api = {
   get: <T>(path: string, token?: string | null) => request<T>(path, { method: 'GET' }, token),
   post: <T>(path: string, payload?: unknown, token?: string | null) =>
-    request<T>(path, { method: 'POST', body: payload === undefined ? undefined : JSON.stringify(payload) }, token),
+    request<T>(
+      path,
+      { method: 'POST', body: payload === undefined ? undefined : JSON.stringify(payload) },
+      token,
+    ),
   postForm: <T>(path: string, form: FormData, token?: string | null) =>
     request<T>(path, { method: 'POST', body: form }, token),
   put: <T>(path: string, payload: unknown, token?: string | null) =>
@@ -59,6 +64,8 @@ export const api = {
   patch: <T>(path: string, payload: unknown, token?: string | null) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(payload) }, token),
   del: <T>(path: string, token?: string | null) => request<T>(path, { method: 'DELETE' }, token),
+  delBody: <T>(path: string, payload: unknown, token?: string | null) =>
+    request<T>(path, { method: 'DELETE', body: JSON.stringify(payload) }, token),
 }
 
 export async function fetchBlob(path: string, token?: string | null): Promise<string> {

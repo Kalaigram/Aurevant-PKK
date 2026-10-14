@@ -94,6 +94,17 @@ const router = createRouter({
         },
         { path: 'prices', name: 'prices', component: () => import('../views/PricesView.vue') },
         { path: 'import', name: 'import', component: () => import('../views/ImportView.vue') },
+        {
+          path: 'schedule',
+          name: 'schedule',
+          component: () => import('../views/ScheduleView.vue'),
+        },
+        {
+          path: 'hr-attendance',
+          name: 'hr-attendance',
+          component: () => import('../views/HrAttendanceView.vue'),
+        },
+        { path: 'payroll', name: 'payroll', component: () => import('../views/PayrollView.vue') },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/companies' },

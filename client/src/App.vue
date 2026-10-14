@@ -92,6 +92,12 @@ const groups = computed<Group[]>(() => {
       items: [
         item(`${c}/attendance`, 'Absensi', 'fingerprint'),
         item(`${c}/leaves`, 'Cuti', 'event_note'),
+        item(`${c}/schedule`, 'Jadwal & Shift', 'calendar_month', ['jadwal.lihat', 'shift.kelola']),
+        item(`${c}/hr-attendance`, 'Kehadiran Karyawan', 'how_to_reg', [
+          'absensi.approve',
+          'absensi.koreksi',
+        ]),
+        item(`${c}/payroll`, 'Penggajian', 'payments', ['gaji.kelola', 'gaji.setujui']),
         item(`${c}/slip`, 'Slip Gaji', 'receipt_long'),
         item(`${c}/card`, 'Kartu', 'badge'),
       ],
