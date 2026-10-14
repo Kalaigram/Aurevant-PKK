@@ -146,6 +146,22 @@ async function muatHarga() {
   hargaMap.value = map
 }
 
+function gantiTab(v: string) {
+  if (v === 'kategori' || v === 'item' || v === 'harga' || v === 'supplier') tab.value = v
+}
+
+function bukaKatBaru() {
+  idKat.value = null
+  namaKat.value = ''
+  showKat.value = true
+}
+
+function bukaKatUbah(k: Kategori) {
+  idKat.value = k.id
+  namaKat.value = k.name
+  showKat.value = true
+}
+
 async function simpanKat() {
   const base = `/companies/${companyId.value}/categories`
   const res = idKat.value
@@ -311,33 +327,20 @@ onMounted(async () => {
         ]"
         :key="t[0]"
         :variant="tab === t[0] ? 'primary' : 'ghost'"
-        @click="tab = t[0] as typeof tab"
+        @click="gantiTab(t[0])"
         >{{ t[1] }}</AppButton
       >
     </div>
 
     <div v-if="tab === 'kategori'">
-      <AppButton
-        v-if="bolehKatalog()"
-        @click="
-          idKat = null
-          namaKat = ''
-          showKat = true
-        "
+      <AppButton v-if="bolehKatalog()" @click="bukaKatBaru"
         ><AppIcon name="add" :size="18" />Kategori</AppButton
       >
       <div class="mt-3 flex flex-wrap gap-2">
         <AppCard v-for="k in kategori" :key="k.id">
           <div class="flex items-center gap-3">
             <p class="font-semibold">{{ k.name }}</p>
-            <AppButton
-              v-if="bolehKatalog()"
-              variant="ghost"
-              @click="
-                idKat = k.id
-                namaKat = k.name
-                showKat = true
-              "
+            <AppButton v-if="bolehKatalog()" variant="ghost" @click="bukaKatUbah(k)"
               >Ubah</AppButton
             >
             <button

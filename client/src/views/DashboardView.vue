@@ -48,6 +48,10 @@ function section(key: string): Record<string, number> | null {
 }
 
 const sub = () => (data.value?.subscription ?? {}) as Record<string, string>
+const sel = (v: unknown) => (v !== null && typeof v === 'object' ? (v as Record<string, string>) : {})
+const namaPerusahaan = () => sel(data.value?.company).name ?? '…'
+const bulanAwal = () => sel(data.value).month_start
+const hariIni = () => sel(data.value).today
 const subTone = () => {
   const s = sub().status
   return s === 'aktif' || s === 'trial' ? 'green' : s === 'tenggang' ? 'amber' : 'red'
@@ -63,12 +67,12 @@ const subTone = () => {
         </div>
         <div>
           <div class="flex flex-wrap items-center gap-2">
-            <h1 class="font-display text-lg font-semibold">{{ (data?.company as Record<string, string>)?.name ?? '…' }}</h1>
+            <h1 class="font-display text-lg font-semibold">{{ namaPerusahaan() }}</h1>
             <AppBadge :tone="subTone()">{{ sub().status ?? '…' }}</AppBadge>
           </div>
           <p class="text-sm text-secondary">
             Langganan sampai <strong class="text-ink">{{ sub().endsAt ?? sub().trialEndsAt ?? '–' }}</strong>
-            · Periode {{ (data as Record<string, string>)?.month_start }} s/d {{ (data as Record<string, string>)?.today }}
+            · Periode {{ bulanAwal() }} s/d {{ hariIni() }}
           </p>
         </div>
       </div>

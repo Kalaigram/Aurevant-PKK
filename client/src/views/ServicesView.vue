@@ -108,6 +108,11 @@ async function lihat(id: number) {
   )
 }
 
+function gantiCabang() {
+  void muat(1)
+  void muatReferensi()
+}
+
 async function muatReferensi() {
   if (!branchId.value) return
   pelanggan.value =
@@ -200,10 +205,7 @@ onMounted(async () => {
       <select
         v-model="branchId"
         class="rounded-lg border border-outline bg-card px-3 py-2 text-sm"
-        @change="
-          muat(1)
-          muatReferensi()
-        "
+        @change="gantiCabang"
       >
         <option v-for="b in cabang" :key="b.id" :value="b.id">{{ b.code }} — {{ b.name }}</option>
       </select>

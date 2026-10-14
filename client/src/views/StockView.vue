@@ -83,6 +83,11 @@ async function muatSaldo(page = 1) {
   }
 }
 
+function gantiCabang() {
+  void muatSaldo(1)
+  void muatRiwayat(1)
+}
+
 async function muatRiwayat(page = 1) {
   if (!branchId.value) return
   const res = await run(() =>
@@ -158,10 +163,7 @@ onMounted(async () => {
       <select
         v-model="branchId"
         class="rounded-lg border border-outline bg-card px-3 py-2 text-sm"
-        @change="
-          muatSaldo(1)
-          muatRiwayat(1)
-        "
+        @change="gantiCabang"
       >
         <option v-for="b in cabang" :key="b.id" :value="b.id">{{ b.code }} — {{ b.name }}</option>
       </select>

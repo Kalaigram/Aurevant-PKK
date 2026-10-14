@@ -42,6 +42,10 @@ const jumlahImpor = ref<number | null>(null)
 
 const boleh = computed(() => access.can('impor.jalankan'))
 
+function pilihJenis(k: string) {
+  if (k === 'items' || k === 'stock' || k === 'suppliers' || k === 'employees') jenis.value = k
+}
+
 function pilihBerkas(e: Event) {
   const input = e.target as HTMLInputElement
   berkas.value = input.files?.[0] ?? null
@@ -155,7 +159,7 @@ onMounted(async () => {
                 ? 'border-primary bg-primary-container/10 font-semibold'
                 : 'border-outline'
             "
-            @click="jenis = key as typeof jenis"
+            @click="pilihJenis(key)"
           >
             {{ label }}
           </button>

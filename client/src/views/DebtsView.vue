@@ -64,6 +64,11 @@ async function muat() {
   if (ag) aging.value = ag as Aging
 }
 
+function mulaiBayar(t: Tagihan) {
+  bayarId.value = t.id
+  bayarNominal.value = Number(t.remaining)
+}
+
 async function bayar(t: Tagihan) {
   if (!bayarNominal.value || bayarNominal.value <= 0) return
   const res = await run(() =>
@@ -149,15 +154,7 @@ onMounted(async () => {
         </p>
         <p class="text-xs text-secondary">Jatuh tempo: {{ tanggal(t.dueAt) }}</p>
         <div v-if="!t.isPaid && bolehBayar" class="mt-2">
-          <AppButton
-            v-if="bayarId !== t.id"
-            variant="ghost"
-            @click="
-              bayarId = t.id
-              bayarNominal = Number(t.remaining)
-            "
-            >Bayar</AppButton
-          >
+          <AppButton v-if="bayarId !== t.id" variant="ghost" @click="mulaiBayar(t)">Bayar</AppButton>
           <div v-else class="flex flex-wrap items-end gap-2">
             <AppField label="Nominal (Rp)"
               ><input

@@ -90,6 +90,11 @@ async function simpan() {
   }
 }
 
+function mulaiTerima(b: Bon) {
+  bayarId.value = b.id
+  bayarNominal.value = Number(b.remaining)
+}
+
 async function terima(b: Bon) {
   if (!bayarNominal.value || bayarNominal.value <= 0) return
   const res = await run(() =>
@@ -176,15 +181,7 @@ onMounted(async () => {
           }}{{ b.customerId ? ` · Pelanggan #${b.customerId}` : ' · Tanpa nama' }}
         </p>
         <div v-if="!b.isPaid && boleh" class="mt-2">
-          <AppButton
-            v-if="bayarId !== b.id"
-            variant="ghost"
-            @click="
-              bayarId = b.id
-              bayarNominal = Number(b.remaining)
-            "
-            >Terima cicilan</AppButton
-          >
+          <AppButton v-if="bayarId !== b.id" variant="ghost" @click="mulaiTerima(b)">Terima cicilan</AppButton>
           <div v-else class="flex flex-wrap items-end gap-2">
             <AppField label="Nominal (Rp)"
               ><input
