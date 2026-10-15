@@ -64,9 +64,22 @@ fun DashboardScreen(
                     if ("transaksi.buat" in state.permissions) {
                         TextButton(onClick = { onOpen("pos") }) { Text("Buka kasir →") }
                     }
-                    if ("stok.transfer" in state.permissions || "stok.opname" in state.permissions) {
-                        TextButton(onClick = { onOpen("attendance") }) { Text("Absensi saya →") }
+                    if ("nota.lihat" in state.permissions) {
+                        TextButton(onClick = { onOpen("nota") }) { Text("Lihat nota →") }
                     }
+                    if ("jasa.proses" in state.permissions) {
+                        TextButton(onClick = { onOpen("jasa") }) { Text("Order jasa →") }
+                    }
+                    if ("stok.transfer" in state.permissions || "stok.opname" in state.permissions) {
+                        TextButton(onClick = { onOpen("gudang") }) { Text("Buka gudang →") }
+                    }
+                    if ("absensi.approve" in state.permissions || "gaji.kelola" in state.permissions) {
+                        TextButton(onClick = { onOpen("tim") }) { Text("Kelola tim →") }
+                    }
+                    if ("keuangan.lihat" in state.permissions || "biaya.input" in state.permissions) {
+                        TextButton(onClick = { onOpen("keuangan") }) { Text("Keuangan →") }
+                    }
+                    TextButton(onClick = { onOpen("attendance") }) { Text("Absensi saya →") }
                 }
             }
         }

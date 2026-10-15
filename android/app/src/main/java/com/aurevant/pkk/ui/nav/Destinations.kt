@@ -12,4 +12,11 @@ object Destinations {
     const val LEAVES = "leaves"
     const val SLIP = "slip"
     const val CARD = "card"
+    const val NOTA = "nota"
+    const val JASA = "jasa"
+    const val GUDANG = "gudang"
+    const val PELANGGAN = "pelanggan"
+    const val TIM = "tim"
+    const val KEUANGAN = "keuangan"
+    const val GAJI = "gaji"
 }

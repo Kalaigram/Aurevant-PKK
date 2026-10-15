@@ -197,3 +197,134 @@ data class StockDto(
     val qty: String,
     val avgCost: String?,
 )
+
+data class TransferItemDto(
+    val itemId: Int,
+    val qtyRequested: String,
+    val qtyShipped: String?,
+    val qtyReceived: String?,
+)
+
+data class TransferDto(
+    val id: Int,
+    val fromBranchId: Int,
+    val toBranchId: Int,
+    val status: String,
+    val note: String?,
+    val items: List<TransferItemDto> = emptyList(),
+)
+
+data class OpnameItemDto(
+    val itemId: Int,
+    val qtySystem: String,
+    val qtyCounted: String,
+    val diff: String,
+)
+
+data class OpnameDto(
+    val id: Int,
+    val branchId: Int,
+    val status: String,
+    val note: String?,
+    val items: List<OpnameItemDto> = emptyList(),
+)
+
+data class MovementDto(
+    val id: Int,
+    val itemId: Int,
+    val type: String,
+    val qty: String,
+    val unitCost: String?,
+    val balanceAfter: String,
+    val note: String?,
+    val createdAt: String?,
+)
+
+data class ServiceOrderItemDto(
+    val itemId: Int?,
+    val qty: String?,
+)
+
+data class ServiceOrderFullDto(
+    val id: Int,
+    val branchId: Int?,
+    val customerId: Int?,
+    val assigneeId: Int?,
+    val saleId: Int?,
+    val status: String,
+    val depositAmount: String?,
+    val note: String?,
+    val items: List<ServiceOrderItemDto> = emptyList(),
+)
+
+data class CustomerDto(
+    val id: Int,
+    val name: String,
+    val phone: String?,
+    val address: String?,
+)
+
+data class ScheduleDayDto(
+    val date: String,
+    val shiftId: Int?,
+    val shiftName: String?,
+    val startsAt: String?,
+    val endsAt: String?,
+    val overnight: Boolean = false,
+    val source: String?,
+    val isOff: Boolean = false,
+)
+
+data class ExpenseCategoryDto(
+    val id: Int,
+    val name: String,
+)
+
+data class ExpenseDto(
+    val id: Int,
+    val branchId: Int,
+    val categoryId: Int?,
+    val categoryName: String?,
+    val amount: String,
+    val method: String?,
+    val date: String?,
+    val description: String?,
+    val status: String,
+)
+
+data class BillDto(
+    val id: Int,
+    val amount: String,
+    val paidAmount: String,
+    val remaining: String,
+    val dueAt: String?,
+    val isPaid: Boolean = false,
+)
+
+data class ReceivableDto(
+    val id: Int,
+    val branchId: Int?,
+    val customerId: Int?,
+    val amount: String,
+    val paidAmount: String,
+    val remaining: String,
+    val dueAt: String?,
+    val isPaid: Boolean = false,
+)
+
+data class ProfitLossDto(
+    val pendapatan: String?,
+    val hpp: String?,
+    @SerializedName("laba_kotor") val labaKotor: String?,
+    val beban: String?,
+    @SerializedName("laba_bersih") val labaBersih: String?,
+)
+
+data class PayrollPeriodDto(
+    val id: Int,
+    val name: String,
+    val from: String?,
+    val to: String?,
+    val divisor: Int = 30,
+    val status: String,
+)

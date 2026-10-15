@@ -28,6 +28,13 @@ class ApprovalRepoImpl @Inject constructor(private val api: ApiService) : Approv
         val data = unwrap(api.reject(company, id, mapOf("note" to note)))
         return Approval(data.id, data.action, data.actionLabel, data.status)
     }
+
+    override suspend fun request(company: Int, action: String, entityId: Int?, payload: Map<String, Any?>, note: String?) {
+        api.requestApproval(
+            company,
+            mapOf("action" to action, "entity_id" to entityId, "payload" to payload, "note" to note),
+        )
+    }
 }
 
 class NotifRepoImpl @Inject constructor(private val api: ApiService) : NotifRepo {

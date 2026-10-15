@@ -10,6 +10,7 @@ import com.aurevant.pkk.data.mapper.toDomain
 import com.aurevant.pkk.domain.model.CartLine
 import com.aurevant.pkk.domain.model.CatalogItem
 import com.aurevant.pkk.domain.model.PayInput
+import com.aurevant.pkk.domain.model.ReturnLine
 import com.aurevant.pkk.domain.model.Sale
 import com.aurevant.pkk.domain.model.Shift
 import com.aurevant.pkk.domain.repo.SaleRepo
@@ -58,5 +59,28 @@ class SaleRepoImpl @Inject constructor(
             file.outputStream().use { output -> input.copyTo(output) }
         }
         return file
+    }
+
+    override suspend fun notas(company: Int, branch: Int): List<Sale> =
+        unwrap(api.sales(company, branch)).data.map { it.toDomain() }
+
+    override suspend fun notaDetail(company: Int, branch: Int, sale: Int): Sale =
+        unwrap(api.saleDetail(company, branch, sale)).toDomain()
+
+    override suspend fun voidSale(company: Int, branch: Int, sale: Int, reason: String) {
+        api.voidSale(company, branch, sale, mapOf("reason" to reason))
+    }
+
+    override suspend fun createReturn(company: Int, branch: Int, sale: Int, lines: List<ReturnLine>, reason: String, method: String) {
+        api.createReturn(
+            company,
+            branch,
+            sale,
+            mapOf(
+                "items" to lines.map { mapOf("sale_item_id" to it.saleItemId, "qty" to it.qty, "condition" to it.condition) },
+                "reason" to reason,
+                "refund_method" to method,
+            ),
+        )
     }
 }
