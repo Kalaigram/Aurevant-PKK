@@ -44,16 +44,15 @@ field lain): code, name, type, timezone, address, phone, status.
 
 Halaman "Role & Akses" untuk pemilik. Tiga area:
 1. Katalog izin read-only berupa matriks checkbox per grup (Transaksi, Stok, PO,
-   Keuangan, Jadwal, Absensi, Gaji, Katalog, Karyawan, Sistem) — tampilkan 30 izin
+   Keuangan, Jadwal, Absensi, Gaji, Katalog, Karyawan, Sistem) — tampilkan 36 izin
    ini persis (jangan tambah/kurangi): transaksi.buat, transaksi.diskon,
    transaksi.void, jasa.proses, retur.buat, retur.setujui, nota.lihat, shift.buka,
    shift.tutup, stok.transfer, stok.opname, po.buat, po.setujui, keuangan.lihat,
    biaya.input, biaya.setujui, periode.tutup, laporan.konsolidasi, jadwal.lihat,
-   jadwal.atur, shift.kelola, absensi.koreksi, absensi.approve, gaji.lihat_sendiri,
+   shift.kelola, absensi.koreksi, absensi.approve, gaji.lihat_sendiri,
    gaji.kelola, gaji.setujui, katalog.kelola, harga.atur, cabang.kelola,
    karyawan.kelola, audit.lihat, dashboard.konsolidasi, pelanggan.lihat,
-   pelanggan.kelola, pelanggan.ekspor, impor.jalankan, pengaturan.kelola,
-   langganan.kelola.
+   pelanggan.kelola, pelanggan.ekspor, impor.jalankan, pengaturan.kelola.
 2. Daftar role + template awal (Pemilik, Manajer Cabang, Kasir, Staf Gudang,
    Pelaksana Jasa, Admin Keuangan, HR): buat role baru (nama + pilih template +
    centang izin), ubah isi izin role, hapus role dengan konfirmasi.

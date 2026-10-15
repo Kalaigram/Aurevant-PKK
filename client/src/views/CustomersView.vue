@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api, downloadFile, type PageMeta } from '../lib/api'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
@@ -32,6 +32,19 @@ const form = ref({ name: '', phone: '', address: '' })
 const tanyaHapus = ref<Pelanggan | null>(null)
 
 const bolehKelola = () => access.can('pelanggan.kelola')
+const bolehEkspor = () => access.can('pelanggan.ekspor')
+
+async function ekspor() {
+  await run(() =>
+    downloadFile(
+      `/companies/${companyId.value}/exports/customers`,
+      'pelanggan.csv',
+      auth.token,
+      'text/csv',
+    ),
+  )
+  if (!error.value) okMsg.value = 'Data pelanggan diunduh.'
+}
 
 async function muat(page = 1) {
   okMsg.value = ''
@@ -115,9 +128,14 @@ onMounted(async () => {
         </div>
         <h1 class="font-display text-xl font-semibold">Pelanggan</h1>
       </div>
-      <AppButton v-if="bolehKelola()" @click="bukaTambah"
-        ><AppIcon name="add" :size="18" />Tambah</AppButton
-      >
+      <div class="flex gap-2">
+        <AppButton v-if="bolehEkspor()" variant="ghost" @click="ekspor"
+          ><AppIcon name="download" :size="18" />Ekspor</AppButton
+        >
+        <AppButton v-if="bolehKelola()" @click="bukaTambah"
+          ><AppIcon name="add" :size="18" />Tambah</AppButton
+        >
+      </div>
     </div>
     <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="error" />

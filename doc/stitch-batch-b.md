@@ -59,6 +59,9 @@ Tombol aksi sesuai status & izin (sembunyikan bila tanpa izin, backend 403):
 - status lunas + transaksi.void → Void (alasan wajib → B3).
 - status lunas + retur.buat → Retur (→ B3).
 - status void/retur → badge saja, tidak ada aksi.
+- Struk PDF (semua status): GET .../sales/{saleId}/receipt → unduh berkas PDF
+  (bukan JSON — pakai fetch blob + header Authorization; izin nota.lihat).
+  Tombol "Struk PDF" di detail nota + di struk POS setelah bayar.
 Izin lihat: nota.lihat.
 ```
 

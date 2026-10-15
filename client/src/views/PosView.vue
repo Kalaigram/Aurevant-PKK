@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api } from '../lib/api'
+import { api, downloadFile } from '../lib/api'
 import { rupiah } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
@@ -182,6 +182,19 @@ async function tutupShift() {
 
 function cetak() {
   window.print()
+}
+
+async function unduhStruk() {
+  if (!struk.value || !branchId.value) return
+  await page.run(() =>
+    downloadFile(
+      `/companies/${companyId.value}/branches/${branchId.value}/sales/${struk.value!.id}/receipt`,
+      `struk-${struk.value!.number}.pdf`,
+      auth.token,
+      'application/pdf',
+    ),
+  )
+  if (!page.error.value) okMsg.value = 'Struk PDF diunduh.'
 }
 
 async function bayarSekarang() {
@@ -481,7 +494,10 @@ onMounted(async () => {
             >
             <span>{{ rupiah(p.amount) }}</span>
           </div>
-          <AppButton variant="ghost" class="no-print mt-3" @click="cetak">Cetak struk</AppButton>
+          <div class="no-print mt-3 flex gap-2">
+            <AppButton variant="ghost" @click="cetak">Cetak struk</AppButton>
+            <AppButton variant="ghost" @click="unduhStruk">Unduh PDF</AppButton>
+          </div>
         </AppCard>
       </div>
     </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api, downloadFile, type PageMeta } from '../lib/api'
 import { rupiah } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
@@ -120,6 +120,19 @@ async function voidSekarang() {
     lihat(detail.value.id)
     muat(meta.value?.current_page ?? 1)
   }
+}
+
+async function unduhStruk() {
+  if (!detail.value || !branchId.value) return
+  await run(() =>
+    downloadFile(
+      `/companies/${companyId.value}/branches/${branchId.value}/sales/${detail.value!.id}/receipt`,
+      `struk-${detail.value!.number}.pdf`,
+      auth.token,
+      'application/pdf',
+    ),
+  )
+  if (!error.value) okMsg.value = 'Struk PDF diunduh.'
 }
 
 function siapkanRetur() {
@@ -290,6 +303,10 @@ onMounted(async () => {
           <div v-if="detail.status === 'lunas'" class="mt-3 flex gap-2">
             <AppButton v-if="bolehVoid" variant="danger" @click="dialogVoid = true">Void</AppButton>
             <AppButton v-if="bolehRetur" variant="secondary" @click="siapkanRetur">Retur</AppButton>
+            <AppButton variant="ghost" @click="unduhStruk">Struk PDF</AppButton>
+          </div>
+          <div v-else class="mt-3 flex gap-2">
+            <AppButton variant="ghost" @click="unduhStruk">Struk PDF</AppButton>
           </div>
         </AppCard>
       </div>

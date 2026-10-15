@@ -81,3 +81,29 @@ export async function fetchBlob(path: string, token?: string | null): Promise<st
 }
 
 export { BASE as API_BASE }
+
+/** Unduh berkas non-JSON (PDF/CSV) dengan token. Gagal → lempar ApiError. */
+export async function downloadFile(
+  path: string,
+  filename: string,
+  token?: string | null,
+  accept = '*/*',
+): Promise<void> {
+  const res = await fetch(BASE + path, {
+    headers: { Accept: accept, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  })
+  if (res.status === 401) {
+    onUnauthorized?.()
+    throw new ApiError(401, 'Sesi berakhir. Silakan login lagi.')
+  }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { message?: string } | null
+    throw new ApiError(res.status, body?.message ?? `HTTP ${res.status}`)
+  }
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}

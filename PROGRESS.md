@@ -28,7 +28,8 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] Void/retur/refund (approval langsung; PIN manajer + batas diskon per role ditunda)
 - [x] Mesin approval tunggal (inbox + eksekusi: void, diskon, refund, PO, transfer, opname)
 - [x] Nomor nota atomik `{kode cabang}-{yyMMdd}-{urut}` + idempotency key
-- [ ] Struk PDF + cetak thermal (Android)
+- [x] Struk PDF (`GET .../sales/{sale}/receipt`, tombol di Nota + POS; cetak thermal Bluetooth Android menyusul butuh printer fisik)
+- [x] Ekspor CSV pelanggan (`GET .../exports/customers`, izin `pelanggan.ekspor`)
 - [x] Laporan dasar + tabel ringkasan harian per cabang
 - [x] Audit log append-only (event + queue)
 - [x] Notifikasi in-app (polling dulu; FCM/email ditunda)

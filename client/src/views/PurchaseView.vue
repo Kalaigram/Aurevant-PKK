@@ -48,6 +48,9 @@ const list = ref<PO[]>([])
 const meta = ref<PageMeta | null>(null)
 const filterCabang = ref('')
 const detail = ref<PO | null>(null)
+const terima = ref<
+  { id: number; dueAt?: string | null; items?: { itemId: number; qty: string }[] }[]
+>([])
 const okMsg = ref('')
 const showBuat = ref(false)
 const fBranch = ref('')
@@ -89,6 +92,19 @@ async function lihat(id: number) {
   detail.value = await run(() =>
     api.get<PO>(`/companies/${companyId.value}/purchase-orders/${id}`, auth.token),
   )
+  terima.value = []
+  const riw = await api
+    .get<{ id: number; dueAt?: string | null; items?: { itemId: number; qty: string }[] }[]>(
+      `/companies/${companyId.value}/purchase-orders/${id}/receipts`,
+      auth.token,
+    )
+    .catch(() => null)
+  if (riw) {
+    const raw = riw as unknown as
+      | { id: number; dueAt?: string | null; items?: { itemId: number; qty: string }[] }[]
+      | { data: { id: number; dueAt?: string | null; items?: { itemId: number; qty: string }[] }[] }
+    terima.value = Array.isArray(raw) ? raw : (raw.data ?? [])
+  }
 }
 
 async function buat() {
@@ -264,6 +280,26 @@ onMounted(async () => {
                 >Batalkan</AppButton
               >
             </template>
+          </div>
+          <div class="mt-4 border-t border-outline pt-3">
+            <h3 class="font-display text-sm font-semibold">Riwayat penerimaan</h3>
+            <p v-if="!terima.length" class="mt-1 text-xs text-secondary">
+              Belum ada barang diterima untuk PO ini.
+            </p>
+            <ul v-else class="mt-2 space-y-2">
+              <li
+                v-for="r in terima"
+                :key="r.id"
+                class="rounded-lg bg-surface-low px-3 py-2 text-sm"
+              >
+                <p class="font-semibold">
+                  Terima #{{ r.id }}{{ r.dueAt ? ` · jatuh tempo ${r.dueAt}` : '' }}
+                </p>
+                <p v-for="it in r.items ?? []" :key="it.itemId" class="text-xs text-secondary">
+                  Item #{{ it.itemId }} — {{ it.qty }} pcs
+                </p>
+              </li>
+            </ul>
           </div>
         </AppCard>
       </div>

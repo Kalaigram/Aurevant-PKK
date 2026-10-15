@@ -80,7 +80,7 @@ Melihat semua halaman di dokumen ini, plus eksklusif:
 | Opname | Buat → ajukan → setujui/tolak (penuh, satu izin). | `.../branches/{branch}/stock/opnames` + `/submit /approve /reject` (`stok.opname`) |
 | Pembelian | Buat + ajukan PO; setujui/esan/terima/batal TIDAK bisa (butuh `po.setujui`). | `GET+POST .../purchase-orders`, `.../submit` (`po.buat`) |
 | Biaya | Catat biaya draft; setujui TIDAK bisa (butuh `biaya.setujui`). | `GET+POST .../expenses` (`biaya.input`), `GET .../expense-categories` |
-| Jadwal & Absensi | Atur pola/roster/override, lihat kehadiran cabang, koreksi + putuskan cuti, reset device. | `GET .../work-shifts`, `.../users/{user}/schedule*` (`jadwal.lihat`, atur `jadwal.atur`/`shift.kelola`), `GET .../branches/{branch}/attendance` + `DELETE .../users/{user}/device` (`absensi.approve`), `POST .../leaves/{leave}/decide` (`absensi.approve`), `PUT .../attendances/{id}` (`absensi.koreksi`) |
+| Jadwal & Absensi | Atur pola/roster/override, lihat kehadiran cabang, koreksi + putuskan cuti, reset device. | `GET .../work-shifts`, `.../users/{user}/schedule*` (lihat `jadwal.lihat`, ubah `shift.kelola`), `GET .../branches/{branch}/attendance` + `DELETE .../users/{user}/device` (`absensi.approve`), `POST .../leaves/{leave}/decide` (`absensi.approve`), `PUT .../attendances/{id}` (`absensi.koreksi`) |
 | Pelanggan & Jasa | CRUD pelanggan, kelola order jasa (buat, DP, proses, selesai, bayar, batal — proses/selesai juga bisa oleh pelaksana via `jasa.proses`). | `.../customers` (`pelanggan.lihat/kelola`), `.../branches/{branch}/service-orders*` (`transaksi.buat`) |
 
 Batasan: tanpa `keuangan.lihat` (tidak ada laporan/jurnal), tanpa `po.setujui`/`biaya.setujui`
@@ -180,7 +180,7 @@ Batasan: tidak ada kasir (tanpa `transaksi.buat`), tidak ada approve PO, tidak a
 | `biaya.input` / `biaya.setujui` | Catat / kelola + putuskan biaya; bayar hutang/piutang (`setujui`) |
 | `periode.tutup` | Tutup/buka periode |
 | `laporan.konsolidasi` | Konsolidasi + rebuild ringkasan |
-| `jadwal.lihat` / `jadwal.atur` | Lihat / ubah jadwal + seksi dashboard SDM |
+| `jadwal.lihat` | Lihat jadwal + seksi dashboard SDM (ubah jadwal: `shift.kelola`) |
 | `shift.kelola` | Master shift + pola + override |
 | `absensi.approve` | Kehadiran cabang, putuskan cuti, reset device |
 | `absensi.koreksi` | Koreksi absensi |
@@ -195,12 +195,13 @@ Batasan: tidak ada kasir (tanpa `transaksi.buat`), tidak ada approve PO, tidak a
 | `pelanggan.lihat` / `pelanggan.kelola` | Lihat / CRUD pelanggan |
 | `dashboard.konsolidasi` | Penerima notifikasi selisih shift (bukan gerbang halaman) |
 
-## 12. Catatan kejujuran (izin cadangan)
+## 12. Izin yang dihapus (dulu cadangan, kini dibersihkan)
 
-Tiga izin ada di katalog + template tapi **belum dienforce backend** — jangan jadikan gerbang
-satu-satunya di frontend: `langganan.kelola` (langganan dikunci `super.admin`),
-`pelanggan.ekspor` (belum ada endpoint ekspor pelanggan — hanya item), `gaji.lihat_sendiri`
-(slip dijaga aturan "milik sendiri atau `gaji.kelola`" di controller, bukan izin ini).
+`jadwal.atur` dan `langganan.kelola` **dihapus dari katalog** (tes `PermissionGuardTest`
+menjamin tiap izin katalog terpakai di backend/frontend): ubah jadwal memakai `shift.kelola`
+(sesuai spek C5), dan langganan dikunci `super.admin` tanpa peran perusahaan.
+`pelanggan.ekspor` kini dienforce di `GET .../exports/customers`;
+`gaji.lihat_sendiri` kini dienforce di slip (milik sendiri perlu izin ini, atau `gaji.kelola`).
 
 ## 13. Progres UI Web (Stitch) per halaman
 

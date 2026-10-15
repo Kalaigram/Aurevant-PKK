@@ -181,4 +181,6 @@ Contoh pola dari test: filter sale.void mengembalikan meta.total + before.status
   per baris (tampilkan nomor baris + pesan). Password kosong saat impor karyawan
   = acak oleh server (tampilkan hint ini).
 - Ekspor item: GET .../exports/items → unduh CSV.
+- Ekspor pelanggan: GET .../exports/customers → unduh CSV (kolom: name, phone,
+  address). KHUSUS izin pelanggan.ekspor (tanpa izin sembunyikan tombol).
 ```
