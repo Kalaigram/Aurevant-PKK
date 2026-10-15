@@ -8,7 +8,7 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] `git init` + branch `main` + commit awal
 - [x] `client/` — Vue 3 + Vite + TS + Router + Pinia + ESLint/Prettier
 - [x] `server/` — Laravel 13 API-only + Sanctum + `.env` MySQL (`aurevant_pkk`)
-- [x] `android/` — project Kotlin ter-commit terpisah
+- [x] `android/` — aplikasi Kotlin (auth, perusahaan, dashboard, absensi QR+GPS+swafoto, kasir+struk PDF, persetujuan, notifikasi, cuti/slip/kartu; lihat `doc/android.md`)
 - [x] `.gitignore` diperkuat (env, keystore, service-account)
 - [x] MySQL Laragon jalan + `CREATE DATABASE aurevant_pkk` + `php artisan migrate` lolos
 
