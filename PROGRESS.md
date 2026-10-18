@@ -8,7 +8,7 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] `git init` + branch `main` + commit awal
 - [x] `client/` — Vue 3 + Vite + TS + Router + Pinia + ESLint/Prettier
 - [x] `server/` — Laravel 13 API-only + Sanctum + `.env` MySQL (`aurevant_pkk`)
-- [x] `android/` — project Kotlin ter-commit terpisah
+- [x] `android/` — aplikasi Kotlin (auth, perusahaan, dashboard, absensi QR+GPS+swafoto, kasir+struk PDF, persetujuan, notifikasi, cuti/slip/kartu; lihat `doc/android.md`)
 - [x] `.gitignore` diperkuat (env, keystore, service-account)
 - [x] MySQL Laragon jalan + `CREATE DATABASE aurevant_pkk` + `php artisan migrate` lolos
 
@@ -28,7 +28,7 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] Void/retur/refund (approval langsung; PIN manajer + batas diskon per role ditunda)
 - [x] Mesin approval tunggal (inbox + eksekusi: void, diskon, refund, PO, transfer, opname)
 - [x] Nomor nota atomik `{kode cabang}-{yyMMdd}-{urut}` + idempotency key
-- [x] Struk PDF (`GET .../sales/{sale}/receipt`, tombol di Nota + POS; cetak thermal Bluetooth Android menyusul butuh printer fisik)
+- [x] Struk PDF (`GET .../sales/{sale}/receipt`, tombol di Nota + POS; Android: dibuat lokal di HP via `PdfDocument`; cetak thermal Bluetooth menyusul butuh printer fisik)
 - [x] Ekspor CSV pelanggan (`GET .../exports/customers`, izin `pelanggan.ekspor`)
 - [x] Laporan dasar + tabel ringkasan harian per cabang
 - [x] Audit log append-only (event + queue)
