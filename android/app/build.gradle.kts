@@ -4,6 +4,12 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.dagger.hilt)
     alias(libs.plugins.google.ksp)
+    alias(libs.plugins.google.services) apply false
+}
+
+// Push FCM hanya aktif bila google-services.json (dari Firebase console) sudah dipasang.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 android {
@@ -70,6 +76,7 @@ dependencies {
     implementation(libs.square.okhttp.logging)
     implementation(libs.google.hilt)
     implementation(libs.google.gson)
+    implementation(libs.firebase.messaging)
     ksp(libs.google.hilt.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

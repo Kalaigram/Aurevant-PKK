@@ -3,6 +3,7 @@ package com.aurevant.pkk.ui.features.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aurevant.pkk.core.network.ApiError
+import com.aurevant.pkk.core.push.PushTokenSync
 import com.aurevant.pkk.domain.model.AuthSession
 import com.aurevant.pkk.domain.usecase.LoginUser
 import com.aurevant.pkk.domain.usecase.RegisterUser
@@ -28,6 +29,7 @@ data class AuthState(
 class AuthViewModel @Inject constructor(
     private val loginUser: LoginUser,
     private val registerUser: RegisterUser,
+    private val pushTokenSync: PushTokenSync,
 ) : ViewModel() {
     private val _state = MutableStateFlow(AuthState())
     val state: StateFlow<AuthState> = _state
@@ -46,7 +48,9 @@ class AuthViewModel @Inject constructor(
         _state.value = AuthState(busy = true)
         viewModelScope.launch {
             _state.value = try {
-                AuthState(session = block())
+                val session = block()
+                pushTokenSync.sync()
+                AuthState(session = session)
             } catch (e: ApiError) {
                 AuthState(error = e.message)
             } catch (e: Exception) {

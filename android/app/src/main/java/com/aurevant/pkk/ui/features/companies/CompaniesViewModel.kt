@@ -3,6 +3,7 @@ package com.aurevant.pkk.ui.features.companies
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aurevant.pkk.core.network.ApiError
+import com.aurevant.pkk.core.push.PushTokenSync
 import com.aurevant.pkk.domain.model.Company
 import com.aurevant.pkk.domain.usecase.GetCompanies
 import com.aurevant.pkk.domain.usecase.LogoutUser
@@ -32,6 +33,7 @@ class CompaniesViewModel @Inject constructor(
     private val getCompanies: GetCompanies,
     private val saveCompany: SaveCompany,
     private val logoutUser: LogoutUser,
+    private val pushTokenSync: PushTokenSync,
 ) : ViewModel() {
     private val _state = MutableStateFlow(CompaniesState(busy = true))
     val state: StateFlow<CompaniesState> = _state
@@ -41,6 +43,7 @@ class CompaniesViewModel @Inject constructor(
             CompaniesAction.Load -> load()
             is CompaniesAction.Pick -> viewModelScope.launch {
                 saveCompany(action.company)
+                pushTokenSync.sync()
                 _state.value = _state.value.copy(picked = action.company)
             }
             CompaniesAction.Logout -> viewModelScope.launch {
