@@ -94,9 +94,9 @@ Menu bawah maks 5 tab (Dasbor + Absensi + prioritas role); sisanya di menu ⋮.
   eksekusi akhir oleh manajer di web — API tidak membuka ID baris nota.
 - Cetak thermal Bluetooth (ganti PrintManager → printer ESC/POS); struk PDF digambar lokal di HP (instan, tanpa jaringan), endpoint web `GET .../receipt` tetap ada untuk web.
 - FCM push: kode lengkap (server + HP), tinggal drop-in `google-services.json`; tanpa file itu push otomatis nonaktif tanpa mengganggu fitur lain.
-- **Blocker build pertama (belum diperbaiki, ditunda):** `:app:processDebugResources` gagal —
-  `mipmap-anydpi/ic_launcher.xml` + `ic_launcher_round.xml` memakai `<adaptive-icon>` padahal
-  minSdk 24 (butuh v26). Perbaikan: pindahkan file ke `mipmap-anydpi-v26/` + sediakan PNG/vector
-  fallback di `mipmap-*dpi/`. Setelah itu jalankan `.\gradlew.bat :app:compileDebugKotlin`.
+- **Build pertama:** `:app:processDebugResources` sempat gagal karena `<adaptive-icon>` di
+  `mipmap-anydpi/` padahal minSdk 24; **sudah diperbaiki** (file dipindah ke `mipmap-anydpi-v26/`,
+  fallback `.webp` sudah ada di semua densitas). Kompilasi ulang belum dijalankan — jalankan
+  `.\gradlew.bat :app:compileDebugKotlin`.
 - Deteksi lokasi palsu + Play Integrity (antarmuka siap, implementasi menyusul).
 - Keuangan web penuh (jurnal, neraca, tutup periode, impor) tetap di web.
