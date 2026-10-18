@@ -85,6 +85,11 @@ const JENIS: Record<string, { label: string; icon: string; hint: string }> = {
     icon: 'approval',
     hint: 'Perlu respon atasan',
   },
+  'langganan.jatuh_tempo': {
+    label: 'Langganan',
+    icon: 'workspace_premium',
+    hint: 'Masa aktif langganan / trial',
+  },
 }
 
 const GROUPS: { title: string; types: string[] }[] = [
@@ -97,6 +102,7 @@ const GROUPS: { title: string; types: string[] }[] = [
     title: 'Penjualan, shift & otorisasi',
     types: ['sale.void', 'sale.retur', 'shift.selisih', 'opname.disetujui', 'approval.diajukan'],
   },
+  { title: 'Langganan', types: ['langganan.jatuh_tempo'] },
 ]
 
 const router = useRouter()
@@ -138,6 +144,10 @@ async function buka(n: Notif) {
   await run(() => api.post(`/notifications/${n.id}/read`, undefined, auth.token))
   if (n.link?.startsWith('/approvals/')) {
     router.push(`/c/${companyId.value}/approvals`)
+    return
+  }
+  if (n.link === '/subscription') {
+    router.push(`/c/${companyId.value}/subscription`)
     return
   }
   muat(meta.value?.current_page ?? 1)

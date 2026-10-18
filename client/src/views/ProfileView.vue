@@ -4,7 +4,9 @@ import { api } from '../lib/api'
 import { useCompany } from '../composables/useCompany'
 import { useAsync } from '../composables/useAsync'
 import AppCard from '../components/ui/AppCard.vue'
+import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
+import AppField from '../components/ui/AppField.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
 
 interface Card {
@@ -19,8 +21,11 @@ interface Card {
 
 const { auth, companyId } = useCompany()
 const { loading, error, run } = useAsync()
+const { loading: pwLoading, error: pwError, run: runPw } = useAsync()
 const card = ref<Card | null>(null)
 const tanyaKeluar = ref(false)
+const ganti = ref({ current_password: '', password: '', password_confirmation: '' })
+const okPw = ref('')
 
 onMounted(async () => {
   if (!auth.user) return
@@ -28,6 +33,21 @@ onMounted(async () => {
     api.get<Card>(`/companies/${companyId.value}/users/${auth.user!.id}/card`, auth.token),
   )
 })
+
+async function gantiSandi() {
+  okPw.value = ''
+  await runPw(() =>
+    api.post('/auth/change-password', {
+      current_password: ganti.value.current_password,
+      password: ganti.value.password,
+      password_confirmation: ganti.value.password_confirmation,
+    }, auth.token),
+  )
+  if (!pwError.value) {
+    okPw.value = 'Kata sandi berhasil diganti. Sesi di perangkat lain telah dikeluarkan.'
+    ganti.value = { current_password: '', password: '', password_confirmation: '' }
+  }
+}
 
 async function keluar() {
   await auth.logout()
@@ -91,6 +111,28 @@ async function keluar() {
       <p class="text-sm text-secondary">Satu akun terikat satu perangkat untuk mencegah titip absen.</p>
       <AppButton variant="danger" class="mt-3" @click="tanyaKeluar = true">
         <AppIcon name="logout" :size="18" />Keluar dari sesi ini
+      </AppButton>
+    </AppCard>
+
+    <AppCard title="Ganti kata sandi" class="mt-3">
+      <p class="-mt-1 mb-3 text-xs text-secondary">
+        Sesi di perangkat lain akan otomatis dikeluarkan setelah kata sandi diganti.
+      </p>
+      <AppBanner tone="green" :message="okPw" />
+      <AppBanner tone="red" :message="pwError" />
+      <div class="grid gap-2 md:grid-cols-3">
+        <AppField label="Kata sandi saat ini">
+          <input v-model="ganti.current_password" type="password" autocomplete="current-password" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none" />
+        </AppField>
+        <AppField label="Kata sandi baru">
+          <input v-model="ganti.password" type="password" autocomplete="new-password" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none" placeholder="Min. 8 karakter" />
+        </AppField>
+        <AppField label="Ulangi kata sandi baru">
+          <input v-model="ganti.password_confirmation" type="password" autocomplete="new-password" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none" />
+        </AppField>
+      </div>
+      <AppButton :loading="pwLoading" class="mt-3" @click="gantiSandi">
+        <AppIcon name="lock_reset" :size="18" />Simpan kata sandi
       </AppButton>
     </AppCard>
 

@@ -39,7 +39,7 @@ async function masuk() {
       </div>
       <div class="mt-3 flex items-center justify-between">
         <label class="text-sm font-medium" for="login-pw">Kata sandi <span class="text-danger">*</span></label>
-        <span class="text-xs text-secondary">Lupa sandi? Hubungi pemilik perusahaan.</span>
+        <RouterLink to="/lupa-password" class="text-xs font-semibold text-primary hover:underline">Lupa sandi?</RouterLink>
       </div>
       <div class="relative mt-1 flex items-center">
         <AppIcon name="lock" :size="20" class="pointer-events-none absolute left-3 text-secondary" />
