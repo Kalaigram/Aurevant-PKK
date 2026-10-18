@@ -49,7 +49,7 @@ class SalesViewModel @Inject constructor(
     private val _state = MutableStateFlow(SalesState(busy = true))
     val state: StateFlow<SalesState> = _state
 
-    private fun update(f: (SalesState) -> SalesState) {
+    private inline fun update(f: (SalesState) -> SalesState) {
         _state.value = f(_state.value)
     }
 

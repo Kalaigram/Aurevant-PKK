@@ -30,6 +30,8 @@ import com.aurevant.pkk.domain.model.PayrollPeriod
 import com.aurevant.pkk.domain.model.ProfitLoss
 import com.aurevant.pkk.domain.model.Receivable
 import com.aurevant.pkk.domain.model.Sale
+import com.aurevant.pkk.domain.model.SaleLine
+import com.aurevant.pkk.domain.model.SalePay
 import com.aurevant.pkk.domain.model.ServiceOrder
 import com.aurevant.pkk.domain.model.Transfer
 import com.aurevant.pkk.domain.model.TransferItem
@@ -44,7 +46,11 @@ fun BranchDto.toDomain() = Branch(id, code, name, timezone)
 
 fun AttendanceDto.toDomain() = Attendance(id, status, clockInAt, clockOutAt, lateMinutes)
 
-fun SaleDto.toDomain() = Sale(id, number, status, grandTotal, subtotal)
+fun SaleDto.toDomain() = Sale(
+    id, number, status, grandTotal, subtotal, discountTotal, taxTotal,
+    items.map { SaleLine(it.itemId, it.qty, it.price, it.lineTotal) },
+    payments.map { SalePay(it.method, it.amount, it.tendered) },
+)
 
 fun TransferDto.toDomain() = Transfer(
     id, fromBranchId, toBranchId, status, note,

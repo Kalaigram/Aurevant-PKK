@@ -28,6 +28,7 @@ class SessionStore @Inject constructor(
 
     val token: Flow<String?> = context.sessionStore.data.map { it[tokenKey] }
     val companyId: Flow<Int?> = context.sessionStore.data.map { it[companyKey] }
+    val companyName: Flow<String?> = context.sessionStore.data.map { it[companyNameKey] }
     val userId: Flow<Int?> = context.sessionStore.data.map { it[userIdKey] }
 
     fun tokenBlocking(): String? = runBlocking { token.first() }

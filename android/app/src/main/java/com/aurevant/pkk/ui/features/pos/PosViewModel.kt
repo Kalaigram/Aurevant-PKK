@@ -12,11 +12,11 @@ import com.aurevant.pkk.domain.model.Sale
 import com.aurevant.pkk.domain.model.Shift
 import com.aurevant.pkk.domain.usecase.CloseShift
 import com.aurevant.pkk.domain.usecase.CreateSale
-import com.aurevant.pkk.domain.usecase.DownloadReceipt
 import com.aurevant.pkk.domain.usecase.GetBranches
 import com.aurevant.pkk.domain.usecase.GetItems
 import com.aurevant.pkk.domain.usecase.GetPrice
 import com.aurevant.pkk.domain.usecase.OpenShift
+import com.aurevant.pkk.domain.usecase.SaveReceipt
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
@@ -71,12 +71,12 @@ class PosViewModel @Inject constructor(
     private val openShift: OpenShift,
     private val closeShift: CloseShift,
     private val createSale: CreateSale,
-    private val downloadReceipt: DownloadReceipt,
+    private val saveReceipt: SaveReceipt,
 ) : ViewModel() {
     private val _state = MutableStateFlow(PosState(busy = true))
     val state: StateFlow<PosState> = _state
 
-    private fun update(f: (PosState) -> PosState) {
+    private inline fun update(f: (PosState) -> PosState) {
         _state.value = f(_state.value)
     }
 
@@ -92,13 +92,11 @@ class PosViewModel @Inject constructor(
                     _state.value = PosState(error = "Pilih perusahaan dulu.")
                 }
                 update { it.copy(busy = true, error = null, companyId = company) }
-                update {
-                    try {
-                        val branches = getBranches(company)
-                        it.copy(busy = false, branches = branches)
-                    } catch (e: Exception) {
-                        fail(e)
-                    }
+                try {
+                    val branches = getBranches(company)
+                    update { it.copy(busy = false, branches = branches) }
+                } catch (e: Exception) {
+                    update { fail(e) }
                 }
             }
             is PosAction.PickBranch -> {
@@ -127,12 +125,11 @@ class PosViewModel @Inject constructor(
                 val company = s.companyId ?: return@launch
                 val branch = s.branch ?: return@launch
                 update { it.copy(busy = true, error = null) }
-                update {
-                    try {
-                        it.copy(busy = false, shift = openShift(company, branch.id, s.openingCash), message = "Shift dibuka.")
-                    } catch (e: Exception) {
-                        fail(e)
-                    }
+                try {
+                    val shift = openShift(company, branch.id, s.openingCash)
+                    update { it.copy(busy = false, shift = shift, message = "Shift dibuka.") }
+                } catch (e: Exception) {
+                    update { fail(e) }
                 }
             }
             PosAction.Pay -> viewModelScope.launch {
@@ -141,12 +138,18 @@ class PosViewModel @Inject constructor(
                 val branch = s.branch ?: return@launch
                 if (s.cart.isEmpty()) return@launch run { update { it.copy(error = "Keranjang masih kosong.") } }
                 update { it.copy(busy = true, error = null) }
-                update {
-                    try {
-                        it.copy(busy = false, sale = createSale(company, branch.id, s.cart, s.pays, s.cart), pays = listOf(PayInput("tunai", 0.0)), message = "Nota terbit.")
-                    } catch (e: Exception) {
-                        fail(e)
+                try {
+                    val sale = createSale(company, branch.id, s.cart, s.pays)
+                    update {
+                        it.copy(
+                            busy = false,
+                            sale = sale,
+                            pays = listOf(PayInput("tunai", 0.0)),
+                            message = "Nota terbit.",
+                        )
                     }
+                } catch (e: Exception) {
+                    update { fail(e) }
                 }
             }
             is PosAction.SetCounted -> update { it.copy(countedCash = action.cash) }
@@ -156,27 +159,25 @@ class PosViewModel @Inject constructor(
                 val branch = s.branch ?: return@launch
                 val shift = s.shift ?: return@launch
                 update { it.copy(busy = true, error = null) }
-                update {
-                    try {
-                        val closed = closeShift(company, branch.id, shift.id, s.countedCash)
-                        it.copy(busy = false, shift = null, message = "Shift ditutup. Selisih: ${closed.difference ?: "0"}")
-                    } catch (e: Exception) {
-                        fail(e)
-                    }
+                try {
+                    val closed = closeShift(company, branch.id, shift.id, s.countedCash)
+                    update { it.copy(busy = false, shift = null, message = "Shift ditutup. Selisih: ${closed.difference ?: "0"}") }
+                } catch (e: Exception) {
+                    update { fail(e) }
                 }
             }
             PosAction.Receipt -> viewModelScope.launch {
                 val s = _state.value
-                val company = s.companyId ?: return@launch
                 val branch = s.branch ?: return@launch
                 val sale = s.sale ?: return@launch
                 update { it.copy(busy = true, error = null) }
-                update {
-                    try {
-                        it.copy(busy = false, receiptFile = downloadReceipt(company, branch.id, sale.id, sale.number))
-                    } catch (e: Exception) {
-                        fail(e)
-                    }
+                try {
+                    val companyName = session.companyName.first() ?: ""
+                    val names = s.cart.associate { it.item.id to it.item.name }
+                    val file = saveReceipt(sale, companyName, branch.name, names)
+                    update { it.copy(busy = false, receiptFile = file, message = "Struk PDF disimpan: ${file.name}") }
+                } catch (e: Exception) {
+                    update { fail(e) }
                 }
             }
             PosAction.ClearMessage -> update { it.copy(message = null, error = null) }
@@ -187,14 +188,14 @@ class PosViewModel @Inject constructor(
         viewModelScope.launch {
             val s = _state.value
             val company = s.companyId ?: return@launch
-            update {
-                try {
-                    val all = getItems(company, null)
-                    val q = s.query.trim().lowercase()
+            try {
+                val all = getItems(company, null)
+                val q = s.query.trim().lowercase()
+                update {
                     it.copy(catalog = if (q.isEmpty()) all else all.filter { i -> i.name.lowercase().contains(q) || i.code.lowercase().contains(q) })
-                } catch (e: Exception) {
-                    fail(e)
                 }
+            } catch (e: Exception) {
+                update { fail(e) }
             }
         }
     }
@@ -210,13 +211,11 @@ class PosViewModel @Inject constructor(
                 return@launch
             }
             update { it.copy(busy = true) }
-            update {
-                try {
-                    val price = getPrice(company, item.id, branch.id)
-                    it.copy(busy = false, cart = it.cart + CartLine(item, price, 1.0))
-                } catch (e: Exception) {
-                    fail(e)
-                }
+            try {
+                val price = getPrice(company, item.id, branch.id)
+                update { it.copy(busy = false, cart = it.cart + CartLine(item, price, 1.0)) }
+            } catch (e: Exception) {
+                update { fail(e) }
             }
         }
     }

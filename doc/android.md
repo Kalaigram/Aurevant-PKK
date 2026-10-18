@@ -55,7 +55,7 @@ Menu bawah maks 5 tab (Dasbor + Absensi + prioritas role); sisanya di menu ⋮.
 | Pilih Perusahaan | `GET /companies` |
 | Dashboard | `GET .../dashboard`, `GET .../access/my-permissions` |
 | Absensi | `GET .../branches`, `GET .../attendance-qr`, `POST .../clock-in/out` (multipart + swafoto), `GET .../attendance/me` |
-| Kasir | `POST .../shifts` + `/close`, `GET .../items` + `.../prices`, `POST .../sales`, `GET .../sales/{id}/receipt` (PDF, cetak via PrintManager) |
+| Kasir | `POST .../shifts` + `/close`, `GET .../items` + `.../prices`, `POST .../sales`, struk PDF dibuat lokal di HP (`PdfDocument`) → cetak via PrintManager |
 | Nota | `GET .../sales`, `GET .../sales/{id}`, `POST .../void`, `POST .../approvals` (pengajuan void/retur) |
 | Order Jasa | `GET/POST .../service-orders`, `.../deposit`, `.../process`, `.../complete`, `.../pay`, `.../cancel` |
 | Gudang | `GET .../stock`, `GET/POST .../stock/movements`, `GET/POST .../stock-transfers` + `/submit/approve/ship/receive/cancel`, `GET/POST .../stock/opnames` + `/submit/approve/reject` |
@@ -78,7 +78,7 @@ Menu bawah maks 5 tab (Dasbor + Absensi + prioritas role); sisanya di menu ⋮.
 
 - **Retur barang** di HP hanya **pengajuan** (`sale.refund` + alasan);
   eksekusi akhir oleh manajer di web — API tidak membuka ID baris nota.
-- Cetak thermal Bluetooth (ganti PrintManager → printer ESC/POS).
+- Cetak thermal Bluetooth (ganti PrintManager → printer ESC/POS); struk PDF sendiri dibuat lokal tanpa endpoint server.
 - FCM push (tanpa `google-services.json`, `device-tokens` belum didaftarkan dari aplikasi).
 - Deteksi lokasi palsu + Play Integrity (antarmuka siap, implementasi menyusul).
 - Keuangan web penuh (jurnal, neraca, tutup periode, impor) tetap di web.

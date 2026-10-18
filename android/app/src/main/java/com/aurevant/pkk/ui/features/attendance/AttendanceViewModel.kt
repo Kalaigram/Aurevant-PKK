@@ -61,7 +61,7 @@ class AttendanceViewModel @Inject constructor(
     private val _state = MutableStateFlow(AttendanceState(busy = true))
     val state: StateFlow<AttendanceState> = _state
 
-    private fun update(f: (AttendanceState) -> AttendanceState) {
+    private inline fun update(f: (AttendanceState) -> AttendanceState) {
         _state.value = f(_state.value)
     }
 

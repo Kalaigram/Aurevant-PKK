@@ -31,12 +31,20 @@ data class PayInput(val method: String, val amount: Double, val tendered: Double
 
 data class Shift(val id: Int, val status: String?, val difference: String?)
 
+data class SaleLine(val itemId: Int, val qty: String, val price: String, val lineTotal: String)
+
+data class SalePay(val method: String, val amount: String, val tendered: String?)
+
 data class Sale(
     val id: Int,
     val number: String,
     val status: String,
     val grandTotal: String,
     val subtotal: String,
+    val discountTotal: String = "0",
+    val taxTotal: String = "0",
+    val lines: List<SaleLine> = emptyList(),
+    val payments: List<SalePay> = emptyList(),
 )
 
 data class Approval(val id: Int, val action: String, val actionLabel: String?, val status: String)

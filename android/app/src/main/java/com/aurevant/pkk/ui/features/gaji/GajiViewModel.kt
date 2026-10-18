@@ -40,7 +40,7 @@ class GajiViewModel @Inject constructor(
     private val _state = MutableStateFlow(GajiState(busy = true))
     val state: StateFlow<GajiState> = _state
 
-    private fun update(f: (GajiState) -> GajiState) {
+    private inline fun update(f: (GajiState) -> GajiState) {
         _state.value = f(_state.value)
     }
 

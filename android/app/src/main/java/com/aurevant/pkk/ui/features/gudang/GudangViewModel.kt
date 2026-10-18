@@ -72,7 +72,7 @@ class GudangViewModel @Inject constructor(
     private val _state = MutableStateFlow(GudangState(busy = true))
     val state: StateFlow<GudangState> = _state
 
-    private fun update(f: (GudangState) -> GudangState) {
+    private inline fun update(f: (GudangState) -> GudangState) {
         _state.value = f(_state.value)
     }
 

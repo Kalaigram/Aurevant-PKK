@@ -62,7 +62,7 @@ class TimViewModel @Inject constructor(
     private val _state = MutableStateFlow(TimState(busy = true))
     val state: StateFlow<TimState> = _state
 
-    private fun update(f: (TimState) -> TimState) {
+    private inline fun update(f: (TimState) -> TimState) {
         _state.value = f(_state.value)
     }
 

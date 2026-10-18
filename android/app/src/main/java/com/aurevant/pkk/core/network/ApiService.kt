@@ -3,7 +3,6 @@ package com.aurevant.pkk.core.network
 import com.google.gson.JsonObject
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
-import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -115,13 +114,6 @@ interface ApiService {
         @Path("branch") branch: Int,
         @Body body: SaleRequest,
     ): Response<Envelope<SaleDto>>
-
-    @GET("companies/{company}/branches/{branch}/sales/{sale}/receipt")
-    suspend fun receiptPdf(
-        @Path("company") company: Int,
-        @Path("branch") branch: Int,
-        @Path("sale") sale: Int,
-    ): Response<ResponseBody>
 
     @GET("companies/{company}/approvals")
     suspend fun approvals(

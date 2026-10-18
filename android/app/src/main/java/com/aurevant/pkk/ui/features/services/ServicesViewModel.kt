@@ -63,7 +63,7 @@ class ServicesViewModel @Inject constructor(
     private val _state = MutableStateFlow(ServicesState(busy = true))
     val state: StateFlow<ServicesState> = _state
 
-    private fun update(f: (ServicesState) -> ServicesState) {
+    private inline fun update(f: (ServicesState) -> ServicesState) {
         _state.value = f(_state.value)
     }
 

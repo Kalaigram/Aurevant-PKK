@@ -72,7 +72,7 @@ interface SaleRepo {
     suspend fun openShift(company: Int, branch: Int, cash: Double): Shift
     suspend fun closeShift(company: Int, branch: Int, shift: Int, counted: Double): Shift
     suspend fun createSale(company: Int, branch: Int, lines: List<CartLine>, pays: List<PayInput>, key: String): Sale
-    suspend fun receiptPdf(company: Int, branch: Int, sale: Int, number: String): File
+    suspend fun receiptPdf(sale: Sale, companyName: String, branchName: String, names: Map<Int, String>): File
     suspend fun notas(company: Int, branch: Int): List<Sale>
     suspend fun notaDetail(company: Int, branch: Int, sale: Int): Sale
     suspend fun voidSale(company: Int, branch: Int, sale: Int, reason: String)

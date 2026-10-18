@@ -138,7 +138,7 @@ fun PosScreen(
                     Text("Nota ${sale.number} (${sale.status})", style = MaterialTheme.typography.titleMedium)
                     Text("Total ${rupiah(sale.grandTotal)}")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { onAction(PosAction.Receipt) }) { Text("Unduh PDF") }
+                        OutlinedButton(onClick = { onAction(PosAction.Receipt) }) { Text("Simpan PDF") }
                         if (state.receiptFile != null) {
                             Button(onClick = onPrint) { Text("Cetak") }
                         }

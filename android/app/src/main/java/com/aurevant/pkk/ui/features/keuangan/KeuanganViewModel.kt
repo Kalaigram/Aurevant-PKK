@@ -72,7 +72,7 @@ class KeuanganViewModel @Inject constructor(
     private val _state = MutableStateFlow(KeuanganState(busy = true))
     val state: StateFlow<KeuanganState> = _state
 
-    private fun update(f: (KeuanganState) -> KeuanganState) {
+    private inline fun update(f: (KeuanganState) -> KeuanganState) {
         _state.value = f(_state.value)
     }
 
