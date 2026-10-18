@@ -14,7 +14,10 @@ Acuan API: `server/routes/api.php` (prefix `/api/v1`). Kontrak `{status, message
 1. Nyalakan backend Laravel (`php artisan serve --host=0.0.0.0`, MySQL jalan).
 2. Emulator: `BASE_URL` di `di/NetworkModule.kt` sudah `http://10.0.2.2:8000/api/v1/`
    (loopback host). HP fisik: ganti ke `http://<IP-LAN>:8000/api/v1/`.
-3. Build: `JAVA_HOME="<Android Studio>/jbr" ./gradlew :app:assembleDebug`.
+3. Push (opsional): taruh `google-services.json` dari Firebase console ke `android/app/`.
+   Plugin google-services di-apply kondisional — tanpa file itu aplikasi tetap jalan,
+   hanya fitur push yang nonaktif.
+4. Build: `JAVA_HOME="<Android Studio>/jbr" ./gradlew :app:assembleDebug`.
 
 ## Struktur (MVVM + Clean 3 lapis, sesuai RULES.md §3)
 
@@ -63,7 +66,7 @@ Menu bawah maks 5 tab (Dasbor + Absensi + prioritas role); sisanya di menu ⋮.
 | Keuangan | `GET .../expense-categories`, `GET/POST .../expenses` + `/approve/reject`, `GET .../supplier-bills` + `.../pay`, `GET .../receivables` + `.../pay`, `GET .../reports/profit-loss` |
 | Penggajian | `GET .../payroll-periods`, `POST .../calculate/review/approve/pay` |
 | Persetujuan | `GET .../approvals`, `POST .../approve`, `POST .../reject` |
-| Notifikasi | `GET /notifications`, `POST .../read`, `POST .../read-all` |
+| Notifikasi | `GET /notifications`, `POST .../read`, `POST .../read-all`, `POST /device-tokens` (token FCM didaftarkan otomatis setelah login & pilih perusahaan; cabut dari web di layar Notifikasi) |
 | Cuti / Slip / Kartu / Pelanggan | `POST .../users/{id}/leaves`, `GET .../slip`, `GET .../users/{id}/card`, `GET .../customers` |
 
 ## Aturan absensi (sesuai spek)
@@ -74,11 +77,26 @@ Menu bawah maks 5 tab (Dasbor + Absensi + prioritas role); sisanya di menu ⋮.
 - Swafoto via kamera sistem saat clock-in (wajib), disimpan sebagai `File` lalu `multipart`.
 - Waktu absen memakai jam server (respons API), bukan jam HP.
 
+## Push notification (FCM)
+
+- Kanal `pkk_default` dibuat saat app start (`AurevantApp`), permintaan izin
+  `POST_NOTIFICATIONS` di `MainActivity` (Android 13+).
+- Token didaftarkan ke `POST /device-tokens` lewat `core/push/PushTokenSync` setiap
+  login sukses dan setelah pilih perusahaan; `PkkMessagingService` menangani
+  `onNewToken` (daftar ulang) + `onMessageReceived` (tampilkan notifikasi saat app dibuka).
+- Pesan dari server memuat `notification` + `data` (`type`, `link`); saat app di background
+  sistem menampilkan sendiri memakai kanal default di atas.
+- Belum ada: aksi deep-link dari `push_link` ke layar tertentu + hapus token otomatis saat logout.
+
 ## Batasan jujur (mobile v1)
 
 - **Retur barang** di HP hanya **pengajuan** (`sale.refund` + alasan);
   eksekusi akhir oleh manajer di web — API tidak membuka ID baris nota.
 - Cetak thermal Bluetooth (ganti PrintManager → printer ESC/POS); struk PDF digambar lokal di HP (instan, tanpa jaringan), endpoint web `GET .../receipt` tetap ada untuk web.
-- FCM push (tanpa `google-services.json`, `device-tokens` belum didaftarkan dari aplikasi).
+- FCM push: kode lengkap (server + HP), tinggal drop-in `google-services.json`; tanpa file itu push otomatis nonaktif tanpa mengganggu fitur lain.
+- **Blocker build pertama (belum diperbaiki, ditunda):** `:app:processDebugResources` gagal —
+  `mipmap-anydpi/ic_launcher.xml` + `ic_launcher_round.xml` memakai `<adaptive-icon>` padahal
+  minSdk 24 (butuh v26). Perbaikan: pindahkan file ke `mipmap-anydpi-v26/` + sediakan PNG/vector
+  fallback di `mipmap-*dpi/`. Setelah itu jalankan `.\gradlew.bat :app:compileDebugKotlin`.
 - Deteksi lokasi palsu + Play Integrity (antarmuka siap, implementasi menyusul).
 - Keuangan web penuh (jurnal, neraca, tutup periode, impor) tetap di web.

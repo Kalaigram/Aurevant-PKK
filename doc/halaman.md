@@ -23,10 +23,11 @@ Staf Gudang, Pelaksana Jasa, Admin Keuangan, HR). Super admin: flag `users.is_su
 | Halaman | Penjelasan | Endpoint |
 |---|---|---|
 | Login / Register | Masuk email/HP + password; daftar akun baru. | `POST /auth/login`, `POST /auth/register` |
+| Lupa / Atur Ulang Sandi | Kirim tautan reset via email (anti-enumerasi, throttle 6/menit); form atur ulang dari tautan email. | `POST /auth/forgot-password`, `POST /auth/reset-password` |
 | Pilih Perusahaan | Daftar perusahaan yang bisa diakses user. | `GET /companies` |
-| Profil Saya | Data diri + daftar izin per perusahaan. | `GET /auth/me` |
+| Profil Saya | Data diri + daftar izin per perusahaan + ganti kata sandi (sesi lain dicabut). | `GET /auth/me`, `POST /auth/change-password` |
 | Dashboard | Ringkasan per role (lihat §2). Seksi muncul sesuai izin: keuangan (`keuangan.lihat`), penjualan (`nota.lihat`), operasional (`stok.transfer`/`stok.opname`), SDM (`jadwal.lihat`), penggajian (`gaji.kelola`), karyawan (`karyawan.kelola`). | `GET /companies/{company}/dashboard` |
-| Notifikasi | Polling notifikasi, tandai dibaca, atur preferensi, daftarkan device token. | `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/{id}/read`, `POST /notifications/read-all`, `GET+PUT /notification-preferences`, `POST+DELETE /device-tokens` |
+| Notifikasi | Polling notifikasi (web) + push FCM (Android), tandai dibaca, atur preferensi, lihat/cabut device token. | `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/{id}/read`, `POST /notifications/read-all`, `GET+PUT /notification-preferences`, `POST+DELETE /device-tokens` |
 | Persetujuan (inbox) | Satu antrean untuk void, diskon, refund, PO, transfer, opname. Siapa pun boleh mengajukan sesuai izin dasar; tombol Setujui/Tolak hanya untuk pemegang izin putuskan (backend 403 bila nekat). Lihat §9. | `GET /companies/{company}/approvals`, `POST /companies/{company}/approvals`, `GET /companies/{company}/approvals/{id}`, `POST .../approve`, `POST .../reject` |
 | Absensi Saya | Clock-in/out (QR dinamis + geofence + selfie, 1 akun 1 perangkat), riwayat sendiri. | `POST /companies/{company}/attendance/clock-in`, `POST .../clock-out`, `GET .../attendance/me`, `GET .../branches/{branch}/attendance-qr` |
 | Cuti Saya | Ajukan izin/sakit/cuti, lihat status. | `GET /companies/{company}/leaves`, `POST /companies/{company}/users/{user}/leaves` |
@@ -145,7 +146,7 @@ Batasan: tidak ada kasir (tanpa `transaksi.buat`), tidak ada approve PO, tidak a
 
 | Halaman | Penjelasan | Endpoint |
 |---|---|---|
-| Karyawan | Beri/cabut role, penempatan cabang + riwayat. | `.../access/users/{user}/roles*`, `.../access/users/{user}/assignments`, `.../access/assignments*` (`karyawan.kelola`) |
+| Karyawan | Buat akun karyawan (password awal sekali-tampil / acak) + reset sandi + beri/cabut role + penempatan cabang + riwayat. | `POST .../users` + `POST .../users/{user}/reset-password`, `.../access/users/{user}/roles*`, `.../access/users/{user}/assignments`, `.../access/assignments*` (`karyawan.kelola`) |
 | Shift & Jadwal | CRUD master shift, pola mingguan, override, lihat jadwal siapa pun, libur nasional: TIDAK (butuh `pengaturan.kelola`). | `GET+POST+PUT+DELETE .../work-shifts` (ubah: `shift.kelola`), `.../users/{user}/schedule-pattern` (`jadwal.lihat`, ganti: `shift.kelola`), `.../schedule-overrides` (`shift.kelola`) |
 | Absensi | Kehadiran per cabang per hari, koreksi, putuskan cuti, reset device 1-akun-1-perangkat. | `GET .../branches/{branch}/attendance` + `DELETE .../users/{user}/device` (`absensi.approve`), `PUT .../attendances/{id}` (`absensi.koreksi`), `POST .../leaves/{leave}/decide` |
 | Penggajian | Penuh: seperti Admin Keuangan (§8) DITAMBAH setujui periode. | §8 + `POST .../payroll-periods/{period}/approve` (`gaji.setujui`) |
@@ -266,3 +267,11 @@ menempel ke API-nya; `[~]` bila prompt sudah dibuat tapi layar belum jadi.
 ### F. Langganan (perusahaan, lihat) — 0/1
 
 - [ ] Status Langganan (sudah tercakup halaman global "Langganan (lihat)" — tidak dihitung ganda)
+
+### G. Praluncur (tambahan auth & onboarding) — 2/2
+
+- [x] Lupa Password (`/lupa-password`) — kirim tautan reset via email
+- [x] Atur Ulang Password (`/reset-password?token&email`) — dipakai tautan dari email
+
+Tambahan non-halaman: tombol "Lupa sandi?" di Login, kartu "Tambah karyawan baru" + aksi
+"Reset sandi" di halaman Karyawan & Penempatan, dan kartu "Ganti kata sandi" di Profil Saya.

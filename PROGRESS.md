@@ -15,7 +15,7 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 ## Fase 1 — MVP
 
 - [x] Tenant: `companies`, registrasi perusahaan, suspend/aktif
-- [x] Autentikasi: Sanctum (web SPA + mobile), login email/HP, rate limit (2FA opsional ditunda)
+- [x] Autentikasi: Sanctum (web SPA + mobile), login email/HP, rate limit + lupa/atur ulang kata sandi via email + ganti kata sandi dari profil (cabut sesi lain)
 - [x] RBAC custom: `roles` + `permissions` + scope (sendiri/cabang/perusahaan), template subrole
 - [x] Cabang: CRUD + zona waktu (WIB/WITA/WIT), tipe gudang
 - [x] Katalog: kategori, item barang/jasa, harga per cabang (pajak/diskon per dokumen ditunda)
@@ -32,9 +32,9 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] Ekspor CSV pelanggan (`GET .../exports/customers`, izin `pelanggan.ekspor`)
 - [x] Laporan dasar + tabel ringkasan harian per cabang
 - [x] Audit log append-only (event + queue)
-- [x] Notifikasi in-app (polling dulu; FCM/email ditunda)
-- [x] Onboarding wizard (buat company) + impor/ekspor CSV (Excel + undangan karyawan ditunda)
-- [x] Langganan: paket + status trial/aktif/grace/read-only/suspend, konfirmasi manual
+- [x] Notifikasi in-app (web polling) + push FCM ke HP Android (device token otomatis; aktif setelah `google-services.json` dipasang) + email pengingat langganan
+- [x] Onboarding wizard (buat company) + impor/ekspor CSV + buat akun karyawan langsung dari web (password awal sekali-tampil + reset oleh HR; undangan email & impor Excel ditunda)
+- [x] Langganan: paket + status trial/aktif/grace/read-only/suspend, konfirmasi manual + pengingat H-7/H-3/H-1/H-0 ke Pemilik (in-app + email) + auto read-only saat lewat
 - [x] Tes isolasi tenant (A tidak bisa akses data B) lolos 100%
 
 ## Fase 2 — SDM
@@ -43,7 +43,7 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] Jadwal: master shift + pola mingguan + roster/override per tanggal
 - [x] Absensi QR dinamis (HP) + geofence + 1 akun 1 perangkat + selfie + waktu server
 - [x] Jalur cadangan: kartu QR (UUID) + selfie + PIN di perangkat cabang
-- [x] Deteksi alpa otomatis + status (hadir/terlambat/alpa/izin/sakit/cuti + flag potong gaji)
+- [x] Deteksi alpa otomatis terjadwal harian 00:30 semua perusahaan aktif (skip hari libur & cuti) + status (hadir/terlambat/alpa/izin/sakit/cuti + flag potong gaji)
 - [x] Kartu karyawan PDF/PNG + versi digital di mobile
 - [x] Penggajian komponen fleksibel (1/30, per-hari-hadir, komisi) + periode + kunci + slip PDF
 - [x] Dashboard per role (keuangan/penjualan/operasional/SDM/penggajian/karyawan)
@@ -55,6 +55,14 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] BPJS + PPh 21 annualisasi + PTKP per status (TER bulanan menyusul bila perlu)
 - [x] Invoice langganan manual + otomatis harian + bayar perpanjang 30 hari
 - [x] Audit log diperluas (keuangan + langganan + periode) + arus kas + neraca
+
+## Persiapan praluncur
+
+- [x] Alpa otomatis menyala: `attendance:mark-absent` dijadwalkan 00:30, opsi `--company` jadi opsional (kosong = semua perusahaan aktif), skip libur sudah di jalur
+- [x] Akun karyawan: `POST /companies/{company}/users` (password awal sekali-tampil) + reset sandi oleh HR
+- [x] Pemulihan kata sandi: `forgot-password` / `reset-password` (email, throttle) + `change-password` cabut sesi lain
+- [x] Push FCM: server HTTP v1 (`PushSender` + `SendPushNotification` job) + Android daftar token otomatis (drop-in `google-services.json` di `android/app/`)
+- [x] Reminder langganan: `subscription:remind` 08:00 H-7/H-3/H-1/H-0 + auto `read_only` + email Pemilik
 
 ## Ditunda (di luar scope)
 
