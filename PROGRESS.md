@@ -102,7 +102,7 @@ Rencana phased disetujui 2026-10-22. Fokus web dulu; Android tidak diubah pada f
 - [x] Nota/Penjualan: filter status/tanggal/cari, tabel, detail, void/retur, cetak 80mm + PDF
 - [x] Pembelian/PO: filter status/cabang/cari, tabel, detail item + tagihan, buat PO, alur aksi, terima barang bertahap, print A4
 - [x] Stok/transfer/opname: filter server, tabel, detail item, alur aksi, penyesuaian/terima bertahap
-- [ ] Katalog/harga/pelanggan/jasa: form dan tabel konsisten
-- [ ] Cabang/karyawan/payroll/periode: form dan tabel konsisten
+- [x] Katalog/harga/pelanggan/jasa: pencarian server, tabel+pager, form modal, detail order jasa + aksi
+- [x] Cabang/karyawan/payroll/periode: filter server, tabel+pager, form modal, aksi alur payroll/periode
 - [ ] Migrasi daftar tersisa ke `usePagedList`/`AppTable`/`AppPager`
 - [ ] DB 3 tier: branding/kontak, upload logo/foto/avatar, expose field tersisa

@@ -1,41 +1,74 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { api, downloadFile, type PageMeta } from '../lib/api'
+import { computed, onMounted, ref } from 'vue'
+import { api, downloadFile } from '../lib/api'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
-import AppCard from '../components/ui/AppCard.vue'
+import { usePagedList } from '../composables/usePagedList'
+import { useConfirm } from '../composables/useConfirm'
+import { useToast } from '../composables/useToast'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
+import AppCard from '../components/ui/AppCard.vue'
 import AppField from '../components/ui/AppField.vue'
-import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppInput from '../components/ui/AppInput.vue'
+import AppModal from '../components/ui/AppModal.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
-import AppIcon from '../components/ui/AppIcon.vue'
+import AppSearch from '../components/ui/AppSearch.vue'
+import AppTable from '../components/ui/AppTable.vue'
+import AppTextarea from '../components/ui/AppTextarea.vue'
 
 interface Pelanggan {
   id: number
   name: string
   phone: string | null
   address: string | null
+  notes: string | null
+}
+
+interface FormPelanggan {
+  name: string
+  phone: string
+  address: string
+  notes: string
 }
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
-const list = ref<Pelanggan[]>([])
-const meta = ref<PageMeta | null>(null)
-const cari = ref('')
-const okMsg = ref('')
-const showForm = ref(false)
-const sunting = ref<Pelanggan | null>(null)
-const form = ref({ name: '', phone: '', address: '' })
-const tanyaHapus = ref<Pelanggan | null>(null)
+const toast = useToast()
+const { confirm } = useConfirm()
+const eksporAsync = useAsync()
+const mutasi = useAsync()
 
-const bolehKelola = () => access.can('pelanggan.kelola')
-const bolehEkspor = () => access.can('pelanggan.ekspor')
+const cari = ref('')
+const formOpen = ref(false)
+const sunting = ref<Pelanggan | null>(null)
+const form = ref<FormPelanggan>(formKosong())
+
+const {
+  rows: list,
+  meta,
+  loading,
+  error: errorDaftar,
+  load,
+  setPerPage,
+} = usePagedList<Pelanggan>((page, perPage) => {
+  const params = new URLSearchParams({ per_page: String(perPage), page: String(page) })
+  if (cari.value.trim()) params.set('q', cari.value.trim())
+  return api.getPage<Pelanggan>(`/companies/${companyId.value}/customers?${params}`, auth.token)
+})
+
+const bolehKelola = computed(() => access.can('pelanggan.kelola'))
+const bolehEkspor = computed(() => access.can('pelanggan.ekspor'))
+const error = computed(() => errorDaftar.value || eksporAsync.error.value)
+
+function formKosong(): FormPelanggan {
+  return { name: '', phone: '', address: '', notes: '' }
+}
 
 async function ekspor() {
-  await run(() =>
+  await eksporAsync.run(() =>
     downloadFile(
       `/companies/${companyId.value}/exports/customers`,
       'pelanggan.csv',
@@ -43,193 +76,195 @@ async function ekspor() {
       'text/csv',
     ),
   )
-  if (!error.value) okMsg.value = 'Data pelanggan diunduh.'
-}
-
-async function muat(page = 1) {
-  okMsg.value = ''
-  const res = await run(() =>
-    api.getPage<Pelanggan>(
-      `/companies/${companyId.value}/customers?per_page=15&page=${page}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    const raw = res as unknown as { data: Pelanggan[]; meta?: PageMeta } | Pelanggan[]
-    if (Array.isArray(raw)) list.value = raw
-    else {
-      list.value = raw.data
-      meta.value = raw.meta ?? null
-    }
+  if (eksporAsync.error.value) {
+    toast.error(eksporAsync.error.value)
+    return
   }
-}
-
-const tersaring = () => {
-  const q = cari.value.trim().toLowerCase()
-  if (!q) return list.value
-  return list.value.filter((p) => p.name.toLowerCase().includes(q) || (p.phone ?? '').includes(q))
+  toast.success('Data pelanggan diunduh.')
 }
 
 function bukaTambah() {
+  mutasi.error.value = ''
   sunting.value = null
-  form.value = { name: '', phone: '', address: '' }
-  showForm.value = true
+  form.value = formKosong()
+  formOpen.value = true
 }
 
 function bukaUbah(p: Pelanggan) {
+  mutasi.error.value = ''
   sunting.value = p
-  form.value = { name: p.name, phone: p.phone ?? '', address: p.address ?? '' }
-  showForm.value = true
+  form.value = {
+    name: p.name,
+    phone: p.phone ?? '',
+    address: p.address ?? '',
+    notes: p.notes ?? '',
+  }
+  formOpen.value = true
 }
 
 async function simpan() {
-  const base = `/companies/${companyId.value}/customers`
+  const f = form.value
+  if (!f.name.trim()) return
   const body = {
-    name: form.value.name.trim(),
-    phone: form.value.phone.trim() || undefined,
-    address: form.value.address.trim() || undefined,
+    name: f.name.trim(),
+    phone: f.phone.trim() || null,
+    address: f.address.trim() || null,
+    notes: f.notes.trim() || null,
   }
-  const res = sunting.value
-    ? await run(() => api.put(base + `/${sunting.value!.id}`, body, auth.token))
-    : await run(() => api.post(base, body, auth.token))
-  if (res) {
-    showForm.value = false
-    okMsg.value = sunting.value ? 'Pelanggan diperbarui.' : 'Pelanggan baru ditambahkan.'
-    muat(meta.value?.current_page ?? 1)
+  const base = `/companies/${companyId.value}/customers`
+  await mutasi.run(() =>
+    sunting.value
+      ? api.put(base + `/${sunting.value.id}`, body, auth.token)
+      : api.post(base, body, auth.token),
+  )
+  if (mutasi.error.value) {
+    toast.error(mutasi.error.value)
+    return
   }
+  formOpen.value = false
+  toast.success(sunting.value ? 'Pelanggan diperbarui.' : 'Pelanggan ditambahkan.')
+  await load()
 }
 
-async function hapus() {
-  if (!tanyaHapus.value) return
-  await run(() =>
-    api.del(`/companies/${companyId.value}/customers/${tanyaHapus.value!.id}`, auth.token),
-  )
-  if (!error.value) {
-    tanyaHapus.value = null
-    okMsg.value = 'Pelanggan dihapus.'
-    muat(1)
+async function hapus(p: Pelanggan) {
+  const setuju = await confirm({
+    title: 'Hapus pelanggan?',
+    message: `${p.name} akan dihapus. Pelanggan yang sudah punya transaksi tidak bisa dihapus.`,
+    confirmLabel: 'Hapus',
+    tone: 'danger',
+  })
+  if (!setuju) return
+  await mutasi.run(() => api.del(`/companies/${companyId.value}/customers/${p.id}`, auth.token))
+  if (mutasi.error.value) {
+    toast.error(mutasi.error.value)
+    return
   }
+  toast.success('Pelanggan dihapus.')
+  await load()
 }
 
 onMounted(async () => {
   await access.load(companyId.value, auth.token)
-  muat()
+  await load(1)
 })
 </script>
 
 <template>
   <div>
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-3">
-        <div
-          class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary"
-        >
-          <AppIcon name="group" :size="28" />
-        </div>
-        <h1 class="font-display text-xl font-semibold">Pelanggan</h1>
-      </div>
-      <div class="flex gap-2">
-        <AppButton v-if="bolehEkspor()" variant="ghost" @click="ekspor"
-          ><AppIcon name="download" :size="18" />Ekspor</AppButton
-        >
-        <AppButton v-if="bolehKelola()" @click="bukaTambah"
-          ><AppIcon name="add" :size="18" />Tambah</AppButton
-        >
-      </div>
-    </div>
-    <AppBanner tone="green" :message="okMsg" />
+    <AppPageHeader
+      eyebrow="Pelanggan"
+      title="Pelanggan"
+      subtitle="Simpan kontak pelanggan agar transaksi dan order jasa lebih cepat."
+      icon="group"
+    >
+      <template #actions>
+        <AppButton v-if="bolehEkspor" variant="ghost" :loading="eksporAsync.loading.value" @click="ekspor">
+          Ekspor CSV
+        </AppButton>
+        <AppButton v-if="bolehKelola" @click="bukaTambah">Pelanggan baru</AppButton>
+      </template>
+    </AppPageHeader>
+
     <AppBanner tone="red" :message="error" />
-    <AppField label="Cari nama / telepon">
-      <input
-        v-model="cari"
-        class="max-w-sm rounded-lg border border-outline bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-        placeholder="cth. Dudi"
-      />
-    </AppField>
-    <AppEmpty v-if="!loading && !tersaring().length" message="Belum ada pelanggan." />
-    <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-      <AppCard v-for="p in tersaring()" :key="p.id">
-        <div class="flex items-start justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <span
-              class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-low font-bold text-primary"
-              >{{ p.name.charAt(0).toUpperCase() }}</span
-            >
-            <div>
-              <p class="font-semibold">{{ p.name }}</p>
-              <p class="font-mono text-xs text-secondary">{{ p.phone ?? '–' }}</p>
-            </div>
-          </div>
-          <div v-if="bolehKelola()" class="flex gap-1">
-            <AppButton variant="ghost" @click="bukaUbah(p)">Ubah</AppButton>
-            <AppButton variant="ghost" @click="tanyaHapus = p"
-              ><span class="text-danger">Hapus</span></AppButton
-            >
-          </div>
-        </div>
-        <p v-if="p.address" class="mt-2 text-sm text-secondary">{{ p.address }}</p>
-      </AppCard>
-    </div>
-    <AppPager :meta="meta" @page="muat" />
 
-    <div
-      v-if="showForm"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="showForm = false"
-    >
-      <form class="w-full max-w-md rounded-xl bg-card p-5 shadow-xl" @submit.prevent="simpan">
-        <h3 class="font-display font-semibold">
-          {{ sunting ? 'Ubah pelanggan' : 'Pelanggan baru' }}
-        </h3>
-        <div class="mt-3">
-          <AppField label="Nama (wajib)">
-            <input
-              v-model="form.name"
-              maxlength="255"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-        </div>
-        <div class="mt-3">
-          <AppField label="Telepon (unik, boleh kosong)">
-            <input
-              v-model="form.phone"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-        </div>
-        <div class="mt-3">
-          <AppField label="Alamat">
-            <textarea
-              v-model="form.address"
-              rows="2"
-              maxlength="500"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-        </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="showForm = false">Batal</AppButton>
-          <AppButton type="submit" :loading="loading">Simpan</AppButton>
-        </div>
-      </form>
-    </div>
-
-    <div
-      v-if="tanyaHapus"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="tanyaHapus = null"
-    >
-      <div class="w-full max-w-sm rounded-xl bg-card p-5 shadow-xl">
-        <h3 class="font-display font-semibold">Hapus {{ tanyaHapus.name }}?</h3>
-        <p class="mt-1 text-sm text-secondary">
-          Pelanggan yang masih punya transaksi tidak bisa dihapus.
-        </p>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="tanyaHapus = null">Batal</AppButton>
-          <AppButton variant="danger" :loading="loading" @click="hapus">Ya, hapus</AppButton>
-        </div>
+    <AppCard>
+      <div class="mb-3 flex flex-wrap items-end gap-2">
+        <AppSearch
+          v-model="cari"
+          class="min-w-56 flex-1"
+          placeholder="Cari nama atau nomor telepon..."
+          @search="load(1)"
+        />
       </div>
-    </div>
+
+      <AppTable
+        :loading="loading"
+        :empty="!list.length"
+        :colspan="5"
+        empty-title="Belum ada pelanggan"
+        empty-message="Tambahkan pelanggan atau ubah kata kunci pencarian."
+      >
+        <template #head>
+          <tr>
+            <th>Pelanggan</th>
+            <th>Telepon</th>
+            <th class="hidden md:table-cell">Alamat</th>
+            <th class="hidden lg:table-cell">Catatan</th>
+            <th v-if="bolehKelola" class="text-right">Aksi</th>
+          </tr>
+        </template>
+        <tr v-for="p in list" :key="p.id">
+          <td>
+            <div class="flex items-center gap-2.5">
+              <span
+                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary"
+              >
+                {{ p.name.charAt(0).toUpperCase() }}
+              </span>
+              <span class="font-medium text-ink">{{ p.name }}</span>
+            </div>
+          </td>
+          <td class="font-mono text-xs text-secondary">{{ p.phone ?? '—' }}</td>
+          <td class="hidden max-w-xs truncate text-secondary md:table-cell">
+            {{ p.address ?? '—' }}
+          </td>
+          <td class="hidden max-w-xs truncate text-secondary lg:table-cell">
+            {{ p.notes ?? '—' }}
+          </td>
+          <td v-if="bolehKelola" class="text-right">
+            <div class="flex justify-end gap-2">
+              <AppButton variant="ghost" size="sm" @click="bukaUbah(p)">Ubah</AppButton>
+              <button
+                type="button"
+                class="text-xs font-semibold text-danger hover:underline"
+                @click="hapus(p)"
+              >
+                Hapus
+              </button>
+            </div>
+          </td>
+        </tr>
+      </AppTable>
+      <AppPager :meta="meta" @page="load" @update:per-page="setPerPage" />
+    </AppCard>
+
+    <AppModal
+      :open="formOpen"
+      :title="sunting ? 'Ubah pelanggan' : 'Pelanggan baru'"
+      description="Nomor telepon boleh kosong, tetapi harus unik jika diisi."
+      @close="formOpen = false"
+    >
+      <AppBanner tone="red" :message="mutasi.error.value" />
+      <form id="pelanggan-form" class="grid gap-3" @submit.prevent="simpan">
+        <AppField label="Nama pelanggan">
+          <AppInput v-model="form.name" maxlength="255" data-autofocus />
+        </AppField>
+        <AppField label="Telepon">
+          <AppInput v-model="form.phone" maxlength="30" placeholder="cth. 0812 3456 7890" />
+        </AppField>
+        <AppField label="Alamat">
+          <AppTextarea v-model="form.address" :rows="2" :maxlength="500" />
+        </AppField>
+        <AppField label="Catatan">
+          <AppTextarea
+            v-model="form.notes"
+            :rows="2"
+            :maxlength="500"
+            placeholder="cth. pelanggan langganan, preferensi servis"
+          />
+        </AppField>
+      </form>
+      <template #footer>
+        <AppButton variant="ghost" @click="formOpen = false">Batal</AppButton>
+        <AppButton
+          type="submit"
+          form="pelanggan-form"
+          :loading="mutasi.loading.value"
+          :disabled="!form.name.trim()"
+        >
+          Simpan
+        </AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

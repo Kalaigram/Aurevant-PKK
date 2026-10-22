@@ -5,11 +5,20 @@ import { tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
-import AppCard from '../components/ui/AppCard.vue'
+import { usePagedList } from '../composables/usePagedList'
+import { useConfirm } from '../composables/useConfirm'
+import { useToast } from '../composables/useToast'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
-import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppCard from '../components/ui/AppCard.vue'
+import AppField from '../components/ui/AppField.vue'
+import AppModal from '../components/ui/AppModal.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPager from '../components/ui/AppPager.vue'
+import AppSelect from '../components/ui/AppSelect.vue'
+import AppTable from '../components/ui/AppTable.vue'
+import AppTabs from '../components/ui/AppTabs.vue'
 
 interface Periode {
   id: number
@@ -17,34 +26,92 @@ interface Periode {
   month: number
   label: string
   status: string
-  closedAt?: string | null
+  closedAt: string | null
 }
+
+const BULAN = [
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+]
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
-const list = ref<Periode[]>([])
-const okMsg = ref('')
+const toast = useToast()
+const { confirm } = useConfirm()
+const { loading: mutasiLoading, error: mutasiError, run: runMutasi } = useAsync()
+
+const tabStatus = ref('semua')
+const statistik = ref({ total: 0, buka: 0, tutup: 0 })
+const tutupOpen = ref(false)
 const tahun = ref(new Date().getFullYear())
-const bulan = ref(new Date().getMonth() + 1)
+const bulan = ref(String(new Date().getMonth() + 1))
 
-const boleh = computed(() => access.can('periode.tutup'))
-const terbuka = computed(() => list.value.filter((p) => p.status === 'buka').length)
-const tertutup = computed(() => list.value.filter((p) => p.status !== 'buka').length)
-
-async function muat() {
-  okMsg.value = ''
-  const res = await run(() =>
-    api.get<Periode[]>(`/companies/${companyId.value}/accounting-periods?per_page=50`, auth.token),
+const {
+  rows: list,
+  meta,
+  loading,
+  error: errorList,
+  load,
+  setPage,
+  setPerPage,
+} = usePagedList<Periode>((page, perPage) => {
+  const params = new URLSearchParams({ per_page: String(perPage), page: String(page) })
+  if (tabStatus.value !== 'semua') params.set('status', tabStatus.value)
+  return api.getPage<Periode>(
+    `/companies/${companyId.value}/accounting-periods?${params}`,
+    auth.token,
   )
-  if (res)
-    list.value = (
-      Array.isArray(res) ? res : ((res as unknown as { data: Periode[] }).data ?? [])
-    ) as Periode[]
+})
+
+const error = computed(() => errorList.value || mutasiError.value)
+const boleh = computed(() => access.can('periode.tutup'))
+const tabs = computed(() => [
+  { key: 'semua', label: 'Semua', count: statistik.value.total },
+  { key: 'buka', label: 'Terbuka', count: statistik.value.buka },
+  { key: 'tutup', label: 'Tertutup', count: statistik.value.tutup },
+])
+const opsiBulan = BULAN.map((nama, index) => ({
+  value: String(index + 1),
+  label: nama,
+}))
+const statusLabel = (status: string) => (status === 'buka' ? 'Terbuka' : 'Tertutup')
+
+async function muatStatistik() {
+  const base = `/companies/${companyId.value}/accounting-periods?per_page=1`
+  const [semua, buka, tutup] = await Promise.all([
+    api.getPage<Periode>(base, auth.token).catch(() => null),
+    api.getPage<Periode>(`${base}&status=buka`, auth.token).catch(() => null),
+    api.getPage<Periode>(`${base}&status=tutup`, auth.token).catch(() => null),
+  ])
+  statistik.value = {
+    total: semua?.meta?.total ?? 0,
+    buka: buka?.meta?.total ?? 0,
+    tutup: tutup?.meta?.total ?? 0,
+  }
 }
 
-async function tutup() {
-  const res = await run(() =>
+async function terapkanStatus() {
+  await load(1)
+}
+
+function bukaTutup() {
+  tahun.value = new Date().getFullYear()
+  bulan.value = String(new Date().getMonth() + 1)
+  tutupOpen.value = true
+}
+
+async function tutupPeriode() {
+  const res = await runMutasi(() =>
     api.post(
       `/companies/${companyId.value}/accounting-periods/close`,
       {
@@ -54,98 +121,153 @@ async function tutup() {
       auth.token,
     ),
   )
-  if (res || !error.value) {
-    okMsg.value = 'Periode ditutup. Posting ke bulan itu ditolak.'
-    muat()
-  }
+  if (!res) return
+
+  tutupOpen.value = false
+  toast.success('Periode ditutup. Posting ke bulan itu ditolak.')
+  await Promise.all([load(1), muatStatistik()])
 }
 
-async function bukaLagi(p: Periode) {
-  const res = await run(() =>
-    api.post(`/companies/${companyId.value}/accounting-periods/${p.id}/reopen`, {}, auth.token),
+async function bukaLagi(periode: Periode) {
+  const yakin = await confirm({
+    title: `Buka lagi periode ${periode.label}?`,
+    message: 'Posting backdate ke bulan ini akan diizinkan kembali.',
+    confirmLabel: 'Buka periode',
+  })
+  if (!yakin) return
+
+  const res = await runMutasi(() =>
+    api.post(
+      `/companies/${companyId.value}/accounting-periods/${periode.id}/reopen`,
+      {},
+      auth.token,
+    ),
   )
-  if (res || !error.value) {
-    okMsg.value = `Periode ${p.label} dibuka lagi.`
-    muat()
-  }
+  if (!res) return
+
+  toast.success(`Periode ${periode.label} dibuka lagi.`)
+  await Promise.all([load(), muatStatistik()])
 }
 
 onMounted(async () => {
   await access.load(companyId.value, auth.token)
-  await muat()
+  await Promise.all([load(1), muatStatistik()])
 })
 </script>
 
 <template>
   <div>
-    <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Kunci pembukuan</p>
-    <h1 class="font-display mb-4 text-xl font-semibold">Tutup periode</h1>
-    <AppBanner tone="green" :message="okMsg" />
+    <AppPageHeader
+      eyebrow="Kunci pembukuan"
+      title="Tutup periode"
+      subtitle="Kunci bulan buku agar posting backdate dan perubahan lama tidak masuk."
+      icon="calendar_month"
+    >
+      <template #actions>
+        <AppButton v-if="boleh" @click="bukaTutup">Tutup periode</AppButton>
+      </template>
+    </AppPageHeader>
+
     <AppBanner tone="red" :message="error" />
 
-    <div class="mb-4 grid grid-cols-2 gap-3">
-      <AppCard
-        ><p class="text-xs uppercase tracking-wider text-secondary">Terbuka</p>
-        <p class="font-display text-2xl font-bold">{{ terbuka }}</p></AppCard
-      >
-      <AppCard
-        ><p class="text-xs uppercase tracking-wider text-secondary">Tertutup</p>
-        <p class="font-display text-2xl font-bold">{{ tertutup }}</p></AppCard
-      >
+    <div class="mb-4 grid gap-3 md:grid-cols-3">
+      <AppCard>
+        <p class="text-xs uppercase tracking-wider text-secondary">Total periode</p>
+        <p class="font-display text-2xl font-bold">{{ statistik.total }}</p>
+      </AppCard>
+      <AppCard>
+        <p class="text-xs uppercase tracking-wider text-secondary">Terbuka</p>
+        <p class="font-display text-2xl font-bold">{{ statistik.buka }}</p>
+      </AppCard>
+      <AppCard>
+        <p class="text-xs uppercase tracking-wider text-secondary">Tertutup</p>
+        <p class="font-display text-2xl font-bold">{{ statistik.tutup }}</p>
+      </AppCard>
     </div>
 
-    <AppCard v-if="boleh" class="mb-3">
-      <h2 class="font-display font-semibold">Tutup bulan</h2>
-      <p class="text-xs text-secondary">
-        Syarat: tidak ada biaya draft & tidak ada gaji belum dibayar yang bersinggungan. Bulan yang
-        sudah tutup menolak posting backdate (nota, retur, PO, gaji, hutang/piutang).
-      </p>
-      <div class="mt-2 flex flex-wrap items-end gap-2">
-        <label class="text-sm"
-          >Tahun
+    <AppCard>
+      <AppTabs
+        v-model="tabStatus"
+        :items="tabs"
+        label="Status periode"
+        @update:model-value="terapkanStatus"
+      />
+
+      <div class="mt-4">
+        <AppTable
+          :loading="loading"
+          :empty="!list.length"
+          :colspan="boleh ? 4 : 3"
+          empty-title="Belum ada periode"
+          empty-message="Tutup bulan buku pertama untuk mulai mengunci posting."
+        >
+          <template #head>
+            <tr>
+              <th>Periode</th>
+              <th>Status</th>
+              <th>Ditutup pada</th>
+              <th v-if="boleh" class="text-right">Aksi</th>
+            </tr>
+          </template>
+
+          <tr v-for="item in list" :key="item.id">
+            <td>
+              <p class="font-semibold text-ink">{{ item.label }}</p>
+              <p class="text-xs text-secondary">{{ item.month }}/{{ item.year }}</p>
+            </td>
+            <td>
+              <AppBadge :tone="item.status === 'buka' ? 'green' : 'red'">
+                {{ statusLabel(item.status) }}
+              </AppBadge>
+            </td>
+            <td class="text-sm text-secondary">
+              {{ item.closedAt ? tanggal(item.closedAt) : '—' }}
+            </td>
+            <td v-if="boleh" class="text-right">
+              <AppButton
+                v-if="item.status !== 'buka'"
+                size="sm"
+                variant="ghost"
+                @click="bukaLagi(item)"
+              >
+                Buka lagi
+              </AppButton>
+              <span v-else class="text-xs text-secondary">Masih bisa posting</span>
+            </td>
+          </tr>
+        </AppTable>
+
+        <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
+      </div>
+    </AppCard>
+
+    <AppModal
+      :open="tutupOpen"
+      title="Tutup bulan buku"
+      description="Syarat: tidak ada biaya draft dan tidak ada gaji belum dibayar di bulan itu."
+      size="sm"
+      @close="tutupOpen = false"
+    >
+      <form id="close-period-form" class="space-y-3" @submit.prevent="tutupPeriode">
+        <AppField label="Tahun" required>
           <input
             v-model.number="tahun"
             type="number"
             min="2000"
             max="2100"
-            class="ml-1 w-24 rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-        /></label>
-        <label class="text-sm"
-          >Bulan
-          <input
-            v-model.number="bulan"
-            type="number"
-            min="1"
-            max="12"
-            class="ml-1 w-20 rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-        /></label>
-        <AppButton @click="tutup">Tutup periode</AppButton>
-      </div>
-    </AppCard>
-
-    <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
-    <AppEmpty v-else-if="!list.length" message="Belum ada periode." />
-    <div class="grid gap-3 md:grid-cols-2">
-      <AppCard v-for="p in list" :key="p.id">
-        <div class="flex items-center justify-between gap-2">
-          <strong class="font-display">{{ p.label }}</strong>
-          <AppBadge :tone="p.status === 'buka' ? 'green' : 'red'">{{ p.status }}</AppBadge>
-        </div>
-        <p class="mt-1 text-xs text-secondary">
-          {{
-            p.status === 'buka'
-              ? 'Masih bisa posting.'
-              : `Ditutup${p.closedAt ? ' · ' + tanggal(p.closedAt) : ''}.`
-          }}
-        </p>
-        <AppButton
-          v-if="p.status !== 'buka' && boleh"
-          variant="ghost"
-          class="mt-2"
-          @click="bukaLagi(p)"
-          >Buka lagi</AppButton
-        >
-      </AppCard>
-    </div>
+            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+          />
+        </AppField>
+        <AppField label="Bulan" required>
+          <AppSelect v-model="bulan" :options="opsiBulan" />
+        </AppField>
+      </form>
+      <template #footer>
+        <AppButton variant="ghost" @click="tutupOpen = false">Batal</AppButton>
+        <AppButton type="submit" form="close-period-form" :loading="mutasiLoading">
+          Tutup periode
+        </AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

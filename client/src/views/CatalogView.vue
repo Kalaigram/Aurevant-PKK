@@ -1,664 +1,690 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { api } from '../lib/api'
 import { rupiah } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
-import AppCard from '../components/ui/AppCard.vue'
+import { usePagedList } from '../composables/usePagedList'
+import { useConfirm } from '../composables/useConfirm'
+import { useToast } from '../composables/useToast'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
+import AppCard from '../components/ui/AppCard.vue'
+import AppCheckbox from '../components/ui/AppCheckbox.vue'
 import AppField from '../components/ui/AppField.vue'
-import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppInput from '../components/ui/AppInput.vue'
+import AppModal from '../components/ui/AppModal.vue'
+import AppMoneyInput from '../components/ui/AppMoneyInput.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
-import AppIcon from '../components/ui/AppIcon.vue'
+import AppSearch from '../components/ui/AppSearch.vue'
+import AppSelect from '../components/ui/AppSelect.vue'
+import AppTable from '../components/ui/AppTable.vue'
+import AppTabs from '../components/ui/AppTabs.vue'
 
 interface Kategori {
   id: number
   name: string
+  itemCount: number
 }
+
+interface ItemPrice {
+  branchId: number
+  price: string
+}
+
 interface Item {
   id: number
+  categoryId: number | null
+  categoryName: string | null
   code: string
   name: string
   type: string
   unit: string | null
-  categoryId: number | null
   trackStock: boolean
+  durationMinutes: number | null
+  commissionType: string | null
+  commissionValue: string | null
   status: string
-  commissionType?: string | null
-  commissionValue?: string | null
+  prices: ItemPrice[]
 }
+
 interface Supplier {
   id: number
   name: string
   phone: string | null
   address: string | null
 }
-interface Cabang {
-  id: number
+
+interface ItemForm {
   code: string
   name: string
+  type: string
+  unit: string
+  categoryId: string
+  trackStock: boolean
+  durationMinutes: number | null
+  commissionType: string
+  commissionValue: number | null
+  status: string
 }
 
+const router = useRouter()
 const { auth, companyId } = useCompany()
+
+function bukaHarga() {
+  router.push(`/c/${companyId.value}/prices`)
+}
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
-const tab = ref<'kategori' | 'item' | 'harga' | 'supplier'>('kategori')
+const toast = useToast()
+const { confirm } = useConfirm()
+
+const kategoriAsync = useAsync()
+const mutasi = useAsync()
+
+const tab = ref('kategori')
 const kategori = ref<Kategori[]>([])
-const items = ref<Item[]>([])
-const metaItem = ref<PageMeta | null>(null)
-const suppliers = ref<Supplier[]>([])
-const cabang = ref<Cabang[]>([])
+const cariItem = ref('')
 const filterTipe = ref('')
-const okMsg = ref('')
+const filterKategori = ref('')
 
-const showKat = ref(false)
-const namaKat = ref('')
-const idKat = ref<number | null>(null)
-const showItem = ref(false)
-const suntingItem = ref<Item | null>(null)
-const fItem = ref({
-  code: '',
-  name: '',
-  type: 'barang',
-  unit: 'pcs',
-  category_id: '',
-  track_stock: true,
-  commission_type: '',
-  commission_value: 0,
+const {
+  rows: items,
+  meta: metaItem,
+  loading: loadingItem,
+  error: errorItem,
+  load: loadItems,
+  setPerPage: setPerPageItem,
+} = usePagedList<Item>((page, perPage) => {
+  const params = new URLSearchParams({ per_page: String(perPage), page: String(page) })
+  if (filterTipe.value) params.set('type', filterTipe.value)
+  if (filterKategori.value) params.set('category_id', filterKategori.value)
+  if (cariItem.value.trim()) params.set('q', cariItem.value.trim())
+  return api.getPage<Item>(`/companies/${companyId.value}/items?${params}`, auth.token)
 })
-const tanyaHapus = ref<{ jenis: string; id: number; nama: string } | null>(null)
-const showSup = ref(false)
-const suntingSup = ref<Supplier | null>(null)
-const fSup = ref({ name: '', phone: '', address: '' })
-const hargaCabang = ref('')
-const hargaMap = ref<Record<number, string>>({})
-const hargaBaru = ref<Record<number, number>>({})
 
-const bolehKatalog = () => access.can('katalog.kelola')
-const bolehHarga = () => access.can('harga.atur')
+const cariSupplier = ref('')
+const {
+  rows: suppliers,
+  meta: metaSupplier,
+  loading: loadingSupplier,
+  error: errorSupplier,
+  load: loadSuppliers,
+  setPerPage: setPerPageSupplier,
+} = usePagedList<Supplier>((page, perPage) => {
+  const params = new URLSearchParams({ per_page: String(perPage), page: String(page) })
+  if (cariSupplier.value.trim()) params.set('q', cariSupplier.value.trim())
+  return api.getPage<Supplier>(`/companies/${companyId.value}/suppliers?${params}`, auth.token)
+})
 
-async function muatKategori() {
-  kategori.value =
-    (await run(() =>
-      api.get<Kategori[]>(`/companies/${companyId.value}/categories?per_page=100`, auth.token),
-    )) ?? []
-}
+const kategoriOpen = ref(false)
+const kategoriEdit = ref<Kategori | null>(null)
+const kategoriNama = ref('')
 
-async function muatItem(page = 1) {
-  const res = await run(() =>
-    api.getPage<Item>(
-      `/companies/${companyId.value}/items?per_page=15&page=${page}${filterTipe.value ? `&type=${filterTipe.value}` : ''}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    const raw = res as unknown as { data: Item[]; meta?: PageMeta } | Item[]
-    if (Array.isArray(raw)) items.value = raw
-    else {
-      items.value = raw.data
-      metaItem.value = raw.meta ?? null
-    }
-  }
-}
+const itemOpen = ref(false)
+const itemEdit = ref<Item | null>(null)
+const itemForm = ref<ItemForm>(formItemKosong())
 
-async function muatSupplier() {
-  suppliers.value =
-    (await run(() =>
-      api.get<Supplier[]>(`/companies/${companyId.value}/suppliers?per_page=100`, auth.token),
-    )) ?? []
-}
+const supplierOpen = ref(false)
+const supplierEdit = ref<Supplier | null>(null)
+const supplierForm = ref({ name: '', phone: '', address: '' })
 
-async function muatHarga() {
-  if (!hargaCabang.value) return
-  const map: Record<number, string> = {}
-  for (const it of items.value.length ? items.value : []) {
-    try {
-      const h = await api.get<{ price: string }>(
-        `/companies/${companyId.value}/items/${it.id}/prices/${hargaCabang.value}`,
-        auth.token,
-      )
-      map[it.id] = h.price
-    } catch {
-      /* belum ada harga */
-    }
-  }
-  if (!items.value.length) {
-    const semua =
-      (await run(() =>
-        api.get<Item[]>(`/companies/${companyId.value}/items?per_page=100`, auth.token),
-      )) ?? []
-    for (const it of semua) {
-      try {
-        const h = await api.get<{ price: string }>(
-          `/companies/${companyId.value}/items/${it.id}/prices/${hargaCabang.value}`,
-          auth.token,
-        )
-        map[it.id] = h.price
-      } catch {
-        /* belum ada harga */
-      }
-    }
-    items.value = semua
-  }
-  hargaMap.value = map
-}
+const bolehKatalog = computed(() => access.can('katalog.kelola'))
+const error = computed(
+  () =>
+    errorItem.value ||
+    errorSupplier.value ||
+    kategoriAsync.error.value ||
+    (itemOpen.value || supplierOpen.value || kategoriOpen.value ? '' : mutasi.error.value),
+)
 
-function gantiTab(v: string) {
-  if (v === 'kategori' || v === 'item' || v === 'harga' || v === 'supplier') tab.value = v
-}
+const tabs = computed(() => [
+  { key: 'kategori', label: 'Kategori', count: kategori.value.length },
+  { key: 'item', label: 'Item', count: metaItem.value?.total ?? 0 },
+  { key: 'supplier', label: 'Supplier', count: metaSupplier.value?.total ?? 0 },
+])
 
-function bukaKatBaru() {
-  idKat.value = null
-  namaKat.value = ''
-  showKat.value = true
-}
+const opsiKategori = computed(() =>
+  kategori.value.map((k) => ({ value: String(k.id), label: k.name })),
+)
 
-function bukaKatUbah(k: Kategori) {
-  idKat.value = k.id
-  namaKat.value = k.name
-  showKat.value = true
-}
+const opsiTipe = [
+  { value: 'barang', label: 'Barang' },
+  { value: 'jasa', label: 'Jasa' },
+]
 
-async function simpanKat() {
-  const base = `/companies/${companyId.value}/categories`
-  const res = idKat.value
-    ? await run(() => api.put(base + `/${idKat.value}`, { name: namaKat.value.trim() }, auth.token))
-    : await run(() => api.post(base, { name: namaKat.value.trim() }, auth.token))
-  if (res) {
-    showKat.value = false
-    okMsg.value = 'Kategori tersimpan.'
-    muatKategori()
-  }
-}
-
-function bukaItemBaru() {
-  suntingItem.value = null
-  fItem.value = {
+function formItemKosong(): ItemForm {
+  return {
     code: '',
     name: '',
     type: 'barang',
     unit: 'pcs',
-    category_id: '',
-    track_stock: true,
-    commission_type: '',
-    commission_value: 0,
+    categoryId: '',
+    trackStock: true,
+    durationMinutes: null,
+    commissionType: '',
+    commissionValue: null,
+    status: 'aktif',
   }
-  showItem.value = true
 }
 
-function bukaItemUbah(it: Item) {
-  suntingItem.value = it
-  fItem.value = {
-    code: it.code,
-    name: it.name,
-    type: it.type,
-    unit: it.unit ?? '',
-    category_id: it.categoryId?.toString() ?? '',
-    track_stock: it.trackStock,
-    commission_type: it.commissionType ?? '',
-    commission_value: Number(it.commissionValue ?? 0),
+async function muatKategori() {
+  const data = await kategoriAsync.run(() =>
+    api.get<Kategori[]>(`/companies/${companyId.value}/categories?per_page=100`, auth.token),
+  )
+  kategori.value = data ?? []
+}
+
+async function jalankan(fn: () => Promise<unknown>, pesan: string): Promise<boolean> {
+  await mutasi.run(fn)
+  if (mutasi.error.value) {
+    toast.error(mutasi.error.value)
+    return false
   }
-  showItem.value = true
+  toast.success(pesan)
+  return true
+}
+
+function bukaKategori(k?: Kategori) {
+  mutasi.error.value = ''
+  kategoriEdit.value = k ?? null
+  kategoriNama.value = k?.name ?? ''
+  kategoriOpen.value = true
+}
+
+async function simpanKategori() {
+  const nama = kategoriNama.value.trim()
+  if (!nama) return
+  const base = `/companies/${companyId.value}/categories`
+  const sukses = await jalankan(
+    () =>
+      kategoriEdit.value
+        ? api.put(base + `/${kategoriEdit.value.id}`, { name: nama }, auth.token)
+        : api.post(base, { name: nama }, auth.token),
+    kategoriEdit.value ? 'Kategori diperbarui.' : 'Kategori ditambahkan.',
+  )
+  if (sukses) {
+    kategoriOpen.value = false
+    await Promise.all([muatKategori(), loadItems()])
+  }
+}
+
+async function hapusKategori(k: Kategori) {
+  const setuju = await confirm({
+    title: 'Hapus kategori?',
+    message: `Kategori ${k.name} akan dihapus. Item di dalamnya tetap ada tanpa kategori.`,
+    confirmLabel: 'Hapus',
+    tone: 'danger',
+  })
+  if (!setuju) return
+  const sukses = await jalankan(
+    () => api.del(`/companies/${companyId.value}/categories/${k.id}`, auth.token),
+    'Kategori dihapus.',
+  )
+  if (sukses) {
+    if (filterKategori.value === String(k.id)) filterKategori.value = ''
+    await Promise.all([muatKategori(), loadItems()])
+  }
+}
+
+function bukaItem(it?: Item) {
+  mutasi.error.value = ''
+  itemEdit.value = it ?? null
+  itemForm.value = it
+    ? {
+        code: it.code,
+        name: it.name,
+        type: it.type,
+        unit: it.unit ?? '',
+        categoryId: it.categoryId ? String(it.categoryId) : '',
+        trackStock: it.trackStock,
+        durationMinutes: it.durationMinutes,
+        commissionType: it.commissionType ?? '',
+        commissionValue: it.commissionValue !== null ? Number(it.commissionValue) : null,
+        status: it.status,
+      }
+    : formItemKosong()
+  itemOpen.value = true
 }
 
 async function simpanItem() {
+  const f = itemForm.value
+  if (!f.code.trim() || !f.name.trim()) return
+  if (f.type === 'barang' && !f.unit.trim()) return
+
   const body: Record<string, unknown> = {
-    code: fItem.value.code.trim(),
-    name: fItem.value.name.trim(),
-    type: fItem.value.type,
-    track_stock: fItem.value.track_stock,
+    code: f.code.trim(),
+    name: f.name.trim(),
+    type: f.type,
+    unit: f.type === 'barang' ? f.unit.trim() : null,
+    category_id: f.categoryId ? Number(f.categoryId) : null,
+    track_stock: f.trackStock,
+    duration_minutes: f.type === 'jasa' ? f.durationMinutes : null,
+    commission_type: f.commissionType || null,
+    commission_value: f.commissionType ? Number(f.commissionValue ?? 0) : null,
+    status: f.status,
   }
-  if (fItem.value.type === 'barang') body.unit = fItem.value.unit || undefined
-  if (fItem.value.category_id) body.category_id = Number(fItem.value.category_id)
-  if (fItem.value.commission_type) {
-    body.commission_type = fItem.value.commission_type
-    body.commission_value = fItem.value.commission_value
-  }
+
   const base = `/companies/${companyId.value}/items`
-  const res = suntingItem.value
-    ? await run(() => api.put(base + `/${suntingItem.value!.id}`, body, auth.token))
-    : await run(() => api.post(base, body, auth.token))
-  if (res) {
-    showItem.value = false
-    okMsg.value = suntingItem.value ? 'Item diperbarui.' : 'Item baru ditambahkan.'
-    muatItem(1)
-  }
-}
-
-async function simpanHarga(itemId: number) {
-  const nilai = hargaBaru.value[itemId]
-  if (nilai === undefined || !hargaCabang.value) return
-  const res = await run(() =>
-    api.put(
-      `/companies/${companyId.value}/items/${itemId}/prices/${hargaCabang.value}`,
-      { price: nilai },
-      auth.token,
-    ),
+  const sukses = await jalankan(
+    () =>
+      itemEdit.value
+        ? api.put(base + `/${itemEdit.value.id}`, body, auth.token)
+        : api.post(base, body, auth.token),
+    itemEdit.value ? 'Item diperbarui.' : 'Item ditambahkan.',
   )
-  if (res) {
-    okMsg.value = 'Harga tersimpan.'
-    muatHarga()
+  if (sukses) {
+    itemOpen.value = false
+    await Promise.all([loadItems(), muatKategori()])
   }
 }
 
-function bukaSupBaru() {
-  suntingSup.value = null
-  fSup.value = { name: '', phone: '', address: '' }
-  showSup.value = true
+async function hapusItem(it: Item) {
+  const setuju = await confirm({
+    title: 'Hapus item?',
+    message: `${it.name} (${it.code}) akan dihapus. Item yang sudah dipakai transaksi tidak bisa dihapus.`,
+    confirmLabel: 'Hapus',
+    tone: 'danger',
+  })
+  if (!setuju) return
+  const sukses = await jalankan(
+    () => api.del(`/companies/${companyId.value}/items/${it.id}`, auth.token),
+    'Item dihapus.',
+  )
+  if (sukses) await Promise.all([loadItems(), muatKategori()])
 }
 
-function bukaSupUbah(s: Supplier) {
-  suntingSup.value = s
-  fSup.value = { name: s.name, phone: s.phone ?? '', address: s.address ?? '' }
-  showSup.value = true
+function bukaSupplier(s?: Supplier) {
+  mutasi.error.value = ''
+  supplierEdit.value = s ?? null
+  supplierForm.value = {
+    name: s?.name ?? '',
+    phone: s?.phone ?? '',
+    address: s?.address ?? '',
+  }
+  supplierOpen.value = true
 }
 
-async function simpanSup() {
-  const base = `/companies/${companyId.value}/suppliers`
+async function simpanSupplier() {
+  const f = supplierForm.value
+  if (!f.name.trim()) return
   const body = {
-    name: fSup.value.name.trim(),
-    phone: fSup.value.phone.trim() || undefined,
-    address: fSup.value.address.trim() || undefined,
+    name: f.name.trim(),
+    phone: f.phone.trim() || null,
+    address: f.address.trim() || null,
   }
-  const res = suntingSup.value
-    ? await run(() => api.put(base + `/${suntingSup.value!.id}`, body, auth.token))
-    : await run(() => api.post(base, body, auth.token))
-  if (res) {
-    showSup.value = false
-    okMsg.value = suntingSup.value ? 'Supplier diperbarui.' : 'Supplier baru ditambahkan.'
-    muatSupplier()
+  const base = `/companies/${companyId.value}/suppliers`
+  const sukses = await jalankan(
+    () =>
+      supplierEdit.value
+        ? api.put(base + `/${supplierEdit.value.id}`, body, auth.token)
+        : api.post(base, body, auth.token),
+    supplierEdit.value ? 'Supplier diperbarui.' : 'Supplier ditambahkan.',
+  )
+  if (sukses) {
+    supplierOpen.value = false
+    await loadSuppliers()
   }
 }
 
-async function hapus() {
-  if (!tanyaHapus.value) return
-  const path =
-    tanyaHapus.value.jenis === 'kategori'
-      ? 'categories'
-      : tanyaHapus.value.jenis === 'item'
-        ? 'items'
-        : 'suppliers'
-  await run(() =>
-    api.del(`/companies/${companyId.value}/${path}/${tanyaHapus.value!.id}`, auth.token),
+async function hapusSupplier(s: Supplier) {
+  const setuju = await confirm({
+    title: 'Hapus supplier?',
+    message: `Supplier ${s.name} akan dihapus dari daftar.`,
+    confirmLabel: 'Hapus',
+    tone: 'danger',
+  })
+  if (!setuju) return
+  const sukses = await jalankan(
+    () => api.del(`/companies/${companyId.value}/suppliers/${s.id}`, auth.token),
+    'Supplier dihapus.',
   )
-  if (!error.value) {
-    tanyaHapus.value = null
-    okMsg.value = 'Data dihapus.'
-    muatKategori()
-    muatItem(1)
-    muatSupplier()
-  }
+  if (sukses) await loadSuppliers()
+}
+
+function komisi(it: Item) {
+  if (!it.commissionType) return '—'
+  return it.commissionType === 'persen'
+    ? `${Number(it.commissionValue ?? 0)}%`
+    : rupiah(it.commissionValue)
 }
 
 onMounted(async () => {
   await access.load(companyId.value, auth.token)
-  cabang.value =
-    (await run(() => api.get<Cabang[]>(`/companies/${companyId.value}/branches`, auth.token))) ?? []
-  hargaCabang.value = String(cabang.value[0]?.id ?? '')
-  muatKategori()
-  muatItem()
-  muatSupplier()
+  await Promise.all([muatKategori(), loadItems(1), loadSuppliers(1)])
 })
 </script>
 
 <template>
   <div>
-    <div class="mb-4 flex items-center gap-3">
-      <div
-        class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary"
-      >
-        <AppIcon name="category" :size="28" />
-      </div>
-      <h1 class="font-display text-xl font-semibold">Katalog</h1>
-    </div>
-    <AppBanner tone="green" :message="okMsg" />
+    <AppPageHeader
+      eyebrow="Katalog"
+      title="Katalog"
+      subtitle="Kelola kategori, item barang/jasa, dan supplier dalam satu tempat."
+      icon="category"
+    >
+      <template #actions>
+        <AppButton variant="ghost" @click="bukaHarga">Harga cabang</AppButton>
+      </template>
+    </AppPageHeader>
+
     <AppBanner tone="red" :message="error" />
 
-    <div class="mb-3 flex gap-2">
-      <AppButton
-        v-for="t in [
-          ['kategori', 'Kategori'],
-          ['item', 'Item'],
-          ['harga', 'Harga cabang'],
-          ['supplier', 'Supplier'],
-        ]"
-        :key="t[0]"
-        :variant="tab === t[0] ? 'primary' : 'ghost'"
-        @click="gantiTab(t[0])"
-        >{{ t[1] }}</AppButton
-      >
-    </div>
+    <AppCard>
+      <AppTabs v-model="tab" :items="tabs" label="Bagian katalog" />
 
-    <div v-if="tab === 'kategori'">
-      <AppButton v-if="bolehKatalog()" @click="bukaKatBaru"
-        ><AppIcon name="add" :size="18" />Kategori</AppButton
-      >
-      <div class="mt-3 flex flex-wrap gap-2">
-        <AppCard v-for="k in kategori" :key="k.id">
-          <div class="flex items-center gap-3">
-            <p class="font-semibold">{{ k.name }}</p>
-            <AppButton v-if="bolehKatalog()" variant="ghost" @click="bukaKatUbah(k)"
-              >Ubah</AppButton
-            >
-            <button
-              v-if="bolehKatalog()"
-              class="text-xs text-danger"
-              @click="tanyaHapus = { jenis: 'kategori', id: k.id, nama: k.name }"
-            >
-              Hapus
-            </button>
-          </div>
-        </AppCard>
-      </div>
-      <AppEmpty v-if="!kategori.length" message="Belum ada kategori." />
-    </div>
-
-    <div v-if="tab === 'item'">
-      <div class="mb-3 flex flex-wrap gap-2">
-        <select
-          v-model="filterTipe"
-          class="rounded-lg border border-outline bg-card px-3 py-2 text-sm"
-          @change="muatItem(1)"
+      <div v-if="tab === 'kategori'" class="mt-3">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p class="text-sm text-secondary">
+            {{ kategori.length }} kategori aktif. Item tanpa kategori tetap bisa dijual.
+          </p>
+          <AppButton v-if="bolehKatalog" @click="bukaKategori()">Kategori baru</AppButton>
+        </div>
+        <AppTable
+          :loading="kategoriAsync.loading.value"
+          :empty="!kategori.length"
+          :colspan="3"
+          empty-title="Belum ada kategori"
+          empty-message="Tambahkan kategori agar item lebih mudah dicari."
         >
-          <option value="">Semua tipe</option>
-          <option value="barang">Barang</option>
-          <option value="jasa">Jasa</option>
-        </select>
-        <AppButton v-if="bolehKatalog()" @click="bukaItemBaru"
-          ><AppIcon name="add" :size="18" />Item</AppButton
-        >
-      </div>
-      <AppEmpty v-if="!loading && !items.length" message="Belum ada item." />
-      <div class="overflow-x-auto rounded-xl bg-card shadow-sm">
-        <table class="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr class="text-left text-xs uppercase text-secondary">
-              <th class="px-4 py-2">Kode / Nama</th>
-              <th class="px-4 py-2">Tipe</th>
-              <th class="px-4 py-2">Satuan</th>
-              <th class="px-4 py-2">Stok?</th>
-              <th class="px-4 py-2">Komisi</th>
-              <th class="px-4 py-2">Status</th>
-              <th v-if="bolehKatalog()" class="px-4 py-2 text-right">Aksi</th>
+          <template #head>
+            <tr>
+              <th>Nama kategori</th>
+              <th class="text-right">Item</th>
+              <th v-if="bolehKatalog" class="text-right">Aksi</th>
             </tr>
-          </thead>
-          <tbody>
-            <tr v-for="it in items" :key="it.id" class="border-t border-surface-low">
-              <td class="px-4 py-2">
-                <strong>{{ it.name }}</strong>
-                <span class="font-mono text-xs text-secondary">{{ it.code }}</span>
-              </td>
-              <td class="px-4 py-2">
-                <AppBadge :tone="it.type === 'jasa' ? 'blue' : 'gray'">{{ it.type }}</AppBadge>
-              </td>
-              <td class="px-4 py-2">{{ it.unit ?? '–' }}</td>
-              <td class="px-4 py-2">{{ it.trackStock ? 'Ya' : 'Tidak' }}</td>
-              <td class="px-4 py-2 text-xs">
-                {{ it.commissionType ? `${it.commissionType} ${it.commissionValue}` : '–' }}
-              </td>
-              <td class="px-4 py-2">{{ it.status }}</td>
-              <td v-if="bolehKatalog()" class="px-4 py-2 text-right">
-                <AppButton variant="ghost" @click="bukaItemUbah(it)">Ubah</AppButton>
+          </template>
+          <tr v-for="k in kategori" :key="k.id">
+            <td class="font-medium">{{ k.name }}</td>
+            <td class="text-right tabular-nums">{{ k.itemCount }}</td>
+            <td v-if="bolehKatalog" class="text-right">
+              <div class="flex justify-end gap-2">
+                <AppButton variant="ghost" size="sm" @click="bukaKategori(k)">Ubah</AppButton>
                 <button
-                  class="ml-1 text-xs text-danger"
-                  @click="tanyaHapus = { jenis: 'item', id: it.id, nama: it.name }"
+                  type="button"
+                  class="text-xs font-semibold text-danger hover:underline"
+                  @click="hapusKategori(k)"
                 >
                   Hapus
                 </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </div>
+            </td>
+          </tr>
+        </AppTable>
       </div>
-      <AppPager :meta="metaItem" @page="muatItem" />
-    </div>
 
-    <div v-if="tab === 'harga'">
-      <div class="mb-3 flex items-center gap-2">
-        <span class="text-sm text-secondary">Cabang:</span>
-        <select
-          v-model="hargaCabang"
-          class="rounded-lg border border-outline bg-card px-3 py-2 text-sm"
-          @change="muatHarga"
+      <div v-if="tab === 'item'" class="mt-3">
+        <div class="mb-3 flex flex-wrap items-end gap-2">
+          <AppSearch
+            v-model="cariItem"
+            class="min-w-56 flex-1"
+            placeholder="Cari kode atau nama item..."
+            @search="loadItems(1)"
+          />
+          <AppSelect
+            v-model="filterTipe"
+            class="w-36"
+            placeholder="Semua tipe"
+            :options="opsiTipe"
+            @update:model-value="loadItems(1)"
+          />
+          <AppSelect
+            v-model="filterKategori"
+            class="w-44"
+            placeholder="Semua kategori"
+            :options="opsiKategori"
+            @update:model-value="loadItems(1)"
+          />
+          <AppButton v-if="bolehKatalog" @click="bukaItem()">Item baru</AppButton>
+        </div>
+
+        <AppTable
+          :loading="loadingItem"
+          :empty="!items.length"
+          :colspan="7"
+          empty-title="Belum ada item"
+          empty-message="Tambahkan barang atau jasa, atau ubah kata kunci pencarian."
         >
-          <option v-for="b in cabang" :key="b.id" :value="b.id">{{ b.code }} — {{ b.name }}</option>
-        </select>
-        <AppButton variant="ghost" @click="muatHarga">Muat</AppButton>
-      </div>
-      <p v-if="!bolehHarga()" class="text-sm text-secondary">
-        Hanya pemilik izin harga yang bisa mengubah.
-      </p>
-      <div class="overflow-x-auto rounded-xl bg-card shadow-sm">
-        <table class="w-full min-w-[480px] text-sm">
-          <thead>
-            <tr class="text-left text-xs uppercase text-secondary">
-              <th class="px-4 py-2">Item</th>
-              <th class="px-4 py-2 text-right">Harga saat ini</th>
-              <th class="px-4 py-2 text-right">Harga baru</th>
+          <template #head>
+            <tr>
+              <th>Item</th>
+              <th>Kategori</th>
+              <th>Tipe</th>
+              <th class="hidden md:table-cell">Satuan</th>
+              <th class="hidden lg:table-cell">Komisi / durasi</th>
+              <th>Status</th>
+              <th v-if="bolehKatalog" class="text-right">Aksi</th>
             </tr>
-          </thead>
-          <tbody>
-            <tr v-for="it in items" :key="it.id" class="border-t border-surface-low">
-              <td class="px-4 py-2">
-                <strong>{{ it.name }}</strong>
-                <span class="font-mono text-xs text-secondary">{{ it.code }}</span>
-              </td>
-              <td class="px-4 py-2 text-right font-mono">
-                {{ hargaMap[it.id] ? rupiah(hargaMap[it.id]) : '–' }}
-              </td>
-              <td class="px-4 py-2">
-                <span v-if="bolehHarga()" class="flex justify-end gap-1">
-                  <input
-                    v-model.number="hargaBaru[it.id]"
-                    type="number"
-                    min="0"
-                    class="w-32 rounded border border-outline bg-card px-2 py-1 text-right"
-                  />
-                  <AppButton variant="ghost" @click="simpanHarga(it.id)">Simpan</AppButton>
-                </span>
-              </td>
+          </template>
+          <tr v-for="it in items" :key="it.id">
+            <td>
+              <p class="font-medium text-ink">{{ it.name }}</p>
+              <p class="font-mono text-xs text-secondary">{{ it.code }}</p>
+            </td>
+            <td class="text-secondary">{{ it.categoryName ?? '—' }}</td>
+            <td><AppBadge :tone="it.type === 'jasa' ? 'blue' : 'gray'">{{ it.type }}</AppBadge></td>
+            <td class="hidden text-secondary md:table-cell">
+              {{ it.unit ?? '—' }}
+              <span v-if="it.trackStock" class="ml-1 text-[11px] text-primary">stok</span>
+            </td>
+            <td class="hidden text-sm text-secondary lg:table-cell">
+              <span v-if="komisi(it) !== '—'">{{ komisi(it) }}</span>
+              <span v-if="it.durationMinutes" class="ml-1">· {{ it.durationMinutes }} mnt</span>
+              <span v-if="komisi(it) === '—' && !it.durationMinutes">—</span>
+            </td>
+            <td>
+              <AppBadge :tone="it.status === 'aktif' ? 'green' : 'gray'">{{ it.status }}</AppBadge>
+            </td>
+            <td v-if="bolehKatalog" class="text-right">
+              <div class="flex justify-end gap-2">
+                <AppButton variant="ghost" size="sm" @click="bukaItem(it)">Ubah</AppButton>
+                <button
+                  type="button"
+                  class="text-xs font-semibold text-danger hover:underline"
+                  @click="hapusItem(it)"
+                >
+                  Hapus
+                </button>
+              </div>
+            </td>
+          </tr>
+        </AppTable>
+        <AppPager :meta="metaItem" @page="loadItems" @update:per-page="setPerPageItem" />
+      </div>
+
+      <div v-if="tab === 'supplier'" class="mt-3">
+        <div class="mb-3 flex flex-wrap items-end gap-2">
+          <AppSearch
+            v-model="cariSupplier"
+            class="min-w-56 flex-1"
+            placeholder="Cari nama atau telepon supplier..."
+            @search="loadSuppliers(1)"
+          />
+          <AppButton v-if="bolehKatalog" @click="bukaSupplier()">Supplier baru</AppButton>
+        </div>
+
+        <AppTable
+          :loading="loadingSupplier"
+          :empty="!suppliers.length"
+          :colspan="4"
+          empty-title="Belum ada supplier"
+          empty-message="Tambahkan supplier untuk mempermudah pembelian."
+        >
+          <template #head>
+            <tr>
+              <th>Supplier</th>
+              <th>Telepon</th>
+              <th class="hidden md:table-cell">Alamat</th>
+              <th v-if="bolehKatalog" class="text-right">Aksi</th>
             </tr>
-          </tbody>
-        </table>
+          </template>
+          <tr v-for="s in suppliers" :key="s.id">
+            <td class="font-medium">{{ s.name }}</td>
+            <td class="font-mono text-xs text-secondary">{{ s.phone ?? '—' }}</td>
+            <td class="hidden max-w-md truncate text-secondary md:table-cell">
+              {{ s.address ?? '—' }}
+            </td>
+            <td v-if="bolehKatalog" class="text-right">
+              <div class="flex justify-end gap-2">
+                <AppButton variant="ghost" size="sm" @click="bukaSupplier(s)">Ubah</AppButton>
+                <button
+                  type="button"
+                  class="text-xs font-semibold text-danger hover:underline"
+                  @click="hapusSupplier(s)"
+                >
+                  Hapus
+                </button>
+              </div>
+            </td>
+          </tr>
+        </AppTable>
+        <AppPager :meta="metaSupplier" @page="loadSuppliers" @update:per-page="setPerPageSupplier" />
       </div>
-    </div>
+    </AppCard>
 
-    <div v-if="tab === 'supplier'">
-      <AppButton v-if="bolehKatalog()" @click="bukaSupBaru"
-        ><AppIcon name="add" :size="18" />Supplier</AppButton
-      >
-      <div class="mt-3 grid gap-3 md:grid-cols-2">
-        <AppCard v-for="s in suppliers" :key="s.id">
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <p class="font-semibold">{{ s.name }}</p>
-              <p class="font-mono text-xs text-secondary">{{ s.phone ?? '' }}</p>
-              <p class="text-sm text-secondary">{{ s.address ?? '' }}</p>
-            </div>
-            <div v-if="bolehKatalog()" class="flex gap-1">
-              <AppButton variant="ghost" @click="bukaSupUbah(s)">Ubah</AppButton>
-              <button
-                class="text-xs text-danger"
-                @click="tanyaHapus = { jenis: 'supplier', id: s.id, nama: s.name }"
-              >
-                Hapus
-              </button>
-            </div>
-          </div>
-        </AppCard>
-      </div>
-      <AppEmpty v-if="!suppliers.length" message="Belum ada supplier." />
-    </div>
-
-    <div
-      v-if="showKat"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="showKat = false"
+    <AppModal
+      :open="kategoriOpen"
+      :title="kategoriEdit ? 'Ubah kategori' : 'Kategori baru'"
+      description="Kategori membantu merapikan daftar item."
+      size="sm"
+      @close="kategoriOpen = false"
     >
-      <form class="w-full max-w-sm rounded-xl bg-card p-5 shadow-xl" @submit.prevent="simpanKat">
-        <h3 class="font-display font-semibold">{{ idKat ? 'Ubah kategori' : 'Kategori baru' }}</h3>
-        <div class="mt-3">
-          <AppField label="Nama (wajib)">
-            <input
-              v-model="namaKat"
-              maxlength="255"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-        </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="showKat = false">Batal</AppButton>
-          <AppButton type="submit" :loading="loading">Simpan</AppButton>
+      <AppBanner tone="red" :message="mutasi.error.value" />
+      <form id="kategori-form" @submit.prevent="simpanKategori">
+        <AppField label="Nama kategori">
+          <AppInput v-model="kategoriNama" maxlength="255" data-autofocus />
+        </AppField>
+      </form>
+      <template #footer>
+        <AppButton variant="ghost" @click="kategoriOpen = false">Batal</AppButton>
+        <AppButton
+          type="submit"
+          form="kategori-form"
+          :loading="mutasi.loading.value"
+          :disabled="!kategoriNama.trim()"
+        >
+          Simpan
+        </AppButton>
+      </template>
+    </AppModal>
+
+    <AppModal
+      :open="itemOpen"
+      :title="itemEdit ? 'Ubah item' : 'Item baru'"
+      description="Barang memakai stok dan satuan. Jasa bisa memakai durasi dan komisi."
+      size="lg"
+      @close="itemOpen = false"
+    >
+      <AppBanner tone="red" :message="mutasi.error.value" />
+      <form id="item-form" class="grid gap-3 sm:grid-cols-2" @submit.prevent="simpanItem">
+        <AppField label="Kode item">
+          <AppInput v-model="itemForm.code" maxlength="50" class="font-mono" data-autofocus />
+        </AppField>
+        <AppField label="Tipe">
+          <AppSelect v-model="itemForm.type">
+            <option value="barang">Barang</option>
+            <option value="jasa">Jasa</option>
+          </AppSelect>
+        </AppField>
+        <AppField label="Nama item" class="sm:col-span-2">
+          <AppInput v-model="itemForm.name" maxlength="255" />
+        </AppField>
+        <AppField label="Kategori">
+          <AppSelect v-model="itemForm.categoryId" placeholder="Tanpa kategori" :options="opsiKategori" />
+        </AppField>
+        <AppField v-if="itemForm.type === 'barang'" label="Satuan">
+          <AppInput v-model="itemForm.unit" maxlength="20" placeholder="pcs" />
+        </AppField>
+        <AppField v-else label="Durasi pengerjaan">
+          <AppInput v-model="itemForm.durationMinutes" type="number" min="1" placeholder="menit">
+            <template #suffix><span class="text-xs text-secondary">menit</span></template>
+          </AppInput>
+        </AppField>
+        <AppField label="Komisi">
+          <AppSelect v-model="itemForm.commissionType">
+            <option value="">Tanpa komisi</option>
+            <option value="persen">Persen (%)</option>
+            <option value="nominal">Nominal (Rp)</option>
+          </AppSelect>
+        </AppField>
+        <AppField v-if="itemForm.commissionType" label="Nilai komisi">
+          <AppMoneyInput
+            v-if="itemForm.commissionType === 'nominal'"
+            v-model="itemForm.commissionValue"
+          />
+          <AppInput
+            v-else
+            v-model="itemForm.commissionValue"
+            type="number"
+            min="0"
+            step="any"
+          >
+            <template #suffix><span class="text-xs text-secondary">%</span></template>
+          </AppInput>
+        </AppField>
+        <AppField label="Status">
+          <AppSelect v-model="itemForm.status">
+            <option value="aktif">Aktif</option>
+            <option value="nonaktif">Nonaktif</option>
+          </AppSelect>
+        </AppField>
+        <div class="flex items-end pb-1">
+          <AppCheckbox
+            v-model="itemForm.trackStock"
+            label="Lacak stok"
+            hint="Matikan untuk barang yang tidak disimpan di gudang."
+          />
         </div>
       </form>
-    </div>
+      <template #footer>
+        <AppButton variant="ghost" @click="itemOpen = false">Batal</AppButton>
+        <AppButton
+          type="submit"
+          form="item-form"
+          :loading="mutasi.loading.value"
+          :disabled="
+            !itemForm.code.trim() ||
+            !itemForm.name.trim() ||
+            (itemForm.type === 'barang' && !itemForm.unit.trim())
+          "
+        >
+          Simpan
+        </AppButton>
+      </template>
+    </AppModal>
 
-    <div
-      v-if="showItem"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="showItem = false"
+    <AppModal
+      :open="supplierOpen"
+      :title="supplierEdit ? 'Ubah supplier' : 'Supplier baru'"
+      description="Simpan kontak supplier untuk kebutuhan pembelian."
+      @close="supplierOpen = false"
     >
-      <form
-        class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-card p-5 shadow-xl"
-        @submit.prevent="simpanItem"
-      >
-        <h3 class="font-display font-semibold">{{ suntingItem ? 'Ubah item' : 'Item baru' }}</h3>
-        <div class="mt-3 grid grid-cols-2 gap-2">
-          <AppField label="Kode (wajib, unik)">
-            <input
-              v-model="fItem.code"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-          <AppField label="Tipe">
-            <select
-              v-model="fItem.type"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="barang">Barang</option>
-              <option value="jasa">Jasa</option>
-            </select>
-          </AppField>
-        </div>
-        <div class="mt-3">
-          <AppField label="Nama (wajib)">
-            <input
-              v-model="fItem.name"
-              maxlength="255"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-        </div>
-        <div class="mt-3 grid grid-cols-2 gap-2">
-          <AppField label="Satuan (wajib bila barang)">
-            <input
-              v-model="fItem.unit"
-              maxlength="20"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-          <AppField label="Kategori">
-            <select
-              v-model="fItem.category_id"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Tanpa kategori</option>
-              <option v-for="k in kategori" :key="k.id" :value="k.id">{{ k.name }}</option>
-            </select>
-          </AppField>
-        </div>
-        <label class="mt-3 flex cursor-pointer items-center gap-2 text-sm">
-          <input v-model="fItem.track_stock" type="checkbox" class="h-4 w-4 accent-primary" /> Lacak
-          stok
-        </label>
-        <div class="mt-3 grid grid-cols-2 gap-2">
-          <AppField label="Komisi">
-            <select
-              v-model="fItem.commission_type"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Tanpa komisi</option>
-              <option value="persen">Persen (%)</option>
-              <option value="nominal">Nominal (Rp)</option>
-            </select>
-          </AppField>
-          <AppField label="Nilai komisi">
-            <input
-              v-model.number="fItem.commission_value"
-              type="number"
-              min="0"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-        </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="showItem = false">Batal</AppButton>
-          <AppButton type="submit" :loading="loading">Simpan</AppButton>
-        </div>
+      <AppBanner tone="red" :message="mutasi.error.value" />
+      <form id="supplier-form" class="grid gap-3" @submit.prevent="simpanSupplier">
+        <AppField label="Nama supplier">
+          <AppInput v-model="supplierForm.name" maxlength="255" data-autofocus />
+        </AppField>
+        <AppField label="Telepon">
+          <AppInput v-model="supplierForm.phone" maxlength="30" />
+        </AppField>
+        <AppField label="Alamat">
+          <AppInput v-model="supplierForm.address" maxlength="500" />
+        </AppField>
       </form>
-    </div>
-
-    <div
-      v-if="showSup"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="showSup = false"
-    >
-      <form class="w-full max-w-sm rounded-xl bg-card p-5 shadow-xl" @submit.prevent="simpanSup">
-        <h3 class="font-display font-semibold">
-          {{ suntingSup ? 'Ubah supplier' : 'Supplier baru' }}
-        </h3>
-        <div class="mt-3">
-          <AppField label="Nama (wajib)">
-            <input
-              v-model="fSup.name"
-              maxlength="255"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-        </div>
-        <div class="mt-3">
-          <AppField label="Telepon (unik)">
-            <input
-              v-model="fSup.phone"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-        </div>
-        <div class="mt-3">
-          <AppField label="Alamat">
-            <textarea
-              v-model="fSup.address"
-              rows="2"
-              maxlength="500"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-        </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="showSup = false">Batal</AppButton>
-          <AppButton type="submit" :loading="loading">Simpan</AppButton>
-        </div>
-      </form>
-    </div>
-
-    <div
-      v-if="tanyaHapus"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="tanyaHapus = null"
-    >
-      <div class="w-full max-w-sm rounded-xl bg-card p-5 shadow-xl">
-        <h3 class="font-display font-semibold">Hapus {{ tanyaHapus.nama }}?</h3>
-        <p class="mt-1 text-sm text-secondary">
-          Data yang masih dipakai transaksi tidak bisa dihapus.
-        </p>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="tanyaHapus = null">Batal</AppButton>
-          <AppButton variant="danger" :loading="loading" @click="hapus">Ya, hapus</AppButton>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <AppButton variant="ghost" @click="supplierOpen = false">Batal</AppButton>
+        <AppButton
+          type="submit"
+          form="supplier-form"
+          :loading="mutasi.loading.value"
+          :disabled="!supplierForm.name.trim()"
+        >
+          Simpan
+        </AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>
