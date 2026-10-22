@@ -48,7 +48,7 @@ async function muat(page = 1) {
   const q = `?per_page=15&page=${page}` +
     (cari.value.trim() ? `&search=${encodeURIComponent(cari.value.trim())}` : '') +
     (status.value ? `&status=${status.value}` : '')
-  const res = await run(() => api.get<{ data: Tenant[]; meta: PageMeta }>(`/admin/companies${q}`, auth.token))
+  const res = await run(() => api.getPage<Tenant>(`/admin/companies${q}`, auth.token))
   if (res) {
     const raw = res as unknown as { data: Tenant[]; meta?: PageMeta } | Tenant[]
     if (Array.isArray(raw)) list.value = raw

@@ -145,6 +145,10 @@ const router = createRouter({
     },
     { path: '/:pathMatch(.*)*', redirect: '/companies' },
   ],
+  scrollBehavior(_to, _from, savedPosition) {
+    if (savedPosition) return savedPosition
+    return { top: 0 }
+  },
 })
 
 setOnUnauthorized(() => {

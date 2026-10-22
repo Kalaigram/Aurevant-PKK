@@ -5,13 +5,14 @@ import { rupiah } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
+import { useConfirm } from '../composables/useConfirm'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
-import AppIcon from '../components/ui/AppIcon.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
 
 interface Cabang {
   id: number
@@ -24,6 +25,7 @@ interface Item {
   name: string
   type: string
   unit: string | null
+  prices?: { branchId: number; price: string }[]
 }
 interface Harga extends Item {
   price: string
@@ -56,6 +58,7 @@ interface Struk {
 const METHODS = ['tunai', 'transfer', 'qris', 'ewallet', 'dp']
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
+const { confirm } = useConfirm()
 const page = useAsync()
 const cabang = ref<Cabang[]>([])
 const branchId = ref<number | null>(null)
@@ -98,6 +101,16 @@ const kembalian = computed(() => {
   if (!tunai || !tunai.tendered) return 0
   return Math.max(0, tunai.tendered - total.value)
 })
+const cabangAktif = computed(() => cabang.value.find((b) => b.id === branchId.value) ?? null)
+const METODE_LABEL: Record<string, string> = {
+  tunai: 'Tunai',
+  transfer: 'Transfer',
+  qris: 'QRIS',
+  ewallet: 'E-wallet',
+  dp: 'Uang muka',
+}
+const labelMetode = (method: string) => METODE_LABEL[method] ?? method
+const namaItem = (id: number) => katalog.value.find((item) => item.id === id)?.name ?? `Barang #${id}`
 
 function kunciShift() {
   return `aurevant-shift-${companyId.value}-${branchId.value}`
@@ -119,15 +132,8 @@ async function muatKatalog() {
     )) ?? []
   const out: Harga[] = []
   for (const it of items) {
-    try {
-      const h = await api.get<{ price: string }>(
-        `/companies/${companyId.value}/items/${it.id}/prices/${branchId.value}`,
-        auth.token,
-      )
-      out.push({ ...it, price: h.price })
-    } catch {
-      /* tanpa harga di cabang ini: lewati */
-    }
+    const harga = it.prices?.find((p) => p.branchId === branchId.value)?.price
+    if (harga) out.push({ ...it, price: harga })
   }
   katalog.value = out
 }
@@ -184,6 +190,16 @@ function cetak() {
   window.print()
 }
 
+function waktuSekarang() {
+  return new Date().toLocaleString('id-ID', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 async function unduhStruk() {
   if (!struk.value || !branchId.value) return
   await page.run(() =>
@@ -197,15 +213,40 @@ async function unduhStruk() {
   if (!page.error.value) okMsg.value = 'Struk PDF diunduh.'
 }
 
+async function kosongkanKeranjang() {
+  if (!keranjang.value.length) return
+  const setuju = await confirm({
+    title: 'Kosongkan keranjang?',
+    message: 'Semua barang dan rincian pembayaran akan dihapus.',
+    confirmLabel: 'Kosongkan',
+    tone: 'danger',
+  })
+  if (!setuju) return
+  keranjang.value = []
+  bayar.value = [{ method: 'tunai', amount: 0, tendered: null, reference: '' }]
+  struk.value = null
+  formMsg.value = ''
+}
+
 async function bayarSekarang() {
   formMsg.value = ''
   okMsg.value = ''
   struk.value = null
   if (!branchId.value || !keranjang.value.length) return
+  if (!shiftId.value) {
+    formMsg.value = 'Buka shift kasir dulu sebelum menerima pembayaran.'
+    return
+  }
   if (Math.abs(dibayar.value - total.value) > 0.009) {
     formMsg.value = `Total bayar (${rupiah(dibayar.value)}) harus pas dengan total belanja (${rupiah(total.value)}).`
     return
   }
+  const setuju = await confirm({
+    title: 'Proses pembayaran?',
+    message: `Terima pembayaran ${rupiah(dibayar.value)} untuk ${keranjang.value.length} jenis barang.`,
+    confirmLabel: 'Bayar sekarang',
+  })
+  if (!setuju) return
   const res = await page.run(() =>
     api.post<{ sale: Struk; duplicate: boolean }>(
       `/companies/${companyId.value}/branches/${branchId.value}/sales`,
@@ -264,14 +305,13 @@ onMounted(async () => {
 
 <template>
   <div>
-    <div class="mb-4 flex items-center gap-3">
-      <div
-        class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary"
-      >
-        <AppIcon name="point_of_sale" :size="28" />
-      </div>
-      <h1 class="font-display text-xl font-semibold">Kasir</h1>
-    </div>
+    <div class="screen-only">
+      <AppPageHeader
+        eyebrow="Transaksi penjualan"
+        title="Kasir"
+        subtitle="Buka shift, pilih barang, terima pembayaran, lalu cetak struk."
+        icon="point_of_sale"
+      />
     <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="formMsg || page.error.value" />
 
@@ -310,6 +350,9 @@ onMounted(async () => {
         >
       </div>
       <p v-if="shiftInfo" class="mt-2 text-sm text-secondary">{{ shiftInfo }}</p>
+      <p v-if="!shiftId && bolehKasir" class="mt-2 text-sm font-medium text-warn">
+        Shift belum terbuka. Buka shift dulu agar pembayaran bisa diproses.
+      </p>
     </AppCard>
 
     <div v-if="bolehKasir" class="mt-4 grid gap-4 xl:grid-cols-5">
@@ -338,6 +381,11 @@ onMounted(async () => {
 
       <div class="xl:col-span-2">
         <AppCard title="Keranjang">
+          <template #actions>
+            <AppButton v-if="keranjang.length" variant="ghost" @click="kosongkanKeranjang">
+              Kosongkan
+            </AppButton>
+          </template>
           <AppEmpty v-if="!keranjang.length" message="Ketuk item untuk menambah." />
           <div
             v-for="b in keranjang"
@@ -409,7 +457,7 @@ onMounted(async () => {
               v-model="p.method"
               class="rounded border border-outline bg-card px-2 py-1.5 text-sm"
             >
-              <option v-for="m in METHODS" :key="m" :value="m">{{ m }}</option>
+              <option v-for="m in METHODS" :key="m" :value="m">{{ labelMetode(m) }}</option>
             </select>
             <input
               v-model.number="p.amount"
@@ -466,10 +514,16 @@ onMounted(async () => {
           </p>
         </AppCard>
 
-        <AppCard v-if="struk" title="Struk" class="mt-4">
+        <AppCard v-if="struk" title="Struk" class="no-print mt-4">
           <p class="font-display font-bold">
             {{ struk.number }} <AppBadge tone="green">{{ struk.status }}</AppBadge>
           </p>
+          <div class="mt-2 space-y-1 border-y border-outline/60 py-2 text-sm">
+            <div v-for="(item, i) in struk.items" :key="`${item.itemId}-${i}`" class="flex justify-between gap-2">
+              <span class="min-w-0 truncate">{{ namaItem(item.itemId) }} × {{ Number(item.qty) }}</span>
+              <span class="shrink-0 tabular-nums">{{ rupiah(item.lineTotal) }}</span>
+            </div>
+          </div>
           <dl class="mt-2 space-y-1 text-sm">
             <div class="flex justify-between">
               <dt class="text-secondary">Subtotal</dt>
@@ -488,13 +542,13 @@ onMounted(async () => {
               <dd>{{ rupiah(struk.grandTotal) }}</dd>
             </div>
           </dl>
-          <div v-for="p in struk.payments" :key="p.method" class="flex justify-between text-sm">
+          <div v-for="(p, i) in struk.payments" :key="`${p.method}-${i}`" class="flex justify-between text-sm">
             <span class="text-secondary"
-              >{{ p.method }}{{ p.tendered ? ` (terima ${rupiah(p.tendered)})` : '' }}</span
+              >{{ labelMetode(p.method) }}{{ p.tendered ? ` (terima ${rupiah(p.tendered)})` : '' }}</span
             >
             <span>{{ rupiah(p.amount) }}</span>
           </div>
-          <div class="no-print mt-3 flex gap-2">
+          <div class="mt-3 flex gap-2">
             <AppButton variant="ghost" @click="cetak">Cetak struk</AppButton>
             <AppButton variant="ghost" @click="unduhStruk">Unduh PDF</AppButton>
           </div>
@@ -502,5 +556,37 @@ onMounted(async () => {
       </div>
     </div>
     <AppEmpty v-else message="Anda tidak punya akses kasir." />
+    </div>
+
+    <div v-if="struk" class="receipt print-only">
+      <div class="text-center">
+        <p class="text-base font-bold">{{ auth.companyName ?? 'Aurevant' }}</p>
+        <p v-if="cabangAktif">{{ cabangAktif.name }}</p>
+        <p class="mt-1">{{ waktuSekarang() }}</p>
+      </div>
+      <div class="mt-2 border-y border-dashed border-black py-2">
+        <p class="font-semibold">Nota {{ struk.number }}</p>
+        <div v-for="(item, i) in struk.items" :key="`print-${item.itemId}-${i}`" class="mt-1">
+          <p>{{ namaItem(item.itemId) }}</p>
+          <div class="flex justify-between">
+            <span>{{ Number(item.qty) }} × {{ rupiah(item.price) }}</span>
+            <span>{{ rupiah(item.lineTotal) }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="mt-2 space-y-0.5">
+        <div class="flex justify-between"><span>Subtotal</span><span>{{ rupiah(struk.subtotal) }}</span></div>
+        <div class="flex justify-between"><span>Diskon</span><span>{{ rupiah(struk.discountTotal) }}</span></div>
+        <div class="flex justify-between"><span>Pajak</span><span>{{ rupiah(struk.taxTotal) }}</span></div>
+        <div class="flex justify-between border-t border-dashed border-black pt-1 font-bold">
+          <span>Total</span><span>{{ rupiah(struk.grandTotal) }}</span>
+        </div>
+        <div v-for="(p, i) in struk.payments" :key="`print-pay-${i}`" class="flex justify-between">
+          <span>{{ labelMetode(p.method) }}{{ p.tendered ? ` (terima ${rupiah(p.tendered)})` : '' }}</span>
+          <span>{{ rupiah(p.amount) }}</span>
+        </div>
+      </div>
+      <p class="mt-3 text-center">Terima kasih telah berbelanja.</p>
+    </div>
   </div>
 </template>

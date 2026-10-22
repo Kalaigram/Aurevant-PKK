@@ -68,7 +68,7 @@ const saldoMeta = ref<PageMeta | null>(null)
 async function muatSaldo(page = 1) {
   if (!branchId.value) return
   const res = await run(() =>
-    api.get<{ data: Saldo[]; meta: PageMeta }>(
+    api.getPage<Saldo>(
       `/companies/${companyId.value}/branches/${branchId.value}/stock?per_page=50&page=${page}`,
       auth.token,
     ),
@@ -91,7 +91,7 @@ function gantiCabang() {
 async function muatRiwayat(page = 1) {
   if (!branchId.value) return
   const res = await run(() =>
-    api.get<{ data: Gerak[]; meta: PageMeta }>(
+    api.getPage<Gerak>(
       `/companies/${companyId.value}/branches/${branchId.value}/stock/movements?per_page=15&page=${page}`,
       auth.token,
     ),

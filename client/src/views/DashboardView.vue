@@ -61,11 +61,11 @@ const subTone = () => {
 <template>
   <div>
     <div class="mb-4 flex flex-col justify-between gap-3 rounded-xl bg-card p-4 shadow-sm xl:flex-row xl:items-center">
-      <div class="flex items-center gap-3">
-        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary">
+      <div class="flex min-w-0 items-center gap-3">
+        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-container text-on-primary">
           <AppIcon name="storefront" :size="28" />
         </div>
-        <div>
+        <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-2">
             <h1 class="font-display text-lg font-semibold">{{ namaPerusahaan() }}</h1>
             <AppBadge :tone="subTone()">{{ sub().status ?? '…' }}</AppBadge>

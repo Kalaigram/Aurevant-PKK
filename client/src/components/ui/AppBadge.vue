@@ -1,17 +1,27 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ tone?: 'green' | 'red' | 'amber' | 'blue' | 'gray' }>(), { tone: 'gray' })
+withDefaults(
+  defineProps<{
+    tone?: 'green' | 'red' | 'amber' | 'blue' | 'gray'
+    dot?: boolean
+  }>(),
+  { tone: 'gray', dot: false },
+)
 
-const styles: Record<string, string> = {
-  green: 'bg-green-100 text-green-900',
-  red: 'bg-danger-bg text-red-900',
-  amber: 'bg-amber-100 text-amber-900',
-  blue: 'bg-blue-100 text-blue-900',
-  gray: 'bg-surface-low text-secondary',
+const styles = {
+  green: 'bg-ok-bg text-emerald-800 ring-ok/15',
+  red: 'bg-danger-bg text-red-800 ring-danger/15',
+  amber: 'bg-warn-bg text-amber-800 ring-warn/20',
+  blue: 'bg-info-bg text-blue-800 ring-info/15',
+  gray: 'bg-surface-low text-secondary ring-outline/60',
 }
 </script>
 
 <template>
-  <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="styles[tone]">
+  <span
+    class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset"
+    :class="styles[tone]"
+  >
+    <span v-if="dot" class="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
     <slot />
   </span>
 </template>

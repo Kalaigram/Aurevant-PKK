@@ -42,7 +42,7 @@ async function muat(page = 1) {
   okMsg.value = ''
   const me = auth.user?.id ?? 0
   const res = await run(() =>
-    api.get<{ data: Cuti[]; meta: PageMeta }>(
+    api.getPage<Cuti>(
       `/companies/${companyId.value}/leaves?user_id=${me}${status.value ? `&status=${status.value}` : ''}&per_page=15&page=${page}`,
       auth.token,
     ),

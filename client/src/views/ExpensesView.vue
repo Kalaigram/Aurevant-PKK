@@ -79,7 +79,7 @@ async function muatKategori() {
 async function muatBiaya(page = 1) {
   okMsg.value = ''
   const res = await run(() =>
-    api.get<{ data: Biaya[]; meta: PageMeta }>(
+    api.getPage<Biaya>(
       `/companies/${companyId.value}/expenses?per_page=20&page=${page}${filterStatus.value ? `&status=${filterStatus.value}` : ''}`,
       auth.token,
     ),

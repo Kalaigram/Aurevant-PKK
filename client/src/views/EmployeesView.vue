@@ -114,7 +114,7 @@ async function muatNama(ids: number[]) {
 async function muat(page = 1) {
   okMsg.value = ''
   const res = await run(() =>
-    api.get<{ data: Penempatan[]; meta: PageMeta }>(
+    api.getPage<Penempatan>(
       `/companies/${companyId.value}/access/assignments?per_page=15&page=${page}`, auth.token,
     ),
   )

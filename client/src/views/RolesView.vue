@@ -55,7 +55,7 @@ function grupUntuk(perm: string): string {
 async function muat(page = 1) {
   okMsg.value = ''
   const res = await run(() =>
-    api.get<{ data: Role[]; meta: PageMeta }>(`/companies/${companyId.value}/access/roles?per_page=15&page=${page}`, auth.token),
+    api.getPage<Role>(`/companies/${companyId.value}/access/roles?per_page=15&page=${page}`, auth.token),
   )
   if (res) {
     const raw = res as unknown as { data: Role[]; meta?: PageMeta } | Role[]

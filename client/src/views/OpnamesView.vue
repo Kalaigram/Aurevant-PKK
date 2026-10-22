@@ -54,7 +54,7 @@ async function muat(page = 1) {
   okMsg.value = ''
   if (!branchId.value) return
   const res = await run(() =>
-    api.get<{ data: Opname[]; meta: PageMeta }>(
+    api.getPage<Opname>(
       `/companies/${companyId.value}/branches/${branchId.value}/stock/opnames?per_page=15&page=${page}`,
       auth.token,
     ),

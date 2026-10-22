@@ -57,7 +57,7 @@ const boleh = computed(() => access.can('keuangan.lihat'))
 
 async function muatJurnal(page = 1) {
   const res = await run(() =>
-    api.get<{ data: Entri[]; meta: PageMeta }>(
+    api.getPage<Entri>(
       `/companies/${companyId.value}/journal-entries?per_page=15&page=${page}&from=${dari.value}&to=${sampai.value}`,
       auth.token,
     ),

@@ -73,7 +73,7 @@ const sisa = (it: POItem) => Math.max(0, Number(it.qtyOrdered) - Number(it.qtyRe
 async function muat(page = 1) {
   okMsg.value = ''
   const res = await run(() =>
-    api.get<{ data: PO[]; meta: PageMeta }>(
+    api.getPage<PO>(
       `/companies/${companyId.value}/purchase-orders?per_page=15&page=${page}${filterCabang.value ? `&branch_id=${filterCabang.value}` : ''}`,
       auth.token,
     ),

@@ -83,7 +83,7 @@ async function muatHadir(page = 1) {
   if (!branchId.value) return
   okMsg.value = ''
   const res = await run(() =>
-    api.get<{ data: Hadir[]; meta: PageMeta }>(
+    api.getPage<Hadir>(
       `/companies/${companyId.value}/branches/${branchId.value}/attendance?date=${tanggalPick.value}&per_page=50&page=${page}`,
       auth.token,
     ),

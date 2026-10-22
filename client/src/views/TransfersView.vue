@@ -75,7 +75,7 @@ const LABEL_AKSI: Record<string, string> = {
 async function muat(page = 1) {
   okMsg.value = ''
   const res = await run(() =>
-    api.get<{ data: Transfer[]; meta: PageMeta }>(
+    api.getPage<Transfer>(
       `/companies/${companyId.value}/stock-transfers?per_page=15&page=${page}`,
       auth.token,
     ),

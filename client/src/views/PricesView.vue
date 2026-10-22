@@ -63,7 +63,7 @@ async function muatCabang() {
 
 async function muatItem(page = 1) {
   const q = `/companies/${companyId.value}/items?per_page=50&page=${page}${filterTipe.value ? `&type=${filterTipe.value}` : ''}`
-  const res = await run(() => api.get<{ data: Item[]; meta: PageMeta }>(q, auth.token))
+  const res = await run(() => api.getPage<Item>(q, auth.token))
   if (res) {
     const raw = res as unknown as { data: Item[]; meta?: PageMeta } | Item[]
     if (Array.isArray(raw)) items.value = raw

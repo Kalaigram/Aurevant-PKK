@@ -49,7 +49,7 @@ async function ekspor() {
 async function muat(page = 1) {
   okMsg.value = ''
   const res = await run(() =>
-    api.get<{ data: Pelanggan[]; meta: PageMeta }>(
+    api.getPage<Pelanggan>(
       `/companies/${companyId.value}/customers?per_page=15&page=${page}`,
       auth.token,
     ),

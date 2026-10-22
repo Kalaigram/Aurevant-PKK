@@ -126,7 +126,7 @@ async function muat(page = 1) {
     `?per_page=15&page=${page}&company_id=${companyId.value}` +
     (tab.value === 'belum' ? '&unread=1' : '')
   const res = await run(() =>
-    api.get<{ data: Notif[]; meta: PageMeta }>(`/notifications${q}`, auth.token),
+    api.getPage<Notif>(`/notifications${q}`, auth.token),
   )
   if (res) {
     const raw = res as unknown as { data: Notif[]; meta?: PageMeta } | Notif[]
@@ -250,7 +250,7 @@ onUnmounted(() => window.clearInterval(timer))
       <AppButton
         :variant="tab === 'semua' ? 'primary' : 'ghost'"
         @click="
-          tab = 'semua'
+          tab = 'semua';
           muat()
         "
         >Semua</AppButton
@@ -258,7 +258,7 @@ onUnmounted(() => window.clearInterval(timer))
       <AppButton
         :variant="tab === 'belum' ? 'primary' : 'ghost'"
         @click="
-          tab = 'belum'
+          tab = 'belum';
           muat()
         "
         >Belum dibaca</AppButton

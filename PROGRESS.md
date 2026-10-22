@@ -69,3 +69,40 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - Mode offline kasir, payment gateway, loyalty/poin, notifikasi WhatsApp
 - Promo otomatis, face-match otomatis, jurnal manual/neraca penuh
 - Alokasi biaya pusat, tukar shift, rekonsiliasi bank otomatis, pelaporan pajak resmi
+
+## Upgrade UI web (calm green)
+
+Rencana phased disetujui 2026-10-22. Fokus web dulu; Android tidak diubah pada fase ini.
+
+### Fase 1 - Fondasi (selesai)
+
+- [x] Token warna calm green + surface/ink/outline, focus ring, reduced motion, dan aturan print (`.print-area`, struk 80mm)
+- [x] Komponen bersama: button, badge, banner, card, field, input, textarea, select, checkbox, search, money/date input, empty, pager, skeleton, avatar, tabs, page header, stat, sparkline, bar chart, table, modal, confirm, toast, dropdown, entity select
+- [x] Composable: `useToast`, `useConfirm`, `useFormErrors`, `usePagedList`
+- [x] Shell baru: sidebar hijau gelap, grup nav collapsible (localStorage `aurevant-nav`), company switcher, user dropdown, bottom nav + menu sheet mobile, skip link
+- [x] `api.ts`: `getPage` (meta pagination), envelope request, 204, 401 hanya saat ada token, `assetUrl`, blob download
+- [x] Migrasi 22 panggilan paginasi di 21 view dari `api.get` ke `api.getPage`; meta kini terbaca AppPager
+- [x] Verifikasi: `npm run type-check`, `npm run lint`, `npm run build` lolos; 126 tes server lolos
+- [x] Smoke test headless: login 1440px, dashboard 1440px, dashboard 504px (header, sidebar/bottom nav, konten)
+- [ ] Migrasi seluruh daftar ke `usePagedList` + `AppTable`/`AppPager` penuh (menyusul di pass per halaman)
+- [x] Pass visual P0: laporan, slip, jadwal, approval/audit, POS, absensi, print
+
+### Fase 2 - P0 (selesai)
+
+- [x] Laporan: tabel/grafik/CSV/print + filter tanggal/cabang; konsolidasi mengirim rentang tanggal
+- [x] Slip gaji: pilih periode (`/payroll-periods/me` + fallback HR) + print 80mm
+- [x] Jadwal: jadwal sendiri, grid tim 7 hari, kelola shift/pola/override/libur, print
+- [x] Approval/audit: label human-readable, payload detail, diff before → after, filter
+- [x] POS: struk print lengkap (item, cabang, perusahaan), konfirmasi bayar/kosongkan, guard shift, harga katalog dari daftar item (tanpa N+1)
+- [x] Absensi: QR SVG server + countdown auto-refresh, selfie + preview, riwayat AppTable, print
+- [x] Verifikasi P0: `type-check`, `lint`, `build` lolos; 126 tes server lolos; smoke 7 halaman
+
+### Berikutnya (Fase 2 - P1)
+
+- [x] Nota/Penjualan: filter status/tanggal/cari, tabel, detail, void/retur, cetak 80mm + PDF
+- [ ] Pembelian/PO: status, terima barang, print
+- [ ] Stok/transfer/opname: tabel dan alur aksi konsisten
+- [ ] Katalog/harga/pelanggan/jasa: form dan tabel konsisten
+- [ ] Cabang/karyawan/payroll/periode: form dan tabel konsisten
+- [ ] Migrasi daftar tersisa ke `usePagedList`/`AppTable`/`AppPager`
+- [ ] DB 3 tier: branding/kontak, upload logo/foto/avatar, expose field tersisa

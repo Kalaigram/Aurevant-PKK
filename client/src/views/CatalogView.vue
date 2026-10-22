@@ -89,7 +89,7 @@ async function muatKategori() {
 
 async function muatItem(page = 1) {
   const res = await run(() =>
-    api.get<{ data: Item[]; meta: PageMeta }>(
+    api.getPage<Item>(
       `/companies/${companyId.value}/items?per_page=15&page=${page}${filterTipe.value ? `&type=${filterTipe.value}` : ''}`,
       auth.token,
     ),
