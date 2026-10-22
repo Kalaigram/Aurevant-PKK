@@ -100,8 +100,8 @@ Rencana phased disetujui 2026-10-22. Fokus web dulu; Android tidak diubah pada f
 ### Berikutnya (Fase 2 - P1)
 
 - [x] Nota/Penjualan: filter status/tanggal/cari, tabel, detail, void/retur, cetak 80mm + PDF
-- [ ] Pembelian/PO: status, terima barang, print
-- [ ] Stok/transfer/opname: tabel dan alur aksi konsisten
+- [x] Pembelian/PO: filter status/cabang/cari, tabel, detail item + tagihan, buat PO, alur aksi, terima barang bertahap, print A4
+- [x] Stok/transfer/opname: filter server, tabel, detail item, alur aksi, penyesuaian/terima bertahap
 - [ ] Katalog/harga/pelanggan/jasa: form dan tabel konsisten
 - [ ] Cabang/karyawan/payroll/periode: form dan tabel konsisten
 - [ ] Migrasi daftar tersisa ke `usePagedList`/`AppTable`/`AppPager`

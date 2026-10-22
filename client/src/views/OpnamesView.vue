@@ -1,290 +1,558 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { api, type PageMeta } from '../lib/api'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
-import AppCard from '../components/ui/AppCard.vue'
+import { useConfirm } from '../composables/useConfirm'
+import { useToast } from '../composables/useToast'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
+import AppCard from '../components/ui/AppCard.vue'
 import AppField from '../components/ui/AppField.vue'
-import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppInput from '../components/ui/AppInput.vue'
+import AppModal from '../components/ui/AppModal.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
-import AppIcon from '../components/ui/AppIcon.vue'
+import AppSelect from '../components/ui/AppSelect.vue'
+import AppTable from '../components/ui/AppTable.vue'
+import AppTabs from '../components/ui/AppTabs.vue'
+import AppTextarea from '../components/ui/AppTextarea.vue'
 
-interface OItem {
+type Tone = 'green' | 'red' | 'amber' | 'blue' | 'gray'
+type Aksi = 'submit' | 'approve' | 'reject'
+
+interface OpnameItem {
   itemId: number
+  itemCode: string | null
+  itemName: string | null
+  unit: string | null
   qtySystem: string
   qtyCounted: string
+  diff: string
 }
+
 interface Opname {
   id: number
   branchId: number
+  branchName: string | null
   status: string
   note: string | null
-  items: OItem[]
+  createdAt: string | null
+  items: OpnameItem[]
 }
+
 interface Cabang {
   id: number
   code: string
   name: string
 }
 
+interface KatalogItem {
+  id: number
+  code: string
+  name: string
+  unit: string | null
+  trackStock?: boolean
+}
+
+interface BarisHitung {
+  itemId: number | null
+  qtyCounted: number | null
+}
+
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
+const toast = useToast()
+const { confirm } = useConfirm()
+
+const daftar = useAsync()
+const detailAsync = useAsync()
+const referensi = useAsync()
+const aksi = useAsync()
+const buatAsync = useAsync()
+
 const cabang = ref<Cabang[]>([])
+const items = ref<KatalogItem[]>([])
 const branchId = ref<number | null>(null)
 const list = ref<Opname[]>([])
 const meta = ref<PageMeta | null>(null)
+const halaman = ref(1)
+const perPage = ref(15)
+const tab = ref('semua')
+
 const detail = ref<Opname | null>(null)
-const okMsg = ref('')
+const detailOpen = ref(false)
+
 const showBuat = ref(false)
-const fLines = ref<{ item_id: number | null; qty_counted: number }[]>([
-  { item_id: null, qty_counted: 0 },
-])
 const fNote = ref('')
+const fLines = ref<BarisHitung[]>([{ itemId: null, qtyCounted: 0 }])
 
-const boleh = () => access.can('stok.opname')
-const tone = (s: string) => (s === 'disetujui' ? 'green' : s === 'ditolak' ? 'red' : 'amber')
-const selisih = (it: OItem) => Number(it.qtyCounted) - Number(it.qtySystem)
+const tabs = [
+  { key: 'semua', label: 'Semua' },
+  { key: 'draft', label: 'Draft' },
+  { key: 'diajukan', label: 'Diajukan' },
+  { key: 'disetujui', label: 'Disetujui' },
+  { key: 'ditolak', label: 'Ditolak' },
+]
 
-async function muat(page = 1) {
-  okMsg.value = ''
+const statusLabel: Record<string, string> = {
+  draft: 'Draft',
+  diajukan: 'Diajukan',
+  disetujui: 'Disetujui',
+  ditolak: 'Ditolak',
+}
+
+const aksiConfig: Record<Aksi, { judul: string; pesan: string; deskripsi: string; tone: 'primary' | 'danger' }> = {
+  submit: {
+    judul: 'Ajukan opname',
+    pesan: 'Opname diajukan.',
+    deskripsi: 'Opname masuk antrean persetujuan atasan.',
+    tone: 'primary',
+  },
+  approve: {
+    judul: 'Setujui opname',
+    pesan: 'Opname disetujui, stok menyesuaikan.',
+    deskripsi: 'Selisih akan langsung diterapkan ke saldo stok cabang.',
+    tone: 'primary',
+  },
+  reject: {
+    judul: 'Tolak opname',
+    pesan: 'Opname ditolak.',
+    deskripsi: 'Stok tidak berubah dan opname dianggap selesai.',
+    tone: 'danger',
+  },
+}
+
+const boleh = computed(() => access.can('stok.opname'))
+const error = computed(
+  () => daftar.error.value || detailAsync.error.value || referensi.error.value,
+)
+const opsiCabang = computed(() =>
+  cabang.value.map((b) => ({ value: b.id, label: `${b.code} — ${b.name}` })),
+)
+const opsiItem = computed(() =>
+  items.value
+    .filter((it) => it.trackStock !== false)
+    .map((it) => ({
+      value: it.id,
+      label: `${it.code} — ${it.name}${it.unit ? ` (${it.unit})` : ''}`,
+    })),
+)
+
+const duplikat = computed(() => {
+  const seen = new Set<number>()
+  for (const line of fLines.value) {
+    if (line.itemId === null) continue
+    if (seen.has(line.itemId)) return true
+    seen.add(line.itemId)
+  }
+  return false
+})
+
+const buatSah = computed(
+  () =>
+    fLines.value.length > 0 &&
+    !duplikat.value &&
+    fLines.value.every(
+      (line) =>
+        line.itemId !== null &&
+        line.qtyCounted !== null &&
+        Number(line.qtyCounted) >= 0,
+    ),
+)
+
+function tone(status: string): Tone {
+  if (status === 'disetujui') return 'green'
+  if (status === 'ditolak') return 'red'
+  if (status === 'draft') return 'gray'
+  return 'amber'
+}
+
+function labelStatus(status: string) {
+  return statusLabel[status] ?? status
+}
+
+function waktu(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function qty(value: string | number | null | undefined) {
+  return Number(value ?? 0).toLocaleString('id-ID', { maximumFractionDigits: 3 })
+}
+
+function qtyBersign(value: string | number | null | undefined) {
+  const number = Number(value ?? 0)
+  if (number > 0) return `+${qty(number)}`
+  if (number < 0) return `-${qty(Math.abs(number))}`
+  return '0'
+}
+
+function namaItem(it: { itemName: string | null; itemId: number }) {
+  return it.itemName ?? `Item #${it.itemId}`
+}
+
+function jumlahSelisih(opname: Opname) {
+  return opname.items.filter((it) => Number(it.diff) !== 0).length
+}
+
+function petunjuk(status: string) {
+  if (status === 'draft') return 'Opname masih draft. Ajukan ke atasan untuk mendapatkan persetujuan.'
+  if (status === 'diajukan') return 'Menunggu persetujuan. Stok belum berubah sampai disetujui.'
+  if (status === 'disetujui') return 'Opname disetujui dan selisih sudah diterapkan ke stok.'
+  return 'Opname ditolak. Stok tidak berubah.'
+}
+
+async function muat(page = halaman.value) {
   if (!branchId.value) return
-  const res = await run(() =>
+  halaman.value = page
+  const params = new URLSearchParams({
+    per_page: String(perPage.value),
+    page: String(page),
+  })
+  if (tab.value !== 'semua') params.set('status', tab.value)
+  const res = await daftar.run(() =>
     api.getPage<Opname>(
-      `/companies/${companyId.value}/branches/${branchId.value}/stock/opnames?per_page=15&page=${page}`,
+      `/companies/${companyId.value}/branches/${branchId.value}/stock/opnames?${params}`,
       auth.token,
     ),
   )
   if (res) {
-    const raw = res as unknown as { data: Opname[]; meta?: PageMeta } | Opname[]
-    if (Array.isArray(raw)) list.value = raw
-    else {
-      list.value = raw.data
-      meta.value = raw.meta ?? null
-    }
+    list.value = res.data
+    meta.value = res.meta
   }
+}
+
+function gantiTab(key: string) {
+  tab.value = key
+  muat(1)
+}
+
+function gantiCabang(value: string | number | null) {
+  branchId.value = value === null ? null : Number(value)
+  detail.value = null
+  detailOpen.value = false
+  muat(1)
+}
+
+function gantiPerPage(value: number) {
+  perPage.value = value
+  muat(1)
 }
 
 async function lihat(id: number) {
   if (!branchId.value) return
-  detail.value = await run(() =>
+  const res = await detailAsync.run(() =>
     api.get<Opname>(
       `/companies/${companyId.value}/branches/${branchId.value}/stock/opnames/${id}`,
       auth.token,
     ),
   )
+  if (res) {
+    detail.value = res
+    detailOpen.value = true
+  } else if (detailAsync.error.value) {
+    toast.error(detailAsync.error.value)
+  }
+}
+
+async function transisi(kind: Aksi) {
+  if (!detail.value || !branchId.value) return
+  const cfg = aksiConfig[kind]
+  const setuju = await confirm({
+    title: cfg.judul,
+    message: `Opname #${detail.value.id}. ${cfg.deskripsi}`,
+    confirmLabel: cfg.judul,
+    tone: cfg.tone,
+  })
+  if (!setuju) return
+
+  const id = detail.value.id
+  const res = await aksi.run(() =>
+    api.post<Opname>(
+      `/companies/${companyId.value}/branches/${branchId.value}/stock/opnames/${id}/${kind}`,
+      {},
+      auth.token,
+    ),
+  )
+  if (res) {
+    detail.value = res
+    toast.success(cfg.pesan)
+    await muat()
+  } else if (aksi.error.value) {
+    toast.error(aksi.error.value)
+  }
+}
+
+function bukaBuat() {
+  fNote.value = ''
+  fLines.value = [{ itemId: null, qtyCounted: 0 }]
+  buatAsync.error.value = ''
+  showBuat.value = true
+}
+
+function tambahBaris() {
+  fLines.value.push({ itemId: null, qtyCounted: 0 })
+}
+
+function hapusBaris(index: number) {
+  if (fLines.value.length <= 1) return
+  fLines.value.splice(index, 1)
 }
 
 async function buat() {
-  if (!branchId.value) return
-  const res = await run(() =>
-    api.post(
+  if (!branchId.value || !buatSah.value) return
+  const res = await buatAsync.run(() =>
+    api.post<Opname>(
       `/companies/${companyId.value}/branches/${branchId.value}/stock/opnames`,
       {
-        items: fLines.value
-          .filter((l) => l.item_id)
-          .map((l) => ({ item_id: l.item_id, qty_counted: l.qty_counted })),
-        note: fNote.value || undefined,
+        items: fLines.value.map((line) => ({
+          item_id: line.itemId,
+          qty_counted: Number(line.qtyCounted),
+        })),
+        note: fNote.value.trim() || undefined,
       },
       auth.token,
     ),
   )
   if (res) {
     showBuat.value = false
-    okMsg.value = 'Opname dibuat sebagai draft.'
-    fLines.value = [{ item_id: null, qty_counted: 0 }]
-    fNote.value = ''
-    muat(1)
-  }
-}
-
-async function jalan(aksi: 'submit' | 'approve' | 'reject') {
-  if (!detail.value || !branchId.value) return
-  const res = await run(() =>
-    api.post(
-      `/companies/${companyId.value}/branches/${branchId.value}/stock/opnames/${detail.value!.id}/${aksi}`,
-      {},
-      auth.token,
-    ),
-  )
-  if (res) {
-    okMsg.value =
-      aksi === 'submit'
-        ? 'Opname diajukan.'
-        : aksi === 'approve'
-          ? 'Opname disetujui, stok menyesuaikan.'
-          : 'Opname ditolak.'
-    lihat(detail.value.id)
-    muat(meta.value?.current_page ?? 1)
+    detail.value = res
+    detailOpen.value = true
+    toast.success('Opname dibuat sebagai draft.')
+    await muat(1)
   }
 }
 
 onMounted(async () => {
   await access.load(companyId.value, auth.token)
-  cabang.value =
-    (await run(() => api.get<Cabang[]>(`/companies/${companyId.value}/branches`, auth.token))) ?? []
+  await referensi.run(async () => {
+    const [b, i] = await Promise.all([
+      api.get<Cabang[]>(`/companies/${companyId.value}/branches`, auth.token),
+      api.getPage<KatalogItem>(`/companies/${companyId.value}/items?per_page=100`, auth.token),
+    ])
+    cabang.value = b ?? []
+    items.value = i.data
+  })
   branchId.value =
     (auth.branchId && cabang.value.some((b) => b.id === auth.branchId)
       ? auth.branchId
-      : cabang.value[0]?.id) ?? null
-  muat()
+      : (cabang.value[0]?.id ?? null))
+  await muat(1)
 })
 </script>
 
 <template>
   <div>
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-3">
-        <div
-          class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary"
-        >
-          <AppIcon name="content_paste_search" :size="28" />
-        </div>
-        <h1 class="font-display text-xl font-semibold">Stok opname</h1>
-      </div>
-      <AppButton v-if="boleh()" @click="showBuat = true"
-        ><AppIcon name="add" :size="18" />Opname baru</AppButton
-      >
-    </div>
-    <AppBanner tone="green" :message="okMsg" />
+    <AppPageHeader
+      eyebrow="Persediaan"
+      title="Stok opname"
+      subtitle="Hitung fisik stok cabang, ajukan selisih, dan terapkan setelah disetujui."
+      icon="content_paste_search"
+    >
+      <template #actions>
+        <AppButton variant="ghost" :loading="daftar.loading.value" @click="muat()">Muat ulang</AppButton>
+        <AppButton v-if="boleh && branchId" @click="bukaBuat">Opname baru</AppButton>
+      </template>
+    </AppPageHeader>
+
     <AppBanner tone="red" :message="error" />
 
-    <div class="mb-3">
-      <select
-        v-model="branchId"
-        class="rounded-lg border border-outline bg-card px-3 py-2 text-sm"
-        @change="muat(1)"
-      >
-        <option v-for="b in cabang" :key="b.id" :value="b.id">{{ b.code }} — {{ b.name }}</option>
-      </select>
-    </div>
+    <AppCard>
+      <div class="mb-3 flex flex-wrap items-end gap-2">
+        <AppField label="Cabang" class="w-full sm:w-64">
+          <AppSelect
+            :model-value="branchId"
+            :options="opsiCabang"
+            placeholder="Pilih cabang"
+            @update:model-value="gantiCabang"
+          />
+        </AppField>
+      </div>
 
-    <div class="grid gap-4 lg:grid-cols-5">
-      <div class="lg:col-span-3">
-        <AppEmpty v-if="!loading && !list.length" message="Belum ada opname." />
-        <AppCard
+      <AppTabs :items="tabs" :model-value="tab" label="Status opname" @update:model-value="gantiTab" />
+
+      <AppTable
+        class="mt-3"
+        :loading="daftar.loading.value"
+        :empty="!list.length"
+        :colspan="5"
+        empty-title="Belum ada opname"
+        empty-message="Buat opname baru atau ubah filter status."
+      >
+        <template #head>
+          <tr>
+            <th>Opname</th>
+            <th class="text-right">Item</th>
+            <th class="text-right">Item selisih</th>
+            <th class="hidden sm:table-cell">Catatan</th>
+            <th>Status</th>
+          </tr>
+        </template>
+        <tr
           v-for="o in list"
           :key="o.id"
-          class="cursor-pointer transition hover:shadow"
+          class="cursor-pointer transition hover:bg-surface-low/70"
           @click="lihat(o.id)"
         >
-          <div class="flex items-center justify-between gap-2">
-            <p class="font-semibold">Opname #{{ o.id }}</p>
-            <AppBadge :tone="tone(o.status)">{{ o.status }}</AppBadge>
-          </div>
-          <p class="mt-1 text-sm text-secondary">
-            {{ o.items.length }} baris{{ o.note ? ` · ${o.note}` : '' }}
-          </p>
-        </AppCard>
-        <AppPager :meta="meta" @page="muat" />
-      </div>
-      <div class="lg:col-span-2">
-        <AppEmpty v-if="!detail" message="Pilih opname untuk detail." />
-        <AppCard v-if="detail" title="Detail opname">
-          <p class="font-semibold">
-            #{{ detail.id }} <AppBadge :tone="tone(detail.status)">{{ detail.status }}</AppBadge>
-          </p>
-          <table class="mt-2 w-full text-sm">
-            <thead>
-              <tr class="text-left text-xs uppercase text-secondary">
-                <th class="py-1">Item</th>
-                <th class="py-1 text-right">Sistem</th>
-                <th class="py-1 text-right">Hitung</th>
-                <th class="py-1 text-right">Selisih</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(it, i) in detail.items" :key="i" class="border-t border-surface-low">
-                <td class="py-1.5">Item #{{ it.itemId }}</td>
-                <td class="py-1.5 text-right font-mono">{{ it.qtySystem }}</td>
-                <td class="py-1.5 text-right font-mono">{{ it.qtyCounted }}</td>
-                <td
-                  class="py-1.5 text-right font-mono"
-                  :class="selisih(it) !== 0 ? 'font-bold text-amber-700' : ''"
-                >
-                  {{ selisih(it) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-if="boleh()" class="mt-3 flex flex-wrap gap-2">
-            <AppButton v-if="detail.status === 'draft'" :loading="loading" @click="jalan('submit')"
-              >Ajukan</AppButton
-            >
-            <AppButton
-              v-if="detail.status === 'diajukan'"
-              :loading="loading"
-              @click="jalan('approve')"
-              >Setujui</AppButton
-            >
-            <AppButton
-              v-if="detail.status === 'diajukan'"
-              variant="danger"
-              :loading="loading"
-              @click="jalan('reject')"
-              >Tolak</AppButton
-            >
-          </div>
-        </AppCard>
-      </div>
-    </div>
+          <td>
+            <p class="font-mono text-sm font-semibold text-ink">OPN #{{ o.id }}</p>
+            <p class="mt-0.5 text-xs text-secondary">{{ waktu(o.createdAt) }}</p>
+          </td>
+          <td class="text-right tabular-nums">{{ o.items.length }}</td>
+          <td
+            class="text-right font-medium tabular-nums"
+            :class="jumlahSelisih(o) > 0 ? 'text-warn' : 'text-secondary'"
+          >
+            {{ jumlahSelisih(o) }}
+          </td>
+          <td class="hidden sm:table-cell text-secondary">{{ o.note ?? '—' }}</td>
+          <td><AppBadge :tone="tone(o.status)" dot>{{ labelStatus(o.status) }}</AppBadge></td>
+        </tr>
+      </AppTable>
+      <AppPager :meta="meta" @page="muat" @update:per-page="gantiPerPage" />
+    </AppCard>
 
-    <div
-      v-if="showBuat"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="showBuat = false"
+    <AppModal
+      :open="detailOpen"
+      :title="detail ? `Opname #${detail.id}` : 'Detail opname'"
+      :description="detail ? `${detail.branchName ?? ''} · ${waktu(detail.createdAt)}` : ''"
+      size="xl"
+      @close="detailOpen = false"
     >
-      <div class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-card p-5 shadow-xl">
-        <h3 class="font-display font-semibold">Opname baru</h3>
-        <div v-for="(l, i) in fLines" :key="i" class="mt-2 grid grid-cols-2 gap-1">
-          <input
-            v-model.number="l.item_id"
-            type="number"
-            placeholder="ID item"
-            class="rounded-lg bg-surface-low px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-          />
-          <div class="flex gap-1">
-            <input
-              v-model.number="l.qty_counted"
-              type="number"
-              min="0"
-              step="any"
-              placeholder="Hasil hitung"
-              class="w-full rounded-lg bg-surface-low px-2 py-2 text-sm outline-none"
-            />
-            <button
-              v-if="fLines.length > 1"
-              class="text-xs text-danger"
-              @click="fLines.splice(i, 1)"
+      <div v-if="detailAsync.loading.value" class="space-y-2">
+        <div v-for="i in 4" :key="i" class="h-10 animate-pulse rounded-lg bg-surface-low" />
+      </div>
+      <div v-else-if="detail">
+        <AppBanner tone="red" :message="aksi.error.value" />
+        <div class="flex flex-wrap items-center gap-2">
+          <AppBadge :tone="tone(detail.status)" dot>{{ labelStatus(detail.status) }}</AppBadge>
+          <span class="text-sm text-secondary">{{ detail.items.length }} item</span>
+          <span class="text-sm text-secondary">·</span>
+          <span class="text-sm text-secondary">{{ jumlahSelisih(detail) }} item selisih</span>
+        </div>
+        <p class="mt-2 text-sm text-secondary">{{ petunjuk(detail.status) }}</p>
+
+        <p v-if="detail.note" class="mt-3 rounded-lg border border-outline/60 px-3 py-2 text-sm">
+          <span class="text-secondary">Catatan: </span>{{ detail.note }}
+        </p>
+
+        <AppTable class="mt-4" :colspan="5" dense>
+          <template #head>
+            <tr>
+              <th>Item</th>
+              <th class="text-right">Sistem</th>
+              <th class="text-right">Hitung fisik</th>
+              <th class="text-right">Selisih</th>
+              <th class="hidden sm:table-cell">Satuan</th>
+            </tr>
+          </template>
+          <tr v-for="(it, i) in detail.items" :key="`${it.itemId}-${i}`">
+            <td>
+              <p class="font-medium">{{ namaItem(it) }}</p>
+              <p class="font-mono text-xs text-secondary">{{ it.itemCode ?? '' }}</p>
+            </td>
+            <td class="text-right tabular-nums">{{ qty(it.qtySystem) }}</td>
+            <td class="text-right tabular-nums">{{ qty(it.qtyCounted) }}</td>
+            <td
+              class="text-right font-semibold tabular-nums"
+              :class="Number(it.diff) !== 0 ? 'text-warn' : 'text-secondary'"
             >
-              ✕
-            </button>
-          </div>
-        </div>
-        <AppButton
-          variant="ghost"
-          class="mt-1"
-          @click="fLines.push({ item_id: null, qty_counted: 0 })"
-          >+ Baris</AppButton
-        >
-        <div class="mt-2">
-          <AppField label="Catatan">
-            <input
-              v-model="fNote"
-              maxlength="500"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-        </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="showBuat = false">Batal</AppButton>
-          <AppButton :loading="loading" @click="buat">Buat draft</AppButton>
+              {{ qtyBersign(it.diff) }}
+            </td>
+            <td class="hidden text-secondary sm:table-cell">{{ it.unit ?? 'pcs' }}</td>
+          </tr>
+        </AppTable>
+      </div>
+
+      <template #footer>
+        <AppButton variant="ghost" @click="detailOpen = false">Tutup</AppButton>
+        <template v-if="boleh">
+          <AppButton
+            v-if="detail?.status === 'draft'"
+            :loading="aksi.loading.value"
+            @click="transisi('submit')"
+          >
+            Ajukan
+          </AppButton>
+          <AppButton
+            v-if="detail?.status === 'diajukan'"
+            :loading="aksi.loading.value"
+            @click="transisi('approve')"
+          >
+            Setujui
+          </AppButton>
+          <AppButton
+            v-if="detail?.status === 'diajukan'"
+            variant="danger"
+            :loading="aksi.loading.value"
+            @click="transisi('reject')"
+          >
+            Tolak
+          </AppButton>
+        </template>
+      </template>
+    </AppModal>
+
+    <AppModal
+      :open="showBuat"
+      title="Opname baru"
+      description="Masukkan hasil hitung fisik. Qty sistem diambil otomatis saat opname dibuat."
+      size="lg"
+      @close="showBuat = false"
+    >
+      <AppBanner tone="red" :message="buatAsync.error.value" />
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Baris hitung</p>
+        <AppButton variant="ghost" @click="tambahBaris">Tambah baris</AppButton>
+      </div>
+      <div
+        v-for="(line, i) in fLines"
+        :key="i"
+        class="mt-2 grid items-end gap-2 rounded-lg border border-outline/60 p-2 sm:grid-cols-12"
+      >
+        <AppField label="Item" class="sm:col-span-8">
+          <AppSelect v-model="line.itemId" :options="opsiItem" placeholder="Pilih item" />
+        </AppField>
+        <AppField label="Qty hasil hitung" class="sm:col-span-3">
+          <AppInput v-model="line.qtyCounted" type="number" min="0" step="any" placeholder="0" />
+        </AppField>
+        <div class="sm:col-span-1">
+          <button
+            type="button"
+            class="w-full rounded-lg px-2 py-2.5 text-xs font-semibold text-danger transition hover:bg-danger-bg disabled:cursor-not-allowed disabled:opacity-40"
+            :disabled="fLines.length <= 1"
+            @click="hapusBaris(i)"
+          >
+            Hapus
+          </button>
         </div>
       </div>
-    </div>
+      <p v-if="duplikat" class="mt-2 text-xs text-danger">
+        Item yang sama tidak boleh muncul di dua baris.
+      </p>
+      <p class="mt-2 text-xs text-secondary">
+        Item yang tidak dihitung tidak perlu dimasukkan. Selisih baru diterapkan setelah opname disetujui.
+      </p>
+
+      <AppField label="Catatan" class="mt-3">
+        <AppTextarea v-model="fNote" :rows="2" :maxlength="500" show-count placeholder="Contoh: opname bulanan area gudang" />
+      </AppField>
+
+      <template #footer>
+        <AppButton variant="ghost" @click="showBuat = false">Batal</AppButton>
+        <AppButton :loading="buatAsync.loading.value" :disabled="!buatSah" @click="buat">
+          Simpan draft
+        </AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

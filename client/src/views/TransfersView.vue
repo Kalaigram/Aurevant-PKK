@@ -1,296 +1,725 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { api, type PageMeta } from '../lib/api'
+import { rupiah } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
-import AppCard from '../components/ui/AppCard.vue'
+import { useConfirm } from '../composables/useConfirm'
+import { useToast } from '../composables/useToast'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
+import AppCard from '../components/ui/AppCard.vue'
 import AppField from '../components/ui/AppField.vue'
-import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppInput from '../components/ui/AppInput.vue'
+import AppModal from '../components/ui/AppModal.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
-import AppIcon from '../components/ui/AppIcon.vue'
+import AppSelect from '../components/ui/AppSelect.vue'
+import AppTable from '../components/ui/AppTable.vue'
+import AppTabs from '../components/ui/AppTabs.vue'
+import AppTextarea from '../components/ui/AppTextarea.vue'
 
-interface TItem {
+type Tone = 'green' | 'red' | 'amber' | 'blue' | 'gray'
+
+interface TransferItem {
   itemId: number
+  itemCode: string | null
+  itemName: string | null
+  unit: string | null
   qtyRequested: string
-  qtyShipped?: string
-  qtyReceived?: string
+  qtyShipped: string | null
+  qtyReceived: string | null
+  costPerUnit: string | null
 }
+
 interface Transfer {
   id: number
   fromBranchId: number
+  fromBranchName: string | null
+  fromBranchCode: string | null
   toBranchId: number
+  toBranchName: string | null
+  toBranchCode: string | null
   status: string
   note: string | null
-  items: TItem[]
+  createdAt: string | null
+  shippedAt: string | null
+  receivedAt: string | null
+  items: TransferItem[]
 }
+
 interface Cabang {
   id: number
   code: string
   name: string
 }
 
+interface KatalogItem {
+  id: number
+  code: string
+  name: string
+  unit: string | null
+  trackStock?: boolean
+}
+
+interface BarisBuat {
+  itemId: number | null
+  qty: number | null
+}
+
+interface BarisTerima {
+  itemId: number
+  itemName: string
+  unit: string | null
+  shipped: number
+  qty: number | null
+}
+
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
+const toast = useToast()
+const { confirm } = useConfirm()
+
+const daftar = useAsync()
+const detailAsync = useAsync()
+const referensi = useAsync()
+const aksi = useAsync()
+const buatAsync = useAsync()
+const terimaAsync = useAsync()
+
 const cabang = ref<Cabang[]>([])
+const items = ref<KatalogItem[]>([])
 const list = ref<Transfer[]>([])
 const meta = ref<PageMeta | null>(null)
+const halaman = ref(1)
+const perPage = ref(15)
+const tab = ref('semua')
 const detail = ref<Transfer | null>(null)
-const okMsg = ref('')
+const detailOpen = ref(false)
+
 const showBuat = ref(false)
-const fFrom = ref('')
-const fTo = ref('')
+const fFrom = ref<number | null>(null)
+const fTo = ref<number | null>(null)
 const fNote = ref('')
-const fLines = ref<{ item_id: number | null; qty: number }[]>([{ item_id: null, qty: 1 }])
+const fLines = ref<BarisBuat[]>([{ itemId: null, qty: 1 }])
 
-const boleh = () => access.can('stok.transfer')
-const tone = (s: string) =>
-  s === 'diterima' || s === 'disetujui'
-    ? 'green'
-    : s === 'dibatalkan'
-      ? 'red'
-      : s === 'dikirim'
-        ? 'blue'
-        : 'amber'
-const kode = (id: number) => cabang.value.find((b) => b.id === id)?.code ?? `#${id}`
+const showTerima = ref(false)
+const tLines = ref<BarisTerima[]>([])
 
-const AKSI: Record<string, string[]> = {
-  draft: ['submit', 'cancel'],
-  diajukan: ['approve', 'cancel'],
-  disetujui: ['ship'],
-  dikirim: ['receive'],
-}
-const LABEL_AKSI: Record<string, string> = {
-  submit: 'Ajukan',
-  approve: 'Setujui',
-  ship: 'Kirim',
-  receive: 'Terima',
-  cancel: 'Batalkan',
+const tabs = [
+  { key: 'semua', label: 'Semua' },
+  { key: 'draft', label: 'Draft' },
+  { key: 'diajukan', label: 'Diajukan' },
+  { key: 'disetujui', label: 'Disetujui' },
+  { key: 'dikirim', label: 'Dikirim' },
+  { key: 'diterima', label: 'Diterima' },
+  { key: 'dibatalkan', label: 'Dibatalkan' },
+]
+
+const statusLabel: Record<string, string> = {
+  draft: 'Draft',
+  diajukan: 'Diajukan',
+  disetujui: 'Disetujui',
+  dikirim: 'Dikirim',
+  diterima: 'Diterima',
+  dibatalkan: 'Dibatalkan',
 }
 
-async function muat(page = 1) {
-  okMsg.value = ''
-  const res = await run(() =>
-    api.getPage<Transfer>(
-      `/companies/${companyId.value}/stock-transfers?per_page=15&page=${page}`,
+const boleh = computed(() => access.can('stok.transfer'))
+const error = computed(
+  () => daftar.error.value || detailAsync.error.value || referensi.error.value,
+)
+const opsiCabang = computed(() =>
+  cabang.value.map((b) => ({ value: b.id, label: `${b.code} — ${b.name}` })),
+)
+const opsiItem = computed(() =>
+  items.value
+    .filter((it) => it.trackStock !== false)
+    .map((it) => ({
+      value: it.id,
+      label: `${it.code} — ${it.name}${it.unit ? ` (${it.unit})` : ''}`,
+    })),
+)
+
+const duplikat = computed(() => {
+  const seen = new Set<number>()
+  for (const line of fLines.value) {
+    if (line.itemId === null) continue
+    if (seen.has(line.itemId)) return true
+    seen.add(line.itemId)
+  }
+  return false
+})
+
+const buatSah = computed(
+  () =>
+    fFrom.value !== null &&
+    fTo.value !== null &&
+    fFrom.value !== fTo.value &&
+    fLines.value.length > 0 &&
+    !duplikat.value &&
+    fLines.value.every((line) => line.itemId !== null && Number(line.qty ?? 0) > 0),
+)
+
+const barisTerima = computed(() =>
+  tLines.value.filter((line) => Number(line.qty ?? 0) > 0),
+)
+const terimaSah = computed(
+  () =>
+    barisTerima.value.length > 0 &&
+    tLines.value.every(
+      (line) =>
+        line.qty !== null && Number(line.qty) >= 0 && Number(line.qty) <= line.shipped + 0.0001,
+    ),
+)
+const barisKurang = computed(
+  () => tLines.value.filter((line) => Number(line.qty ?? 0) < line.shipped).length,
+)
+
+function tone(status: string): Tone {
+  if (status === 'diterima') return 'green'
+  if (status === 'dibatalkan') return 'red'
+  if (status === 'dikirim') return 'blue'
+  if (status === 'draft') return 'gray'
+  return 'amber'
+}
+
+function labelStatus(status: string) {
+  return statusLabel[status] ?? status
+}
+
+function waktu(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function qty(value: string | number | null | undefined) {
+  return Number(value ?? 0).toLocaleString('id-ID', { maximumFractionDigits: 3 })
+}
+
+function namaItem(it: { itemName: string | null; itemId: number }) {
+  return it.itemName ?? `Item #${it.itemId}`
+}
+
+function petunjuk(status: string) {
+  if (status === 'draft') return 'Transfer masih draft. Ajukan untuk mendapatkan persetujuan.'
+  if (status === 'diajukan') return 'Menunggu persetujuan sebelum barang dikirim.'
+  if (status === 'disetujui') return 'Transfer disetujui. Kirim barang untuk mengurangi stok asal.'
+  if (status === 'dikirim') return 'Barang dalam perjalanan. Catat penerimaan di cabang tujuan.'
+  if (status === 'diterima') return 'Barang sudah diterima di cabang tujuan.'
+  return 'Transfer dibatalkan.'
+}
+
+async function muat(page = halaman.value) {
+  halaman.value = page
+  const params = new URLSearchParams({
+    per_page: String(perPage.value),
+    page: String(page),
+  })
+  if (tab.value !== 'semua') params.set('status', tab.value)
+  const res = await daftar.run(() =>
+    api.getPage<Transfer>(`/companies/${companyId.value}/stock-transfers?${params}`, auth.token),
+  )
+  if (res) {
+    list.value = res.data
+    meta.value = res.meta
+  }
+}
+
+function gantiTab(key: string) {
+  tab.value = key
+  muat(1)
+}
+
+function gantiPerPage(value: number) {
+  perPage.value = value
+  muat(1)
+}
+
+async function lihat(id: number) {
+  const res = await detailAsync.run(() =>
+    api.get<Transfer>(`/companies/${companyId.value}/stock-transfers/${id}`, auth.token),
+  )
+  if (res) {
+    detail.value = res
+    detailOpen.value = true
+  } else if (detailAsync.error.value) {
+    toast.error(detailAsync.error.value)
+  }
+}
+
+const aksiConfig: Record<string, { judul: string; pesan: string; deskripsi: string; tone: 'primary' | 'danger' }> = {
+  submit: {
+    judul: 'Ajukan transfer',
+    pesan: 'Transfer diajukan.',
+    deskripsi: 'Transfer masuk antrean persetujuan.',
+    tone: 'primary',
+  },
+  approve: {
+    judul: 'Setujui transfer',
+    pesan: 'Transfer disetujui.',
+    deskripsi: 'Transfer bisa dikirim setelah disetujui.',
+    tone: 'primary',
+  },
+  ship: {
+    judul: 'Kirim transfer',
+    pesan: 'Transfer dikirim. Stok asal berkurang.',
+    deskripsi: 'Stok cabang asal akan langsung dikurangi.',
+    tone: 'primary',
+  },
+  cancel: {
+    judul: 'Batalkan transfer',
+    pesan: 'Transfer dibatalkan.',
+    deskripsi: 'Transfer draft atau yang belum disetujui akan dibatalkan.',
+    tone: 'danger',
+  },
+}
+
+async function transisi(kind: 'submit' | 'approve' | 'ship' | 'cancel') {
+  if (!detail.value) return
+  const cfg = aksiConfig[kind]!
+  const setuju = await confirm({
+    title: cfg.judul,
+    message: `Transfer #${detail.value.id} — ${detail.value.fromBranchName ?? ''} ke ${detail.value.toBranchName ?? ''}. ${cfg.deskripsi}`,
+    confirmLabel: cfg.judul,
+    tone: cfg.tone,
+  })
+  if (!setuju) return
+
+  const id = detail.value.id
+  const res = await aksi.run(() =>
+    api.post<Transfer>(
+      `/companies/${companyId.value}/stock-transfers/${id}/${kind}`,
+      {},
       auth.token,
     ),
   )
   if (res) {
-    const raw = res as unknown as { data: Transfer[]; meta?: PageMeta } | Transfer[]
-    if (Array.isArray(raw)) list.value = raw
-    else {
-      list.value = raw.data
-      meta.value = raw.meta ?? null
-    }
+    detail.value = res
+    toast.success(cfg.pesan)
+    await muat()
+  } else if (aksi.error.value) {
+    toast.error(aksi.error.value)
   }
 }
 
-async function lihat(id: number) {
-  detail.value = await run(() =>
-    api.get<Transfer>(`/companies/${companyId.value}/stock-transfers/${id}`, auth.token),
-  )
+function bukaBuat() {
+  fFrom.value =
+    auth.branchId && cabang.value.some((b) => b.id === auth.branchId)
+      ? auth.branchId
+      : (cabang.value[0]?.id ?? null)
+  fTo.value = null
+  fNote.value = ''
+  fLines.value = [{ itemId: null, qty: 1 }]
+  buatAsync.error.value = ''
+  showBuat.value = true
+}
+
+function tambahBaris() {
+  fLines.value.push({ itemId: null, qty: 1 })
+}
+
+function hapusBaris(index: number) {
+  if (fLines.value.length <= 1) return
+  fLines.value.splice(index, 1)
 }
 
 async function buat() {
-  const res = await run(() =>
-    api.post(
+  if (!buatSah.value) return
+  const res = await buatAsync.run(() =>
+    api.post<Transfer>(
       `/companies/${companyId.value}/stock-transfers`,
       {
-        from_branch_id: Number(fFrom.value),
-        to_branch_id: Number(fTo.value),
-        items: fLines.value
-          .filter((l) => l.item_id)
-          .map((l) => ({ item_id: l.item_id, qty: l.qty })),
-        note: fNote.value || undefined,
+        from_branch_id: fFrom.value,
+        to_branch_id: fTo.value,
+        items: fLines.value.map((line) => ({
+          item_id: line.itemId,
+          qty: Number(line.qty),
+        })),
+        note: fNote.value.trim() || undefined,
       },
       auth.token,
     ),
   )
   if (res) {
     showBuat.value = false
-    okMsg.value = 'Transfer dibuat sebagai draft.'
-    muat(1)
+    detail.value = res
+    detailOpen.value = true
+    toast.success('Transfer dibuat sebagai draft.')
+    await muat(1)
   }
 }
 
-async function jalan(aksi: string) {
+function bukaTerima() {
   if (!detail.value) return
-  const res = await run(() =>
-    api.post(
-      `/companies/${companyId.value}/stock-transfers/${detail.value!.id}/${aksi}`,
-      {},
+  tLines.value = detail.value.items.map((it) => {
+    const shipped = Number(it.qtyShipped ?? it.qtyRequested)
+    return {
+      itemId: it.itemId,
+      itemName: namaItem(it),
+      unit: it.unit,
+      shipped,
+      qty: shipped,
+    }
+  })
+  terimaAsync.error.value = ''
+  detailOpen.value = false
+  showTerima.value = true
+}
+
+function tutupTerima() {
+  showTerima.value = false
+  if (detail.value) detailOpen.value = true
+}
+
+async function terimaSekarang() {
+  if (!detail.value || !terimaSah.value) return
+  const id = detail.value.id
+  const res = await terimaAsync.run(() =>
+    api.post<Transfer>(
+      `/companies/${companyId.value}/stock-transfers/${id}/receive`,
+      {
+        items: tLines.value.map((line) => ({
+          item_id: line.itemId,
+          qty_received: Number(line.qty),
+        })),
+      },
       auth.token,
     ),
   )
   if (res) {
-    okMsg.value = `Transfer ${LABEL_AKSI[aksi]}.`
-    lihat(detail.value.id)
-    muat(meta.value?.current_page ?? 1)
+    showTerima.value = false
+    detail.value = res
+    detailOpen.value = true
+    toast.success('Penerimaan transfer dicatat. Stok tujuan bertambah.')
+    await muat()
+  } else if (terimaAsync.error.value) {
+    toast.error(terimaAsync.error.value)
   }
 }
 
 onMounted(async () => {
   await access.load(companyId.value, auth.token)
-  cabang.value =
-    (await run(() => api.get<Cabang[]>(`/companies/${companyId.value}/branches`, auth.token))) ?? []
-  muat()
+  await referensi.run(async () => {
+    const [b, i] = await Promise.all([
+      api.get<Cabang[]>(`/companies/${companyId.value}/branches`, auth.token),
+      api.getPage<KatalogItem>(`/companies/${companyId.value}/items?per_page=100`, auth.token),
+    ])
+    cabang.value = b ?? []
+    items.value = i.data
+  })
+  await muat(1)
 })
 </script>
 
 <template>
-  <div>
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-3">
-        <div
-          class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary"
-        >
-          <AppIcon name="swap_horiz" :size="28" />
-        </div>
-        <h1 class="font-display text-xl font-semibold">Transfer stok</h1>
-      </div>
-      <AppButton v-if="boleh()" @click="showBuat = true"
-        ><AppIcon name="add" :size="18" />Transfer baru</AppButton
-      >
-    </div>
-    <AppBanner tone="green" :message="okMsg" />
+  <div class="screen-only">
+    <AppPageHeader
+      eyebrow="Persediaan"
+      title="Transfer stok"
+      subtitle="Kirim barang antar cabang dengan alur persetujuan dan pencatatan selisih terima."
+      icon="swap_horiz"
+    >
+      <template #actions>
+        <AppButton variant="ghost" :loading="daftar.loading.value" @click="muat()">Muat ulang</AppButton>
+        <AppButton v-if="boleh" @click="bukaBuat">Transfer baru</AppButton>
+      </template>
+    </AppPageHeader>
+
     <AppBanner tone="red" :message="error" />
 
-    <div class="grid gap-4 lg:grid-cols-5">
-      <div class="lg:col-span-3">
-        <AppEmpty v-if="!loading && !list.length" message="Belum ada transfer." />
-        <AppCard
-          v-for="t in list"
-          :key="t.id"
-          class="cursor-pointer transition hover:shadow"
-          @click="lihat(t.id)"
-        >
-          <div class="flex items-center justify-between gap-2">
-            <p class="font-semibold">
-              Transfer #{{ t.id }}
-              <span class="font-normal text-secondary"
-                >{{ kode(t.fromBranchId) }} → {{ kode(t.toBranchId) }}</span
-              >
-            </p>
-            <AppBadge :tone="tone(t.status)">{{ t.status }}</AppBadge>
-          </div>
-          <p class="mt-1 text-sm text-secondary">
-            {{ t.items.length }} jenis barang{{ t.note ? ` · ${t.note}` : '' }}
-          </p>
-        </AppCard>
-        <AppPager :meta="meta" @page="muat" />
-      </div>
-      <div class="lg:col-span-2">
-        <AppEmpty v-if="!detail" message="Pilih transfer untuk detail & tindakan." />
-        <AppCard v-if="detail" title="Detail transfer">
-          <p class="font-semibold">
-            #{{ detail.id }} <AppBadge :tone="tone(detail.status)">{{ detail.status }}</AppBadge>
-          </p>
-          <p class="text-sm text-secondary">
-            {{ kode(detail.fromBranchId) }} → {{ kode(detail.toBranchId) }}
-          </p>
-          <table class="mt-2 w-full text-sm">
-            <tbody>
-              <tr
-                v-for="(it, i) in detail.items"
-                :key="i"
-                class="border-b border-surface-low last:border-0"
-              >
-                <td class="py-1.5">Item #{{ it.itemId }}</td>
-                <td class="py-1.5 text-right">
-                  minta {{ it.qtyRequested }}{{ it.qtyShipped ? ` · kirim ${it.qtyShipped}` : ''
-                  }}{{ it.qtyReceived ? ` · terima ${it.qtyReceived}` : '' }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-if="boleh()" class="mt-3 flex flex-wrap gap-2">
-            <AppButton
-              v-for="a in AKSI[detail.status] ?? []"
-              :key="a"
-              :variant="a === 'cancel' ? 'danger' : 'primary'"
-              :loading="loading"
-              @click="jalan(a)"
-              >{{ LABEL_AKSI[a] }}</AppButton
-            >
-          </div>
-        </AppCard>
-      </div>
-    </div>
+    <AppCard>
+      <AppTabs :items="tabs" :model-value="tab" label="Status transfer" @update:model-value="gantiTab" />
 
-    <div
-      v-if="showBuat"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="showBuat = false"
+      <AppTable
+        class="mt-3"
+        :loading="daftar.loading.value"
+        :empty="!list.length"
+        :colspan="5"
+        empty-title="Belum ada transfer"
+        empty-message="Buat transfer baru atau ubah filter status."
+      >
+        <template #head>
+          <tr>
+            <th>Transfer</th>
+            <th>Rute</th>
+            <th class="text-right">Item</th>
+            <th class="hidden sm:table-cell">Catatan</th>
+            <th>Status</th>
+          </tr>
+        </template>
+        <tr
+          v-for="tr in list"
+          :key="tr.id"
+          class="cursor-pointer transition hover:bg-surface-low/70"
+          @click="lihat(tr.id)"
+        >
+          <td>
+            <p class="font-mono text-sm font-semibold text-ink">TRF #{{ tr.id }}</p>
+            <p class="mt-0.5 text-xs text-secondary">{{ waktu(tr.createdAt) }}</p>
+          </td>
+          <td>
+            <p class="font-medium">
+              {{ tr.fromBranchName ?? `#${tr.fromBranchId}` }}
+              <span class="text-secondary">→</span>
+              {{ tr.toBranchName ?? `#${tr.toBranchId}` }}
+            </p>
+            <p class="font-mono text-xs text-secondary">
+              {{ tr.fromBranchCode ?? '—' }} → {{ tr.toBranchCode ?? '—' }}
+            </p>
+          </td>
+          <td class="text-right tabular-nums">{{ tr.items.length }}</td>
+          <td class="hidden sm:table-cell text-secondary">{{ tr.note ?? '—' }}</td>
+          <td><AppBadge :tone="tone(tr.status)" dot>{{ labelStatus(tr.status) }}</AppBadge></td>
+        </tr>
+      </AppTable>
+      <AppPager :meta="meta" @page="muat" @update:per-page="gantiPerPage" />
+    </AppCard>
+
+    <AppModal
+      :open="detailOpen"
+      :title="detail ? `Transfer #${detail.id}` : 'Detail transfer'"
+      :description="
+        detail
+          ? `${detail.fromBranchName ?? ''} → ${detail.toBranchName ?? ''} · ${waktu(detail.createdAt)}`
+          : ''
+      "
+      size="xl"
+      @close="detailOpen = false"
     >
-      <div class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-card p-5 shadow-xl">
-        <h3 class="font-display font-semibold">Transfer baru</h3>
-        <div class="mt-3 grid grid-cols-2 gap-2">
-          <AppField label="Dari cabang">
-            <select
-              v-model="fFrom"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Pilih…</option>
-              <option v-for="b in cabang" :key="b.id" :value="b.id">{{ b.code }}</option>
-            </select>
-          </AppField>
-          <AppField label="Ke cabang">
-            <select
-              v-model="fTo"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Pilih…</option>
-              <option v-for="b in cabang" :key="b.id" :value="b.id">{{ b.code }}</option>
-            </select>
-          </AppField>
+      <div v-if="detailAsync.loading.value" class="space-y-2">
+        <div v-for="i in 4" :key="i" class="h-10 animate-pulse rounded-lg bg-surface-low" />
+      </div>
+      <div v-else-if="detail">
+        <AppBanner tone="red" :message="aksi.error.value" />
+        <div class="flex flex-wrap items-center gap-2">
+          <AppBadge :tone="tone(detail.status)" dot>{{ labelStatus(detail.status) }}</AppBadge>
+          <span class="text-sm text-secondary">{{ detail.items.length }} jenis</span>
+          <span class="text-sm text-secondary">·</span>
+          <span class="text-sm text-secondary">Dibuat {{ waktu(detail.createdAt) }}</span>
+          <span v-if="detail.shippedAt" class="text-sm text-secondary">· Dikirim {{ waktu(detail.shippedAt) }}</span>
+          <span v-if="detail.receivedAt" class="text-sm text-secondary">· Diterima {{ waktu(detail.receivedAt) }}</span>
         </div>
-        <div v-for="(l, i) in fLines" :key="i" class="mt-2 grid grid-cols-3 gap-1">
-          <input
-            v-model.number="l.item_id"
-            type="number"
-            placeholder="ID item"
-            class="col-span-2 rounded-lg bg-surface-low px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-          />
-          <div class="flex gap-1">
-            <input
-              v-model.number="l.qty"
-              type="number"
-              min="0.001"
-              step="any"
-              placeholder="Qty"
-              class="w-full rounded-lg bg-surface-low px-2 py-2 text-sm outline-none"
-            />
-            <button
-              v-if="fLines.length > 1"
-              class="text-xs text-danger"
-              @click="fLines.splice(i, 1)"
-            >
-              ✕
-            </button>
+        <p class="mt-2 text-sm text-secondary">{{ petunjuk(detail.status) }}</p>
+
+        <div class="mt-3 grid gap-3 rounded-xl bg-surface-low p-3 text-sm sm:grid-cols-2">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Dari</p>
+            <p class="mt-0.5 font-medium">{{ detail.fromBranchName ?? `#${detail.fromBranchId}` }}</p>
+            <p class="font-mono text-xs text-secondary">{{ detail.fromBranchCode ?? '—' }}</p>
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Ke</p>
+            <p class="mt-0.5 font-medium">{{ detail.toBranchName ?? `#${detail.toBranchId}` }}</p>
+            <p class="font-mono text-xs text-secondary">{{ detail.toBranchCode ?? '—' }}</p>
           </div>
         </div>
-        <AppButton variant="ghost" class="mt-1" @click="fLines.push({ item_id: null, qty: 1 })"
-          >+ Baris</AppButton
-        >
-        <div class="mt-2">
-          <AppField label="Catatan">
-            <input
-              v-model="fNote"
-              maxlength="500"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-          </AppField>
-        </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="showBuat = false">Batal</AppButton>
-          <AppButton :loading="loading" @click="buat">Buat draft</AppButton>
+        <p v-if="detail.note" class="mt-2 rounded-lg border border-outline/60 px-3 py-2 text-sm">
+          <span class="text-secondary">Catatan: </span>{{ detail.note }}
+        </p>
+
+        <AppTable class="mt-4" :colspan="5" dense>
+          <template #head>
+            <tr>
+              <th>Item</th>
+              <th class="text-right">Diminta</th>
+              <th class="text-right">Dikirim</th>
+              <th class="text-right">Diterima</th>
+              <th class="text-right">Modal / unit</th>
+            </tr>
+          </template>
+          <tr v-for="(it, i) in detail.items" :key="`${it.itemId}-${i}`">
+            <td>
+              <p class="font-medium">{{ namaItem(it) }}</p>
+              <p class="font-mono text-xs text-secondary">{{ it.itemCode ?? '' }} · {{ it.unit ?? 'pcs' }}</p>
+            </td>
+            <td class="text-right tabular-nums">{{ qty(it.qtyRequested) }}</td>
+            <td class="text-right tabular-nums">{{ it.qtyShipped === null ? '—' : qty(it.qtyShipped) }}</td>
+            <td class="text-right tabular-nums">
+              {{ it.qtyReceived === null ? '—' : qty(it.qtyReceived) }}
+            </td>
+            <td class="text-right tabular-nums">
+              {{ it.costPerUnit === null ? '—' : rupiah(it.costPerUnit) }}
+            </td>
+          </tr>
+        </AppTable>
+      </div>
+
+      <template #footer>
+        <AppButton variant="ghost" @click="detailOpen = false">Tutup</AppButton>
+        <template v-if="boleh">
+          <AppButton
+            v-if="detail?.status === 'draft'"
+            :loading="aksi.loading.value"
+            @click="transisi('submit')"
+          >
+            Ajukan
+          </AppButton>
+          <AppButton
+            v-if="detail?.status === 'diajukan'"
+            :loading="aksi.loading.value"
+            @click="transisi('approve')"
+          >
+            Setujui
+          </AppButton>
+          <AppButton
+            v-if="detail?.status === 'disetujui'"
+            :loading="aksi.loading.value"
+            @click="transisi('ship')"
+          >
+            Kirim
+          </AppButton>
+          <AppButton
+            v-if="detail?.status === 'dikirim'"
+            variant="secondary"
+            @click="bukaTerima"
+          >
+            Terima
+          </AppButton>
+          <AppButton
+            v-if="detail && ['draft', 'diajukan'].includes(detail.status)"
+            variant="danger"
+            :loading="aksi.loading.value"
+            @click="transisi('cancel')"
+          >
+            Batalkan
+          </AppButton>
+        </template>
+      </template>
+    </AppModal>
+
+    <AppModal
+      :open="showBuat"
+      title="Transfer baru"
+      description="Transfer disimpan sebagai draft dan perlu diajukan untuk persetujuan."
+      size="lg"
+      @close="showBuat = false"
+    >
+      <AppBanner tone="red" :message="buatAsync.error.value" />
+      <div class="grid gap-3 sm:grid-cols-2">
+        <AppField label="Dari cabang" required>
+          <AppSelect v-model="fFrom" :options="opsiCabang" placeholder="Pilih cabang asal" />
+        </AppField>
+        <AppField label="Ke cabang" required>
+          <AppSelect v-model="fTo" :options="opsiCabang" placeholder="Pilih cabang tujuan" />
+        </AppField>
+      </div>
+      <p v-if="fFrom !== null && fFrom === fTo" class="mt-1 text-xs text-danger">
+        Cabang asal dan tujuan harus berbeda.
+      </p>
+
+      <div class="mt-4 flex items-center justify-between">
+        <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Baris item</p>
+        <AppButton variant="ghost" @click="tambahBaris">Tambah baris</AppButton>
+      </div>
+      <div
+        v-for="(line, i) in fLines"
+        :key="i"
+        class="mt-2 grid items-end gap-2 rounded-lg border border-outline/60 p-2 sm:grid-cols-12"
+      >
+        <AppField label="Item" class="sm:col-span-8">
+          <AppSelect v-model="line.itemId" :options="opsiItem" placeholder="Pilih item" />
+        </AppField>
+        <AppField label="Qty" class="sm:col-span-3">
+          <AppInput v-model="line.qty" type="number" min="0.001" step="any" placeholder="1" />
+        </AppField>
+        <div class="sm:col-span-1">
+          <button
+            type="button"
+            class="w-full rounded-lg px-2 py-2.5 text-xs font-semibold text-danger transition hover:bg-danger-bg disabled:cursor-not-allowed disabled:opacity-40"
+            :disabled="fLines.length <= 1"
+            @click="hapusBaris(i)"
+          >
+            Hapus
+          </button>
         </div>
       </div>
-    </div>
+      <p v-if="duplikat" class="mt-2 text-xs text-danger">
+        Item yang sama tidak boleh muncul di dua baris.
+      </p>
+
+      <AppField label="Catatan" class="mt-3">
+        <AppTextarea v-model="fNote" :rows="2" :maxlength="500" show-count placeholder="Contoh: restok mingguan toko" />
+      </AppField>
+
+      <template #footer>
+        <AppButton variant="ghost" @click="showBuat = false">Batal</AppButton>
+        <AppButton :loading="buatAsync.loading.value" :disabled="!buatSah" @click="buat">
+          Simpan draft
+        </AppButton>
+      </template>
+    </AppModal>
+
+    <AppModal
+      :open="showTerima"
+      title="Terima transfer"
+      description="Catat qty yang benar-benar diterima. Selisih menjadi tanggung jawab pengiriman."
+      size="lg"
+      @close="tutupTerima"
+    >
+      <AppBanner tone="red" :message="terimaAsync.error.value" />
+      <AppTable :colspan="4" dense>
+        <template #head>
+          <tr>
+            <th>Item</th>
+            <th class="text-right">Dikirim</th>
+            <th class="text-right">Qty diterima</th>
+            <th class="text-right">Selisih</th>
+          </tr>
+        </template>
+        <tr v-for="line in tLines" :key="line.itemId">
+          <td>
+            <p class="font-medium">{{ line.itemName }}</p>
+            <p class="text-xs text-secondary">{{ line.unit ?? 'pcs' }}</p>
+          </td>
+          <td class="text-right tabular-nums">{{ qty(line.shipped) }}</td>
+          <td class="w-28">
+            <AppInput
+              v-model="line.qty"
+              type="number"
+              min="0"
+              :max="line.shipped"
+              step="any"
+            />
+          </td>
+          <td
+            class="text-right tabular-nums"
+            :class="line.shipped - Number(line.qty ?? 0) > 0 ? 'text-warn' : 'text-ok'"
+          >
+            {{ qty(line.shipped - Number(line.qty ?? 0)) }}
+          </td>
+        </tr>
+      </AppTable>
+      <p v-if="!barisTerima.length" class="mt-2 text-xs text-secondary">
+        Isi qty minimal satu baris untuk melanjutkan.
+      </p>
+
+      <div
+        class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-low px-3 py-2 text-sm"
+      >
+        <span class="text-secondary">
+          {{ barisTerima.length }} dari {{ tLines.length }} baris diisi
+        </span>
+        <span v-if="barisKurang > 0" class="font-semibold text-warn">
+          {{ barisKurang }} baris kurang
+        </span>
+        <span v-else class="font-semibold text-ok">Lengkap</span>
+      </div>
+
+      <template #footer>
+        <AppButton variant="ghost" @click="tutupTerima">Batal</AppButton>
+        <AppButton :loading="terimaAsync.loading.value" :disabled="!terimaSah" @click="terimaSekarang">
+          Simpan penerimaan
+        </AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>
