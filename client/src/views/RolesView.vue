@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api } from '../lib/api'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
@@ -32,9 +33,25 @@ const GRUP: { judul: string; prefix: string[] }[] = [
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
-const roles = ref<Role[]>([])
-const meta = ref<PageMeta | null>(null)
+const { loading: loadingMutasi, error: errorMutasi, run } = useAsync()
+const {
+  rows: roles,
+  meta,
+  loading: loadingList,
+  error: errorList,
+  load: muat,
+  setPage,
+  setPerPage,
+} = usePagedList<Role>(
+  (page, perPage) =>
+    api.getPage<Role>(
+      `/companies/${companyId.value}/access/roles?per_page=${perPage}&page=${page}`,
+      auth.token,
+    ),
+  { perPage: 15 },
+)
+const loading = computed(() => loadingList.value || loadingMutasi.value)
+const error = computed(() => errorList.value || errorMutasi.value)
 const katalog = ref<string[]>([])
 const templates = ref<string[]>([])
 const okMsg = ref('')
@@ -50,18 +67,6 @@ const bolehKelola = computed(() => access.can('pengaturan.kelola'))
 
 function grupUntuk(perm: string): string {
   return GRUP.find((g) => g.prefix.some((p) => perm.startsWith(p)))?.judul ?? 'Lainnya'
-}
-
-async function muat(page = 1) {
-  okMsg.value = ''
-  const res = await run(() =>
-    api.getPage<Role>(`/companies/${companyId.value}/access/roles?per_page=15&page=${page}`, auth.token),
-  )
-  if (res) {
-    const raw = res as unknown as { data: Role[]; meta?: PageMeta } | Role[]
-    if (Array.isArray(raw)) roles.value = raw
-    else { roles.value = raw.data; meta.value = raw.meta ?? null }
-  }
 }
 
 async function muatReferensi() {
@@ -114,7 +119,7 @@ async function simpan() {
 async function hapus() {
   if (!tanyaHapus.value) return
   await run(() => api.del(`/companies/${companyId.value}/access/roles/${tanyaHapus.value!.id}`, auth.token))
-  if (!error.value) {
+  if (!errorMutasi.value) {
     tanyaHapus.value = null
     okMsg.value = 'Role dihapus.'
     muat(1)
@@ -134,7 +139,7 @@ onMounted(async () => {
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
       <h1 class="font-display text-xl font-semibold">Role & hak akses</h1>
       <div class="flex gap-2">
-        <AppBadge tone="blue">{{ roles.length }} role</AppBadge>
+        <AppBadge tone="blue">{{ meta?.total ?? roles.length }} role</AppBadge>
         <AppBadge tone="blue">{{ katalog.length }} izin</AppBadge>
         <AppButton v-if="bolehKelola" @click="bukaTambah"><AppIcon name="add" :size="18" />Buat role</AppButton>
       </div>
@@ -161,7 +166,7 @@ onMounted(async () => {
         </div>
       </AppCard>
     </div>
-    <AppPager :meta="meta" @page="muat" />
+    <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
 
     <AppCard title="Katalog izin (baca saja)" class="mt-4">
       <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

@@ -5,12 +5,14 @@ import { rupiah, tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppPager from '../components/ui/AppPager.vue'
 
 interface Tagihan {
   id: number
@@ -27,11 +29,27 @@ interface Aging {
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
-const list = ref<Tagihan[]>([])
-const aging = ref<Aging | null>(null)
 const hanyaBelumLunas = ref(true)
 const okMsg = ref('')
+const {
+  rows: list,
+  meta,
+  loading,
+  error: errorList,
+  load: muatTagihan,
+  setPage,
+  setPerPage,
+} = usePagedList<Tagihan>(
+  (page, perPage) =>
+    api.getPage<Tagihan>(
+      `/companies/${companyId.value}/supplier-bills?per_page=${perPage}&page=${page}${hanyaBelumLunas.value ? '&unpaid=true' : ''}`,
+      auth.token,
+    ),
+  { perPage: 20 },
+)
+const { error: errorMutasi, run } = useAsync()
+const error = computed(() => errorList.value || errorMutasi.value)
+const aging = ref<Aging | null>(null)
 const bayarId = ref<number | null>(null)
 const bayarNominal = ref(0)
 const bayarCara = ref('tunai')
@@ -46,22 +64,15 @@ const BUCKET: Record<string, string> = {
   lebih_90: 'Telat > 90 hari',
 }
 
-async function muat() {
-  okMsg.value = ''
-  const res = await run(() =>
-    api.get<Tagihan[]>(
-      `/companies/${companyId.value}/supplier-bills?per_page=50${hanyaBelumLunas.value ? '&unpaid=true' : ''}`,
-      auth.token,
-    ),
-  )
-  if (res)
-    list.value = (
-      Array.isArray(res) ? res : ((res as unknown as { data: Tagihan[] }).data ?? [])
-    ) as Tagihan[]
+async function muatAging() {
   const ag = await api
     .get<Aging>(`/companies/${companyId.value}/supplier-bills-aging`, auth.token)
     .catch(() => null)
   if (ag) aging.value = ag as Aging
+}
+
+async function muat() {
+  await Promise.all([muatTagihan(1), muatAging()])
 }
 
 function mulaiBayar(t: Tagihan) {
@@ -81,11 +92,11 @@ async function bayar(t: Tagihan) {
       auth.token,
     ),
   )
-  if (res || !error.value) {
+  if (res || !errorMutasi.value) {
     okMsg.value = 'Pembayaran tercatat.'
     bayarId.value = null
     bayarNominal.value = 0
-    muat()
+    await Promise.all([muatTagihan(), muatAging()])
   }
 }
 
@@ -125,7 +136,7 @@ onMounted(async () => {
         v-model="hanyaBelumLunas"
         type="checkbox"
         class="h-4 w-4 accent-emerald-700"
-        @change="() => muat()"
+        @change="muatTagihan(1)"
       />
       Hanya yang belum lunas
     </label>
@@ -175,5 +186,6 @@ onMounted(async () => {
         </div>
       </AppCard>
     </div>
+    <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
   </div>
 </template>

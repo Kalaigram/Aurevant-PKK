@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { computed, onMounted, ref, watch } from 'vue'
+import { api } from '../lib/api'
 import { diffFields, formatValue, labelAksi, labelEntitas } from '../lib/labels'
 import { useCompany } from '../composables/useCompany'
-import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -31,14 +31,29 @@ interface Baris {
 }
 
 const { auth, companyId } = useCompany()
-const { loading, error, run } = useAsync()
-const list = ref<Baris[]>([])
-const meta = ref<PageMeta | null>(null)
 const aksi = ref('')
 const tipe = ref('')
 const cariId = ref('')
 const detail = ref<Baris | null>(null)
 const tampilMentah = ref(false)
+const {
+  rows: list,
+  meta,
+  loading,
+  error,
+  load: muat,
+  setPage,
+  setPerPage,
+} = usePagedList<Baris>(
+  (page, perPage) => {
+    const q =
+      `per_page=${perPage}&page=${page}` +
+      (aksi.value.trim() ? `&action=${encodeURIComponent(aksi.value.trim())}` : '') +
+      (tipe.value.trim() ? `&entity_type=${encodeURIComponent(tipe.value.trim())}` : '')
+    return api.getPage<Baris>(`/companies/${companyId.value}/audit-logs?${q}`, auth.token)
+  },
+  { perPage: 15 },
+)
 
 const tersaring = computed(() => {
   const q = cariId.value.trim()
@@ -49,6 +64,12 @@ const tersaring = computed(() => {
 })
 const diff = computed(() => diffFields(detail.value?.before ?? null, detail.value?.after ?? null))
 
+watch(list, () => {
+  if (detail.value && !tersaring.value.some((r) => r.id === detail.value!.id)) {
+    detail.value = null
+  }
+})
+
 function waktu(iso: string) {
   return new Date(iso).toLocaleString('id-ID', {
     day: '2-digit',
@@ -57,27 +78,6 @@ function waktu(iso: string) {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-async function muat(page = 1) {
-  const q =
-    `?per_page=15&page=${page}` +
-    (aksi.value.trim() ? `&action=${encodeURIComponent(aksi.value.trim())}` : '') +
-    (tipe.value.trim() ? `&entity_type=${encodeURIComponent(tipe.value.trim())}` : '')
-  const res = await run(() =>
-    api.getPage<Baris>(`/companies/${companyId.value}/audit-logs${q}`, auth.token),
-  )
-  if (res) {
-    const raw = res as unknown as { data: Baris[]; meta?: PageMeta } | Baris[]
-    if (Array.isArray(raw)) list.value = raw
-    else {
-      list.value = raw.data
-      meta.value = raw.meta ?? null
-    }
-    if (detail.value && !tersaring.value.some((r) => r.id === detail.value!.id)) {
-      detail.value = null
-    }
-  }
 }
 
 function pilih(row: Baris) {
@@ -183,7 +183,7 @@ onMounted(() => muat())
             <td class="text-right font-mono text-xs">#{{ r.id }}</td>
           </tr>
         </AppTable>
-        <AppPager :meta="meta" @page="muat" />
+        <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
       </div>
 
       <div class="xl:col-span-2">

@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api } from '../lib/api'
 import { rupiah, tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppPager from '../components/ui/AppPager.vue'
 
 interface Baris {
   account?: { code?: string; name?: string }
@@ -41,12 +43,27 @@ const SUMBER: Record<string, string> = {
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
 const tab = ref<'jurnal' | 'neraca'>('jurnal')
-const list = ref<Entri[]>([])
-const meta = ref<PageMeta | null>(null)
 const dari = ref(new Date().toISOString().slice(0, 10))
 const sampai = ref(new Date().toISOString().slice(0, 10))
+const {
+  rows: list,
+  meta,
+  loading: loadingJurnal,
+  error: errorJurnal,
+  load: muatJurnal,
+  setPage,
+  setPerPage,
+} = usePagedList<Entri>(
+  (page, perPage) =>
+    api.getPage<Entri>(
+      `/companies/${companyId.value}/journal-entries?per_page=${perPage}&page=${page}&from=${dari.value}&to=${sampai.value}`,
+      auth.token,
+    ),
+  { perPage: 15 },
+)
+const { error: errorNeraca, run } = useAsync()
+const error = computed(() => errorJurnal.value || errorNeraca.value)
 const neraca = ref<{
   rows: { code: string; name: string; debit: string | number; credit: string | number }[]
   total_debit: string | number
@@ -54,23 +71,6 @@ const neraca = ref<{
 } | null>(null)
 
 const boleh = computed(() => access.can('keuangan.lihat'))
-
-async function muatJurnal(page = 1) {
-  const res = await run(() =>
-    api.getPage<Entri>(
-      `/companies/${companyId.value}/journal-entries?per_page=15&page=${page}&from=${dari.value}&to=${sampai.value}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    const raw = res as unknown as { data: Entri[]; meta?: PageMeta } | Entri[]
-    if (Array.isArray(raw)) list.value = raw
-    else {
-      list.value = raw.data
-      meta.value = raw.meta ?? null
-    }
-  }
-}
 
 async function muatNeraca() {
   const res = await run(() =>
@@ -118,14 +118,7 @@ onMounted(async () => {
             type="date"
             class="rounded-lg border border-outline bg-card px-2 py-2 text-sm"
         /></AppField>
-        <AppButton
-          variant="ghost"
-          @click="
-            () => {
-              muatJurnal()
-              muatNeraca()
-            }
-          "
+        <AppButton variant="ghost" @click="muatJurnal(1); muatNeraca()"
           >Tampilkan</AppButton
         >
         <span class="flex gap-2">
@@ -139,7 +132,7 @@ onMounted(async () => {
       </div>
 
       <div v-if="tab === 'jurnal'">
-        <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
+        <p v-if="loadingJurnal" class="text-sm text-secondary">Memuat…</p>
         <AppEmpty v-else-if="!list.length" message="Tidak ada entri jurnal pada rentang ini." />
         <div class="space-y-3">
           <AppCard v-for="e in list" :key="e.id">
@@ -169,6 +162,7 @@ onMounted(async () => {
             </table>
           </AppCard>
         </div>
+        <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
       </div>
 
       <AppCard v-else>

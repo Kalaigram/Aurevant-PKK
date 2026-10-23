@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api } from '../lib/api'
 import { rupiah } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
+import { usePagedList } from '../composables/usePagedList'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
 import { useToast } from '../composables/useToast'
@@ -65,8 +66,6 @@ interface KatalogItem {
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
 const toast = useToast()
-const saldoAsync = useAsync()
-const mutasiAsync = useAsync()
 const referensi = useAsync()
 const aksi = useAsync()
 
@@ -75,11 +74,32 @@ const items = ref<KatalogItem[]>([])
 const branchId = ref<number | null>(null)
 const tab = ref('saldo')
 const cari = ref('')
-const perPage = ref(25)
-const saldo = ref<Saldo[]>([])
-const saldoMeta = ref<PageMeta | null>(null)
-const gerak = ref<Gerak[]>([])
-const mutasiMeta = ref<PageMeta | null>(null)
+
+const saldoList = usePagedList<Saldo>((page, perPage) => {
+  if (!branchId.value) return Promise.resolve({ data: [], meta: null })
+  const params = new URLSearchParams({
+    per_page: String(perPage),
+    page: String(page),
+  })
+  if (cari.value.trim()) params.set('q', cari.value.trim())
+  return api.getPage<Saldo>(
+    `/companies/${companyId.value}/branches/${branchId.value}/stock?${params}`,
+    auth.token,
+  )
+}, { perPage: 25 })
+
+const mutasiList = usePagedList<Gerak>((page, perPage) => {
+  if (!branchId.value) return Promise.resolve({ data: [], meta: null })
+  const params = new URLSearchParams({
+    per_page: String(perPage),
+    page: String(page),
+  })
+  if (cari.value.trim()) params.set('q', cari.value.trim())
+  return api.getPage<Gerak>(
+    `/companies/${companyId.value}/branches/${branchId.value}/stock/movements?${params}`,
+    auth.token,
+  )
+}, { perPage: 25 })
 
 const showSesuaikan = ref(false)
 const fItem = ref<number | null>(null)
@@ -90,7 +110,7 @@ const fNote = ref('')
 
 const bolehSesuaikan = computed(() => access.can('stok.opname'))
 const error = computed(
-  () => saldoAsync.error.value || mutasiAsync.error.value || referensi.error.value,
+  () => saldoList.error.value || mutasiList.error.value || referensi.error.value,
 )
 const tabs = [
   { key: 'saldo', label: 'Saldo' },
@@ -125,7 +145,7 @@ const sesuaikanSah = computed(
 )
 
 const totalNilai = computed(() =>
-  saldo.value.reduce(
+  saldoList.rows.value.reduce(
     (total, row) => total + Number(row.qty) * Number(row.avgCost ?? 0),
     0,
   ),
@@ -175,47 +195,9 @@ function qtyBersign(value: string | number) {
   return number > 0 ? `+${text}` : number < 0 ? `-${text}` : '0'
 }
 
-async function muatSaldo(page = saldoMeta.value?.current_page ?? 1) {
-  if (!branchId.value) return
-  const params = new URLSearchParams({
-    per_page: String(perPage.value),
-    page: String(page),
-  })
-  if (cari.value.trim()) params.set('q', cari.value.trim())
-  const res = await saldoAsync.run(() =>
-    api.getPage<Saldo>(
-      `/companies/${companyId.value}/branches/${branchId.value}/stock?${params}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    saldo.value = res.data
-    saldoMeta.value = res.meta
-  }
-}
-
-async function muatRiwayat(page = mutasiMeta.value?.current_page ?? 1) {
-  if (!branchId.value) return
-  const params = new URLSearchParams({
-    per_page: String(perPage.value),
-    page: String(page),
-  })
-  if (cari.value.trim()) params.set('q', cari.value.trim())
-  const res = await mutasiAsync.run(() =>
-    api.getPage<Gerak>(
-      `/companies/${companyId.value}/branches/${branchId.value}/stock/movements?${params}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    gerak.value = res.data
-    mutasiMeta.value = res.meta
-  }
-}
-
 function muatAktif(page = 1) {
-  if (tab.value === 'saldo') void muatSaldo(page)
-  else void muatRiwayat(page)
+  if (tab.value === 'saldo') void saldoList.load(page)
+  else void mutasiList.load(page)
 }
 
 function cariSekarang() {
@@ -230,15 +212,8 @@ function gantiTab(key: string) {
 
 function gantiCabang(value: string | number | null) {
   branchId.value = value === null ? null : Number(value)
-  saldo.value = []
-  gerak.value = []
-  if (tab.value === 'saldo') void muatSaldo(1)
-  else void muatRiwayat(1)
-}
-
-function gantiPerPage(value: number) {
-  perPage.value = value
-  muatAktif(1)
+  void saldoList.load(1)
+  void mutasiList.load(1)
 }
 
 function resetFilter() {
@@ -274,8 +249,7 @@ async function simpanSesuai() {
   if (res) {
     showSesuaikan.value = false
     toast.success('Mutasi stok dicatat.')
-    await muatSaldo(1)
-    await muatRiwayat(1)
+    await Promise.all([saldoList.load(1), mutasiList.load(1)])
   } else if (aksi.error.value) {
     toast.error(aksi.error.value)
   }
@@ -295,7 +269,7 @@ onMounted(async () => {
     (auth.branchId && cabang.value.some((b) => b.id === auth.branchId)
       ? auth.branchId
       : (cabang.value[0]?.id ?? null))
-  await Promise.all([muatSaldo(1), muatRiwayat(1)])
+  await Promise.all([saldoList.load(1), mutasiList.load(1)])
 })
 </script>
 
@@ -308,7 +282,7 @@ onMounted(async () => {
       icon="inventory_2"
     >
       <template #actions>
-        <AppButton variant="ghost" :loading="saldoAsync.loading.value || mutasiAsync.loading.value" @click="muatAktif()">
+        <AppButton variant="ghost" :loading="saldoList.loading.value || mutasiList.loading.value" @click="muatAktif()">
           Muat ulang
         </AppButton>
         <AppButton v-if="bolehSesuaikan" @click="bukaSesuaikan">Penyesuaian manual</AppButton>
@@ -331,7 +305,7 @@ onMounted(async () => {
           <AppSearch
             v-model="cari"
             :placeholder="tab === 'saldo' ? 'Kode atau nama item…' : 'Item atau catatan mutasi…'"
-            :loading="saldoAsync.loading.value || mutasiAsync.loading.value"
+            :loading="saldoList.loading.value || mutasiList.loading.value"
             @search="cariSekarang"
           />
         </AppField>
@@ -342,8 +316,8 @@ onMounted(async () => {
 
       <div v-if="tab === 'saldo'" class="mt-3">
         <AppTable
-          :loading="saldoAsync.loading.value"
-          :empty="!saldo.length"
+          :loading="saldoList.loading.value"
+          :empty="!saldoList.rows.value.length"
           :colspan="5"
           empty-title="Belum ada saldo stok"
           empty-message="Stok terbentuk dari pembelian, transfer, atau penyesuaian."
@@ -357,7 +331,7 @@ onMounted(async () => {
               <th class="hidden sm:table-cell">Satuan</th>
             </tr>
           </template>
-          <tr v-for="row in saldo" :key="row.itemId">
+          <tr v-for="row in saldoList.rows.value" :key="row.itemId">
             <td>
               <p class="font-medium">{{ row.itemName }}</p>
               <p class="font-mono text-xs text-secondary">{{ row.itemCode }}</p>
@@ -375,14 +349,14 @@ onMounted(async () => {
             Total nilai halaman ini:
             <span class="font-semibold text-ink">{{ rupiah(totalNilai) }}</span>
           </p>
-          <AppPager :meta="saldoMeta" @page="muatSaldo" @update:per-page="gantiPerPage" />
+          <AppPager :meta="saldoList.meta.value" @page="saldoList.setPage" @update:per-page="saldoList.setPerPage" />
         </div>
       </div>
 
       <div v-else class="mt-3">
         <AppTable
-          :loading="mutasiAsync.loading.value"
-          :empty="!gerak.length"
+          :loading="mutasiList.loading.value"
+          :empty="!mutasiList.rows.value.length"
           :colspan="6"
           empty-title="Belum ada mutasi"
           empty-message="Mutasi muncul dari pembelian, penjualan, transfer, dan koreksi stok."
@@ -397,7 +371,7 @@ onMounted(async () => {
               <th class="hidden md:table-cell">Catatan</th>
             </tr>
           </template>
-          <tr v-for="row in gerak" :key="row.id">
+          <tr v-for="row in mutasiList.rows.value" :key="row.id">
             <td class="whitespace-nowrap text-sm text-secondary">{{ waktu(row.createdAt) }}</td>
             <td>
               <p class="font-medium">{{ row.itemName ?? `Item #${row.itemId}` }}</p>
@@ -414,7 +388,7 @@ onMounted(async () => {
             <td class="hidden md:table-cell text-secondary">{{ row.note ?? '—' }}</td>
           </tr>
         </AppTable>
-        <AppPager class="mt-2" :meta="mutasiMeta" @page="muatRiwayat" @update:per-page="gantiPerPage" />
+        <AppPager class="mt-2" :meta="mutasiList.meta.value" @page="mutasiList.setPage" @update:per-page="mutasiList.setPerPage" />
       </div>
     </AppCard>
 

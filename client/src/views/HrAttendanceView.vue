@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api } from '../lib/api'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppPager from '../components/ui/AppPager.vue'
 
 interface Cabang {
   id: number
@@ -47,13 +49,29 @@ const TONE: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'gray'> = {
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
+const { error: errorMutasi, run } = useAsync()
 const tab = ref<'hadir' | 'cuti'>('hadir')
 const cabang = ref<Cabang[]>([])
 const branchId = ref<number | null>(null)
 const tanggalPick = ref(new Date().toISOString().slice(0, 10))
-const list = ref<Hadir[]>([])
-const meta = ref<PageMeta | null>(null)
+const {
+  rows: list,
+  meta: metaHadir,
+  loading: loadingHadir,
+  error: errorHadir,
+  load: muatHadir,
+  setPage: setPageHadir,
+  setPerPage: setPerPageHadir,
+} = usePagedList<Hadir>(
+  (page, perPage) => {
+    if (!branchId.value) return Promise.resolve({ data: [], meta: null })
+    return api.getPage<Hadir>(
+      `/companies/${companyId.value}/branches/${branchId.value}/attendance?date=${tanggalPick.value}&per_page=${perPage}&page=${page}`,
+      auth.token,
+    )
+  },
+  { perPage: 50 },
+)
 const okMsg = ref('')
 
 const bolehLihat = computed(() => access.can('absensi.approve'))
@@ -63,8 +81,24 @@ const koreksiId = ref<number | null>(null)
 const koreksiStatus = ref('hadir')
 const koreksiAlasan = ref('')
 
-const cuti = ref<Cuti[]>([])
 const cutiStatus = ref('')
+const {
+  rows: cuti,
+  meta: metaCuti,
+  loading: loadingCuti,
+  error: errorCuti,
+  load: muatCuti,
+  setPage: setPageCuti,
+  setPerPage: setPerPageCuti,
+} = usePagedList<Cuti>(
+  (page, perPage) =>
+    api.getPage<Cuti>(
+      `/companies/${companyId.value}/leaves?per_page=${perPage}&page=${page}${cutiStatus.value ? `&status=${cutiStatus.value}` : ''}`,
+      auth.token,
+    ),
+  { perPage: 20 },
+)
+const error = computed(() => errorHadir.value || errorCuti.value || errorMutasi.value)
 const idPerangkat = ref('')
 
 const ringkas = computed(() => {
@@ -79,25 +113,6 @@ async function muatCabang() {
   if (!branchId.value && cabang.value.length) branchId.value = cabang.value[0]!.id
 }
 
-async function muatHadir(page = 1) {
-  if (!branchId.value) return
-  okMsg.value = ''
-  const res = await run(() =>
-    api.getPage<Hadir>(
-      `/companies/${companyId.value}/branches/${branchId.value}/attendance?date=${tanggalPick.value}&per_page=50&page=${page}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    const raw = res as unknown as { data: Hadir[]; meta?: PageMeta } | Hadir[]
-    if (Array.isArray(raw)) list.value = raw
-    else {
-      list.value = raw.data
-      meta.value = raw.meta ?? null
-    }
-  }
-}
-
 async function simpanKoreksi() {
   if (!koreksiId.value || !koreksiAlasan.value.trim()) return
   const res = await run(() =>
@@ -110,7 +125,7 @@ async function simpanKoreksi() {
       auth.token,
     ),
   )
-  if (res || !error.value) {
+  if (res || !errorMutasi.value) {
     okMsg.value = 'Koreksi tersimpan dan tercatat di audit.'
     koreksiId.value = null
     koreksiAlasan.value = ''
@@ -118,21 +133,11 @@ async function simpanKoreksi() {
   }
 }
 
-async function muatCuti() {
-  okMsg.value = ''
-  const q = `/companies/${companyId.value}/leaves?per_page=50${cutiStatus.value ? `&status=${cutiStatus.value}` : ''}`
-  const res = await run(() => api.get<{ data: Cuti[] }>(q, auth.token))
-  if (res) {
-    const raw = res as unknown as { data: Cuti[] } | Cuti[]
-    cuti.value = Array.isArray(raw) ? raw : raw.data
-  }
-}
-
 async function putuskanCuti(id: number, setuju: boolean) {
   const res = await run(() =>
     api.post(`/companies/${companyId.value}/leaves/${id}/decide`, { approve: setuju }, auth.token),
   )
-  if (res || !error.value) {
+  if (res || !errorMutasi.value) {
     okMsg.value = setuju ? 'Pengajuan disetujui.' : 'Pengajuan ditolak.'
     muatCuti()
   }
@@ -143,7 +148,7 @@ async function resetPerangkat() {
   const res = await run(() =>
     api.del(`/companies/${companyId.value}/users/${idPerangkat.value}/device`, auth.token),
   )
-  if (res || !error.value) {
+  if (res || !errorMutasi.value) {
     okMsg.value = 'Perangkat karyawan direset. Ia bisa login dari HP baru.'
     idPerangkat.value = ''
   }
@@ -192,7 +197,7 @@ onMounted(async () => {
             <select
               v-model="branchId"
               class="rounded-lg border border-outline bg-card px-2 py-2 text-sm"
-              @change="() => muatHadir()"
+              @change="muatHadir(1)"
             >
               <option v-for="c in cabang" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
@@ -201,9 +206,9 @@ onMounted(async () => {
             v-model="tanggalPick"
             type="date"
             class="rounded-lg border border-outline bg-card px-2 py-2 text-sm"
-            @change="() => muatHadir()"
+            @change="muatHadir(1)"
           />
-          <AppButton variant="ghost" @click="() => muatHadir()">Muat ulang</AppButton>
+          <AppButton variant="ghost" @click="muatHadir()">Muat ulang</AppButton>
         </div>
 
         <div class="mb-3 flex flex-wrap gap-2">
@@ -213,7 +218,7 @@ onMounted(async () => {
           </AppCard>
         </div>
 
-        <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
+        <p v-if="loadingHadir" class="text-sm text-secondary">Memuat…</p>
         <AppEmpty
           v-else-if="!list.length"
           message="Tidak ada catatan kehadiran pada tanggal ini."
@@ -251,6 +256,12 @@ onMounted(async () => {
         <p class="mt-1 text-xs text-secondary">
           Nama karyawan lihat di Karyawan & Penempatan — API hanya mengembalikan status dan waktu.
         </p>
+        <AppPager
+          :meta="metaHadir"
+          :show-per-page="false"
+          @page="setPageHadir"
+          @update:per-page="setPerPageHadir"
+        />
 
         <AppCard v-if="koreksiId && bolehKoreksi" class="mt-3">
           <h2 class="font-display font-semibold">Koreksi absen #{{ koreksiId }}</h2>
@@ -303,7 +314,7 @@ onMounted(async () => {
             <select
               v-model="cutiStatus"
               class="rounded-lg border border-outline bg-card px-2 py-2 text-sm"
-              @change="() => muatCuti()"
+              @change="muatCuti(1)"
             >
               <option value="">Semua</option>
               <option value="diajukan">Diajukan</option>
@@ -313,7 +324,11 @@ onMounted(async () => {
           </label>
           <AppButton variant="ghost" @click="muatCuti">Muat ulang</AppButton>
         </div>
-        <AppEmpty v-if="!cuti.length" message="Tidak ada pengajuan pada filter ini." />
+        <p v-if="loadingCuti" class="text-sm text-secondary">Memuat data cuti.</p>
+        <AppEmpty
+          v-else-if="!cuti.length"
+          message="Tidak ada pengajuan pada filter ini."
+        />
         <div class="grid gap-3 md:grid-cols-2">
           <AppCard v-for="c in cuti" :key="c.id">
             <div class="flex items-center justify-between gap-2">
@@ -333,6 +348,7 @@ onMounted(async () => {
             </div>
           </AppCard>
         </div>
+        <AppPager :meta="metaCuti" @page="setPageCuti" @update:per-page="setPerPageCuti" />
       </div>
     </template>
   </div>

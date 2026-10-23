@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { api, ApiError, type PageMeta } from '../lib/api'
+import { api, ApiError } from '../lib/api'
 import { tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -44,8 +45,6 @@ interface BranchQr {
 
 const { auth, companyId } = useCompany()
 const page = useAsync()
-const rows = ref<Row[]>([])
-const meta = ref<PageMeta | null>(null)
 const branches = ref<Branch[]>([])
 const branchId = ref<number | null>(null)
 const qr = ref<BranchQr | null>(null)
@@ -60,6 +59,22 @@ const shiftTersedia = ref(true)
 const awal = new Date(Date.now() - 29 * 864e5).toLocaleDateString('sv-SE')
 const from = ref(awal)
 const to = ref(new Date().toLocaleDateString('sv-SE'))
+const {
+  rows,
+  meta,
+  loading: loadingRiwayat,
+  error: errorRiwayat,
+  load: muatRiwayat,
+  setPage,
+  setPerPage,
+} = usePagedList<Row>(
+  (page, perPage) =>
+    api.getPage<Row>(
+      `/companies/${companyId.value}/attendance/me?from=${from.value}&to=${to.value}&per_page=${perPage}&page=${page}`,
+      auth.token,
+    ),
+  { perPage: 15 },
+)
 let timer: number | undefined
 
 const opsiCabang = computed(() =>
@@ -186,22 +201,6 @@ function hapusSelfie() {
   selfie.value = null
 }
 
-async function muatRiwayat(p = 1) {
-  const res = await page.run(() =>
-    api.getPage<Row>(
-      `/companies/${companyId.value}/attendance/me?from=${from.value}&to=${to.value}&per_page=15&page=${p}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    const raw = res as unknown as { data: Row[]; meta?: PageMeta } | Row[]
-    if (Array.isArray(raw)) rows.value = raw
-    else {
-      rows.value = raw.data
-      meta.value = raw.meta ?? null
-    }
-  }
-}
 
 async function muatShift() {
   if (!auth.user) return
@@ -270,7 +269,7 @@ onBeforeUnmount(() => {
     </div>
 
     <AppBanner tone="green" :message="okMsg" />
-    <AppBanner tone="red" :message="formMsg || page.error.value" />
+    <AppBanner tone="red" :message="formMsg || page.error.value || errorRiwayat" />
 
     <div class="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
       <div class="no-print space-y-4">
@@ -391,7 +390,7 @@ onBeforeUnmount(() => {
             </AppField>
           </div>
           <AppTable
-            :loading="page.loading.value"
+            :loading="loadingRiwayat"
             :empty="!rows.length"
             :colspan="5"
             empty-message="Belum ada presensi pada rentang ini."
@@ -418,7 +417,7 @@ onBeforeUnmount(() => {
             </tr>
           </AppTable>
           <p class="mt-2 text-xs text-secondary">Alpa memotong gaji proporsional 1/30 per hari.</p>
-          <AppPager :meta="meta" @page="muatRiwayat" />
+          <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
         </AppCard>
       </div>
     </div>

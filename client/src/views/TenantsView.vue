@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api } from '../lib/api'
 import { tanggal } from '../lib/format'
 import { useAuthStore } from '../stores/auth'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
@@ -26,14 +27,32 @@ interface Tenant {
 }
 
 const auth = useAuthStore()
-const { loading, error, run } = useAsync()
-const list = ref<Tenant[]>([])
-const meta = ref<PageMeta | null>(null)
+const { loading: loadingMutasi, error: errorMutasi, run } = useAsync()
 const cari = ref('')
 const status = ref('')
 const detail = ref<Tenant | null>(null)
 const okMsg = ref('')
 const tanya = ref<{ t: Tenant; ke: string } | null>(null)
+const {
+  rows: list,
+  meta,
+  loading: loadingList,
+  error: errorList,
+  load: muat,
+  setPage,
+  setPerPage,
+} = usePagedList<Tenant>(
+  (page, perPage) => {
+    const q =
+      `per_page=${perPage}&page=${page}` +
+      (cari.value.trim() ? `&search=${encodeURIComponent(cari.value.trim())}` : '') +
+      (status.value ? `&status=${status.value}` : '')
+    return api.getPage<Tenant>(`/admin/companies?${q}`, auth.token)
+  },
+  { perPage: 15 },
+)
+const loading = computed(() => loadingList.value || loadingMutasi.value)
+const error = computed(() => errorList.value || errorMutasi.value)
 
 function tone(s: string) {
   if (s === 'aktif') return 'green'
@@ -42,19 +61,6 @@ function tone(s: string) {
   return 'red'
 }
 const totalUnit = computed(() => meta.value?.total ?? list.value.length)
-
-async function muat(page = 1) {
-  okMsg.value = ''
-  const q = `?per_page=15&page=${page}` +
-    (cari.value.trim() ? `&search=${encodeURIComponent(cari.value.trim())}` : '') +
-    (status.value ? `&status=${status.value}` : '')
-  const res = await run(() => api.getPage<Tenant>(`/admin/companies${q}`, auth.token))
-  if (res) {
-    const raw = res as unknown as { data: Tenant[]; meta?: PageMeta } | Tenant[]
-    if (Array.isArray(raw)) list.value = raw
-    else { list.value = raw.data; meta.value = raw.meta ?? null }
-  }
-}
 
 async function lihat(id: number) {
   detail.value = await run(() => api.get<Tenant>(`/admin/companies/${id}`, auth.token))
@@ -128,7 +134,7 @@ onMounted(() => muat())
         </tbody>
       </table>
     </div>
-    <AppPager :meta="meta" @page="muat" />
+    <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
 
     <AppCard v-if="detail" title="Detail perusahaan" class="mt-4">
       <div class="flex flex-wrap items-start justify-between gap-2">

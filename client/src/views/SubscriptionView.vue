@@ -4,12 +4,14 @@ import { api } from '../lib/api'
 import { rupiah, tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppPager from '../components/ui/AppPager.vue'
 
 interface Sub {
   planId: number | null
@@ -37,23 +39,6 @@ interface Tagihan {
   note?: string | null
 }
 
-interface Sub {
-  planId: number | null
-  planName: string | null
-  status: string
-  trialEndsAt: string | null
-  endsAt: string | null
-  allowsWrites: boolean
-}
-interface Plan {
-  id: number
-  name: string
-  maxBranches: number
-  maxEmployees: number
-  features: string[] | null
-  price: string
-}
-
 const TAHAP = [
   { key: 'trial', nama: 'Uji coba', ket: 'Akses tulis 14 hari, kuota terbatas.' },
   { key: 'aktif', nama: 'Produksi penuh', ket: 'Akses penuh total.' },
@@ -63,7 +48,7 @@ const TAHAP = [
 ]
 
 const { auth, companyId } = useCompany()
-const { loading, error, run } = useAsync()
+const { loading, error: errorUmum, run } = useAsync()
 const sub = ref<Sub | null>(null)
 const plan = ref<Plan | null>(null)
 const plans = ref<Plan[]>([])
@@ -72,21 +57,24 @@ const okMsg = ref('')
 
 const adminLayanan = computed(() => auth.user?.isSuperAdmin ?? false)
 const fKelola = ref({ status: '', plan_id: '', ends_at: '' })
-const tagihan = ref<Tagihan[]>([])
-const fTagihan = ref({ plan_id: '', amount: 0, due_at: '', note: '' })
-
-async function muatTagihan() {
-  const res = await run(() =>
-    api.get<Tagihan[]>(
-      `/companies/${companyId.value}/subscription-invoices?per_page=50`,
+const {
+  rows: tagihan,
+  meta: metaTagihan,
+  loading: loadingTagihan,
+  error: errorTagihan,
+  load: muatTagihan,
+  setPage,
+  setPerPage,
+} = usePagedList<Tagihan>(
+  (page, perPage) =>
+    api.getPage<Tagihan>(
+      `/companies/${companyId.value}/subscription-invoices?per_page=${perPage}&page=${page}`,
       auth.token,
     ),
-  )
-  if (res)
-    tagihan.value = (
-      Array.isArray(res) ? res : ((res as unknown as { data: Tagihan[] }).data ?? [])
-    ) as Tagihan[]
-}
+  { perPage: 20 },
+)
+const error = computed(() => errorUmum.value || errorTagihan.value)
+const fTagihan = ref({ plan_id: '', amount: 0, due_at: '', note: '' })
 
 async function simpanKelola() {
   const res = await run(() =>
@@ -100,9 +88,9 @@ async function simpanKelola() {
       auth.token,
     ),
   )
-  if (res || !error.value) {
+  if (res || !errorUmum.value) {
     okMsg.value = 'Langganan perusahaan diperbarui (tercatat di audit).'
-    muatAwal()
+    await muatAwal()
   }
 }
 
@@ -122,8 +110,7 @@ async function terbitkan() {
   if (res) {
     okMsg.value = 'Tagihan diterbitkan. Tagihan otomatis juga dibuat sistem H-7.'
     fTagihan.value = { plan_id: '', amount: 0, due_at: '', note: '' }
-    muatTagihan()
-    muatAwal()
+    await Promise.all([muatTagihan(1), muatAwal()])
   }
 }
 
@@ -131,10 +118,9 @@ async function lunaskan(t: Tagihan) {
   const res = await run(() =>
     api.post(`/companies/${companyId.value}/subscription-invoices/${t.id}/pay`, {}, auth.token),
   )
-  if (res || !error.value) {
+  if (res || !errorUmum.value) {
     okMsg.value = 'Tagihan lunas — masa aktif +30 hari.'
-    muatTagihan()
-    muatAwal()
+    await Promise.all([muatTagihan(), muatAwal()])
   }
 }
 
@@ -154,7 +140,6 @@ async function muatAwal() {
       plan_id: sub.value.planId === null ? '' : String(sub.value.planId),
       ends_at: (sub.value.endsAt ?? '').slice(0, 10),
     }
-    if (adminLayanan.value) muatTagihan()
   }
 }
 
@@ -162,7 +147,10 @@ const tone = (s: string) =>
   s === 'aktif' || s === 'trial' ? 'green' : s === 'tenggang' ? 'amber' : 'red'
 const tahapAktif = computed(() => TAHAP.findIndex((t) => t.key === sub.value?.status))
 
-onMounted(muatAwal)
+onMounted(async () => {
+  await muatAwal()
+  if (adminLayanan.value) await muatTagihan()
+})
 </script>
 
 <template>
@@ -317,7 +305,11 @@ onMounted(muatAwal)
             /></AppField>
           </div>
           <AppButton class="mt-2" @click="terbitkan">Terbitkan tagihan</AppButton>
-          <AppEmpty v-if="!tagihan.length" message="Belum ada tagihan untuk perusahaan ini." />
+          <p v-if="loadingTagihan" class="mt-3 text-sm text-secondary">Memuat tagihan.</p>
+          <AppEmpty
+            v-else-if="!tagihan.length"
+            message="Belum ada tagihan untuk perusahaan ini."
+          />
           <ul v-else class="mt-3 divide-y divide-outline/60">
             <li
               v-for="t in tagihan"
@@ -336,6 +328,7 @@ onMounted(muatAwal)
               >
             </li>
           </ul>
+          <AppPager :meta="metaTagihan" @page="setPage" @update:per-page="setPerPage" />
         </AppCard>
       </template>
     </template>

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api } from '../lib/api'
 import { tanggal } from '../lib/format'
 import { formatValue, labelAksi, labelEntitas, labelField } from '../lib/labels'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppModal from '../components/ui/AppModal.vue'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
@@ -42,11 +43,27 @@ const NEED_ENTITY = ['sale.void', 'sale.refund', 'po.approve', 'transfer.approve
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
-const list = ref<Approval[]>([])
-const meta = ref<PageMeta | null>(null)
+const { loading: loadingMutasi, error: errorMutasi, run } = useAsync()
 const status = ref('diajukan')
 const filterAksi = ref('')
+const {
+  rows: list,
+  meta,
+  loading: loadingList,
+  error: errorList,
+  load: muat,
+  setPage,
+  setPerPage,
+} = usePagedList<Approval>(
+  (page, perPage) =>
+    api.getPage<Approval>(
+      `/companies/${companyId.value}/approvals?status=${status.value}${filterAksi.value ? `&action=${filterAksi.value}` : ''}&per_page=${perPage}&page=${page}`,
+      auth.token,
+    ),
+  { perPage: 15 },
+)
+const loading = computed(() => loadingList.value || loadingMutasi.value)
+const error = computed(() => errorList.value || errorMutasi.value)
 const detail = ref<Approval | null>(null)
 const pengaju = ref<{ name: string; role: string | null } | null>(null)
 const okMsg = ref('')
@@ -73,21 +90,6 @@ const bolehPutuskan = (action: string) => {
   return found ? access.can(found.decide) : false
 }
 const tone = (s: string) => (s === 'disetujui' ? 'green' : s === 'ditolak' ? 'red' : 'amber')
-
-async function muat(page = 1) {
-  okMsg.value = ''
-  const res = await run(() =>
-    api.getPage<Approval>(
-      `/companies/${companyId.value}/approvals?status=${status.value}${filterAksi.value ? `&action=${filterAksi.value}` : ''}&per_page=15&page=${page}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    const raw = res as unknown as { data: Approval[]; meta?: PageMeta } | Approval[]
-    if (Array.isArray(raw)) list.value = raw
-    else { list.value = raw.data; meta.value = raw.meta ?? null }
-  }
-}
 
 async function lihat(id: number) {
   konfirmasi.value = null
@@ -140,7 +142,7 @@ async function putuskan(setuju: boolean) {
     konfirmasi.value = null
     catatan.value = ''
     detail.value = res
-    muat(meta.value?.current_page ?? 1)
+    muat()
   }
 }
 
@@ -234,9 +236,9 @@ onMounted(async () => {
         <div class="mb-3 flex flex-wrap gap-2">
           <AppButton
             v-for="s in ['diajukan', 'disetujui', 'ditolak']" :key="s"
-            :variant="status === s ? 'primary' : 'ghost'" @click="status = s; muat()"
+            :variant="status === s ? 'primary' : 'ghost'" @click="status = s; muat(1)"
           >{{ s }}<span v-if="s === 'diajukan' && meta"> ({{ meta.total }})</span></AppButton>
-          <select v-model="filterAksi" class="rounded-lg border border-outline bg-card px-3 py-2 text-sm focus:border-primary focus:outline-none" @change="muat()">
+          <select v-model="filterAksi" class="rounded-lg border border-outline bg-card px-3 py-2 text-sm focus:border-primary focus:outline-none" @change="muat(1)">
             <option value="">Semua aksi</option>
             <option v-for="a in ACTIONS" :key="a.value" :value="a.value">{{ a.label }}</option>
           </select>
@@ -257,7 +259,7 @@ onMounted(async () => {
             </div>
           </div>
         </AppCard>
-        <AppPager :meta="meta" @page="muat" />
+        <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
       </div>
     </div>
 

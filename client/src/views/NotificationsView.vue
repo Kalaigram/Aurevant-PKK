@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, type PageMeta } from '../lib/api'
+import { api } from '../lib/api'
 import { waktuRelatif } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
@@ -107,11 +108,25 @@ const GROUPS: { title: string; types: string[] }[] = [
 
 const router = useRouter()
 const { auth, companyId } = useCompany()
-const { loading, error, run } = useAsync()
-const list = ref<Notif[]>([])
-const meta = ref<PageMeta | null>(null)
+const { error: errorMutasi, run } = useAsync()
 const unread = ref(0)
 const tab = ref<'semua' | 'belum'>('semua')
+const {
+  rows: list,
+  meta,
+  loading,
+  error: errorList,
+  load: muatList,
+  setPerPage,
+} = usePagedList<Notif>(
+  (page, perPage) =>
+    api.getPage<Notif>(
+      `/notifications?per_page=${perPage}&page=${page}&company_id=${companyId.value}${tab.value === 'belum' ? '&unread=1' : ''}`,
+      auth.token,
+    ),
+  { perPage: 15 },
+)
+const error = computed(() => errorList.value || errorMutasi.value)
 const prefs = ref<Prefs[]>([])
 const showPrefs = ref(false)
 const perangkat = ref<{ token: string; platform: string | null }[]>([])
@@ -121,22 +136,11 @@ function jenis(t: string) {
   return JENIS[t] ?? { label: 'Pemberitahuan', icon: 'info', hint: '' }
 }
 
-async function muat(page = 1) {
-  const q =
-    `?per_page=15&page=${page}&company_id=${companyId.value}` +
-    (tab.value === 'belum' ? '&unread=1' : '')
-  const res = await run(() =>
-    api.getPage<Notif>(`/notifications${q}`, auth.token),
-  )
-  if (res) {
-    const raw = res as unknown as { data: Notif[]; meta?: PageMeta } | Notif[]
-    if (Array.isArray(raw)) list.value = raw
-    else {
-      list.value = raw.data
-      meta.value = raw.meta ?? null
-    }
-  }
-  const c = await run(() => api.get<{ unread: number }>('/notifications/unread-count', auth.token))
+async function muat(page?: number) {
+  const [, c] = await Promise.all([
+    muatList(page),
+    run(() => api.get<{ unread: number }>('/notifications/unread-count', auth.token)),
+  ])
   if (c) unread.value = c.unread
 }
 
@@ -150,7 +154,7 @@ async function buka(n: Notif) {
     router.push(`/c/${companyId.value}/subscription`)
     return
   }
-  muat(meta.value?.current_page ?? 1)
+  muat()
 }
 
 async function bacaSemua() {
@@ -173,7 +177,7 @@ async function muatPerangkat() {
 
 async function cabutPerangkat(token: string) {
   await run(() => api.delBody('/device-tokens', { token }, auth.token))
-  if (!error.value) muatPerangkat()
+  if (!errorMutasi.value) muatPerangkat()
 }
 
 async function togglePref(p: Prefs) {
@@ -191,7 +195,7 @@ onMounted(() => {
   muat()
   muatPrefs()
   muatPerangkat()
-  timer = window.setInterval(() => muat(meta.value?.current_page ?? 1), 30000)
+  timer = window.setInterval(() => muat(), 30000)
 })
 onUnmounted(() => window.clearInterval(timer))
 </script>
@@ -251,7 +255,7 @@ onUnmounted(() => window.clearInterval(timer))
         :variant="tab === 'semua' ? 'primary' : 'ghost'"
         @click="
           tab = 'semua';
-          muat()
+          muat(1)
         "
         >Semua</AppButton
       >
@@ -259,7 +263,7 @@ onUnmounted(() => window.clearInterval(timer))
         :variant="tab === 'belum' ? 'primary' : 'ghost'"
         @click="
           tab = 'belum';
-          muat()
+          muat(1)
         "
         >Belum dibaca</AppButton
       >
@@ -292,7 +296,7 @@ onUnmounted(() => window.clearInterval(timer))
         </div>
       </div>
     </AppCard>
-    <AppPager :meta="meta" @page="muat" />
+    <AppPager :meta="meta" @page="muat" @update:per-page="setPerPage" />
 
     <AppCard title="Perangkat terdaftar" class="mt-4">
       <p class="text-xs text-secondary">

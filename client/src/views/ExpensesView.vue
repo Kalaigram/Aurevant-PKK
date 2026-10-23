@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api } from '../lib/api'
 import { rupiah, tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppPager from '../components/ui/AppPager.vue'
 
 interface Kategori {
   id: number
@@ -35,14 +37,30 @@ interface Biaya {
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
 const tab = ref<'biaya' | 'kategori'>('biaya')
-const list = ref<Biaya[]>([])
-const meta = ref<PageMeta | null>(null)
-const kategori = ref<Kategori[]>([])
-const cabang = ref<Cabang[]>([])
 const filterStatus = ref('')
 const okMsg = ref('')
+const {
+  rows: list,
+  meta,
+  loading: loadingList,
+  error: errorList,
+  load: muatBiaya,
+  setPage,
+  setPerPage,
+} = usePagedList<Biaya>(
+  (page, perPage) =>
+    api.getPage<Biaya>(
+      `/companies/${companyId.value}/expenses?per_page=${perPage}&page=${page}${filterStatus.value ? `&status=${filterStatus.value}` : ''}`,
+      auth.token,
+    ),
+  { perPage: 20 },
+)
+const { loading: loadingMutasi, error: errorMutasi, run } = useAsync()
+const loading = computed(() => loadingList.value || loadingMutasi.value)
+const error = computed(() => errorList.value || errorMutasi.value)
+const kategori = ref<Kategori[]>([])
+const cabang = ref<Cabang[]>([])
 
 const bolehCatat = computed(() => access.can('biaya.input'))
 const bolehPutus = computed(() => access.can('biaya.setujui'))
@@ -76,24 +94,6 @@ async function muatKategori() {
     ) as Kategori[]
 }
 
-async function muatBiaya(page = 1) {
-  okMsg.value = ''
-  const res = await run(() =>
-    api.getPage<Biaya>(
-      `/companies/${companyId.value}/expenses?per_page=20&page=${page}${filterStatus.value ? `&status=${filterStatus.value}` : ''}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    const raw = res as unknown as { data: Biaya[]; meta?: PageMeta } | Biaya[]
-    if (Array.isArray(raw)) list.value = raw
-    else {
-      list.value = raw.data
-      meta.value = raw.meta ?? null
-    }
-  }
-}
-
 async function simpanBiaya() {
   const res = await run(() =>
     api.post(
@@ -120,7 +120,7 @@ async function simpanBiaya() {
       date: new Date().toISOString().slice(0, 10),
       description: '',
     }
-    muatBiaya()
+    muatBiaya(1)
   }
 }
 
@@ -132,7 +132,7 @@ async function putuskan(id: number, setuju: boolean) {
       auth.token,
     ),
   )
-  if (res || !error.value) {
+  if (res || !errorMutasi.value) {
     okMsg.value = setuju ? 'Biaya disetujui dan dijurnal otomatis.' : 'Biaya ditolak.'
     muatBiaya()
   }
@@ -156,7 +156,7 @@ async function tambahKategori() {
 
 async function hapusKategori(id: number) {
   await run(() => api.del(`/companies/${companyId.value}/expense-categories/${id}`, auth.token))
-  if (!error.value) {
+  if (!errorMutasi.value) {
     okMsg.value = 'Kategori dihapus.'
     muatKategori()
   }
@@ -195,7 +195,7 @@ onMounted(async () => {
           <select
             v-model="filterStatus"
             class="rounded-lg border border-outline bg-card px-2 py-2 text-sm"
-            @change="() => muatBiaya()"
+            @change="muatBiaya(1)"
           >
             <option value="">Semua</option>
             <option value="draft">Draft</option>
@@ -224,6 +224,7 @@ onMounted(async () => {
           </div>
         </AppCard>
       </div>
+      <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
     </div>
 
     <AppCard v-else>

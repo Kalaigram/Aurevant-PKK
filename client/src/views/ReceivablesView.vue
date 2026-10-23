@@ -5,12 +5,14 @@ import { rupiah, tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppPager from '../components/ui/AppPager.vue'
 
 interface Bon {
   id: number
@@ -29,11 +31,27 @@ interface Cabang {
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
-const list = ref<Bon[]>([])
-const aging = ref<{ buckets: Record<string, number>; total: number } | null>(null)
 const hanyaBelumLunas = ref(true)
 const okMsg = ref('')
+const {
+  rows: list,
+  meta,
+  loading,
+  error: errorList,
+  load: muatBon,
+  setPage,
+  setPerPage,
+} = usePagedList<Bon>(
+  (page, perPage) =>
+    api.getPage<Bon>(
+      `/companies/${companyId.value}/receivables?per_page=${perPage}&page=${page}${hanyaBelumLunas.value ? '&unpaid=true' : ''}`,
+      auth.token,
+    ),
+  { perPage: 20 },
+)
+const { error: errorMutasi, run } = useAsync()
+const error = computed(() => errorList.value || errorMutasi.value)
+const aging = ref<{ buckets: Record<string, number>; total: number } | null>(null)
 const cabang = ref<Cabang[]>([])
 const showForm = ref(false)
 const fBon = ref({ branch_id: '', customer_id: '', amount: 0, due_at: '', note: '' })
@@ -43,18 +61,7 @@ const bayarCara = ref('tunai')
 
 const boleh = computed(() => access.can('biaya.setujui'))
 
-async function muat() {
-  okMsg.value = ''
-  const res = await run(() =>
-    api.get<Bon[]>(
-      `/companies/${companyId.value}/receivables?per_page=50${hanyaBelumLunas.value ? '&unpaid=true' : ''}`,
-      auth.token,
-    ),
-  )
-  if (res)
-    list.value = (
-      Array.isArray(res) ? res : ((res as unknown as { data: Bon[] }).data ?? [])
-    ) as Bon[]
+async function muatAging() {
   const ag = await api
     .get<{ buckets: Record<string, number>; total: number }>(
       `/companies/${companyId.value}/receivables-aging`,
@@ -62,10 +69,17 @@ async function muat() {
     )
     .catch(() => null)
   if (ag) aging.value = ag as { buckets: Record<string, number>; total: number }
+}
+
+async function muatCabang() {
   cabang.value =
     (await api
       .get<Cabang[]>(`/companies/${companyId.value}/branches`, auth.token)
       .catch(() => [])) ?? []
+}
+
+async function muat() {
+  await Promise.all([muatBon(1), muatAging(), muatCabang()])
 }
 
 async function simpan() {
@@ -86,7 +100,7 @@ async function simpan() {
     showForm.value = false
     okMsg.value = 'Bon pelanggan tercatat.'
     fBon.value = { branch_id: '', customer_id: '', amount: 0, due_at: '', note: '' }
-    muat()
+    await Promise.all([muatBon(1), muatAging()])
   }
 }
 
@@ -107,11 +121,11 @@ async function terima(b: Bon) {
       auth.token,
     ),
   )
-  if (res || !error.value) {
+  if (res || !errorMutasi.value) {
     okMsg.value = 'Cicilan tercatat.'
     bayarId.value = null
     bayarNominal.value = 0
-    muat()
+    await Promise.all([muatBon(), muatAging()])
   }
 }
 
@@ -149,7 +163,7 @@ onMounted(async () => {
         v-model="hanyaBelumLunas"
         type="checkbox"
         class="h-4 w-4 accent-emerald-700"
-        @change="() => muat()"
+        @change="muatBon(1)"
       />
       Hanya yang belum lunas
     </label>
@@ -204,6 +218,7 @@ onMounted(async () => {
         </div>
       </AppCard>
     </div>
+    <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
 
     <div
       v-if="showForm"

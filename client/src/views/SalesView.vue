@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, downloadFile, type PageMeta } from '../lib/api'
+import { api, downloadFile } from '../lib/api'
 import { rupiah } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
+import { usePagedList } from '../composables/usePagedList'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
 import { useToast } from '../composables/useToast'
@@ -77,20 +78,32 @@ interface BarisRetur {
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
 const toast = useToast()
-const daftar = useAsync()
+const referensi = useAsync()
 const detailAsync = useAsync()
 const aksi = useAsync()
 
 const cabang = ref<Cabang[]>([])
 const branchId = ref<number | null>(null)
-const list = ref<Nota[]>([])
-const meta = ref<PageMeta | null>(null)
-const halaman = ref(1)
-const perPage = ref(15)
 const tab = ref('semua')
 const cari = ref('')
 const dari = ref('')
 const sampai = ref('')
+
+const daftar = usePagedList<Nota>((page, perPage) => {
+  if (!branchId.value) return Promise.resolve({ data: [], meta: null })
+  const params = new URLSearchParams({
+    per_page: String(perPage),
+    page: String(page),
+  })
+  if (tab.value !== 'semua') params.set('status', tab.value)
+  if (cari.value.trim()) params.set('q', cari.value.trim())
+  if (dari.value) params.set('from', dari.value)
+  if (sampai.value) params.set('to', sampai.value)
+  return api.getPage<Nota>(
+    `/companies/${companyId.value}/branches/${branchId.value}/sales?${params}`,
+    auth.token,
+  )
+}, { perPage: 15 })
 const detail = ref<Nota | null>(null)
 const detailOpen = ref(false)
 
@@ -104,7 +117,11 @@ const barisRetur = ref<BarisRetur[]>([])
 const bolehVoid = computed(() => access.can('transaksi.void'))
 const bolehRetur = computed(() => access.can('retur.buat'))
 const error = computed(
-  () => daftar.error.value || detailAsync.error.value || aksi.error.value,
+  () =>
+    referensi.error.value ||
+    daftar.error.value ||
+    detailAsync.error.value ||
+    aksi.error.value,
 )
 const tabs = [
   { key: 'semua', label: 'Semua' },
@@ -147,44 +164,16 @@ function qty(value: string | number | null | undefined) {
   return Number(value ?? 0).toLocaleString('id-ID', { maximumFractionDigits: 3 })
 }
 
-async function muat(page = halaman.value) {
-  if (!branchId.value) return
-  halaman.value = page
-  const params = new URLSearchParams({
-    per_page: String(perPage.value),
-    page: String(page),
-  })
-  if (tab.value !== 'semua') params.set('status', tab.value)
-  if (cari.value.trim()) params.set('q', cari.value.trim())
-  if (dari.value) params.set('from', dari.value)
-  if (sampai.value) params.set('to', sampai.value)
-  const res = await daftar.run(() =>
-    api.getPage<Nota>(
-      `/companies/${companyId.value}/branches/${branchId.value}/sales?${params}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    list.value = res.data
-    meta.value = res.meta
-  }
-}
-
 function gantiTab(key: string) {
   tab.value = key
   detailOpen.value = false
-  muat(1)
+  void daftar.load(1)
 }
 
 function gantiCabang(value: string | number | null) {
   branchId.value = value === null ? null : Number(value)
   detailOpen.value = false
-  muat(1)
-}
-
-function gantiPerPage(value: number) {
-  perPage.value = value
-  muat(1)
+  void daftar.load(1)
 }
 
 function resetFilter() {
@@ -192,7 +181,7 @@ function resetFilter() {
   cari.value = ''
   dari.value = ''
   sampai.value = ''
-  muat(1)
+  void daftar.load(1)
 }
 
 async function lihat(id: number) {
@@ -249,7 +238,7 @@ async function voidSekarang() {
   if (res) {
     toast.success(`Nota ${detail.value?.number ?? ''} dibatalkan, stok dikembalikan.`)
     dialogVoid.value = false
-    await muat()
+    await daftar.reload()
     await lihat(id)
   }
 }
@@ -333,7 +322,7 @@ async function returSekarang() {
   if (res) {
     toast.success('Retur tercatat.')
     dialogRetur.value = false
-    await muat()
+    await daftar.reload()
     await lihat(id)
   } else if (aksi.error.value) {
     toast.error(aksi.error.value)
@@ -342,7 +331,7 @@ async function returSekarang() {
 
 onMounted(async () => {
   await access.load(companyId.value, auth.token)
-  const res = await daftar.run(() =>
+  const res = await referensi.run(() =>
     api.get<Cabang[]>(`/companies/${companyId.value}/branches`, auth.token),
   )
   cabang.value = res ?? []
@@ -350,7 +339,7 @@ onMounted(async () => {
     (auth.branchId && cabang.value.some((b) => b.id === auth.branchId)
       ? auth.branchId
       : cabang.value[0]?.id) ?? null
-  await muat(1)
+  await daftar.load(1)
 })
 </script>
 
@@ -363,7 +352,7 @@ onMounted(async () => {
       icon="receipt_long"
     >
       <template #actions>
-        <AppButton variant="ghost" :loading="daftar.loading.value" @click="muat()">
+        <AppButton variant="ghost" :loading="daftar.loading.value" @click="daftar.reload()">
           Muat ulang
         </AppButton>
       </template>
@@ -382,17 +371,17 @@ onMounted(async () => {
           />
         </AppField>
         <AppField label="Dari tanggal" class="w-full sm:w-40">
-          <AppDateInput v-model="dari" @change="muat(1)" />
+          <AppDateInput v-model="dari" @change="daftar.load(1)" />
         </AppField>
         <AppField label="Sampai tanggal" class="w-full sm:w-40">
-          <AppDateInput v-model="sampai" @change="muat(1)" />
+          <AppDateInput v-model="sampai" @change="daftar.load(1)" />
         </AppField>
         <AppField label="Cari" class="min-w-48 flex-1">
           <AppSearch
             v-model="cari"
             placeholder="Nomor nota atau pelanggan…"
             :loading="daftar.loading.value"
-            @search="muat(1)"
+            @search="daftar.load(1)"
           />
         </AppField>
         <AppButton variant="ghost" @click="resetFilter">Reset</AppButton>
@@ -403,7 +392,7 @@ onMounted(async () => {
       <AppTable
         class="mt-3"
         :loading="daftar.loading.value"
-        :empty="!list.length"
+        :empty="!daftar.rows.value.length"
         :colspan="6"
         empty-title="Belum ada nota"
         empty-message="Ubah filter atau buat transaksi baru di kasir."
@@ -419,7 +408,7 @@ onMounted(async () => {
           </tr>
         </template>
         <tr
-          v-for="n in list"
+          v-for="n in daftar.rows.value"
           :key="n.id"
           class="cursor-pointer transition hover:bg-surface-low/70"
           @click="lihat(n.id)"
@@ -436,9 +425,9 @@ onMounted(async () => {
         </tr>
       </AppTable>
       <AppPager
-        :meta="meta"
-        @page="muat"
-        @update:per-page="gantiPerPage"
+        :meta="daftar.meta.value"
+        @page="daftar.setPage"
+        @update:per-page="daftar.setPerPage"
       />
     </AppCard>
 

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api } from '../lib/api'
 import { tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
+import { usePagedList } from '../composables/usePagedList'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
@@ -19,12 +20,30 @@ interface Cuti { id: number; userId: number; type: string; fromDate: string; toD
 const TYPES = ['izin', 'sakit', 'cuti']
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading, error, run } = useAsync()
-const list = ref<Cuti[]>([])
-const meta = ref<PageMeta | null>(null)
+const { loading: loadingMutasi, error: errorMutasi, run } = useAsync()
 const status = ref('')
 const okMsg = ref('')
 const form = ref({ type: 'izin', from_date: '', to_date: '', reason: '' })
+const {
+  rows: list,
+  meta,
+  loading: loadingList,
+  error: errorList,
+  load: muat,
+  setPage,
+  setPerPage,
+} = usePagedList<Cuti>(
+  (page, perPage) => {
+    const me = auth.user?.id ?? 0
+    return api.getPage<Cuti>(
+      `/companies/${companyId.value}/leaves?user_id=${me}${status.value ? `&status=${status.value}` : ''}&per_page=${perPage}&page=${page}`,
+      auth.token,
+    )
+  },
+  { perPage: 15 },
+)
+const loading = computed(() => loadingList.value || loadingMutasi.value)
+const error = computed(() => errorList.value || errorMutasi.value)
 
 const tone = (s: string) => (s === 'disetujui' ? 'green' : s === 'ditolak' ? 'red' : 'amber')
 const hitung = (s: string) => list.value.filter((c) => c.status === s).length
@@ -37,22 +56,6 @@ const estimasi = computed(() => {
   const hari = Math.round((new Date(form.value.to_date).getTime() - new Date(form.value.from_date).getTime()) / 864e5) + 1
   return hari > 0 ? `Perkiraan durasi: ${hari} hari.` : 'Tanggal selesai lebih awal dari tanggal mulai.'
 })
-
-async function muat(page = 1) {
-  okMsg.value = ''
-  const me = auth.user?.id ?? 0
-  const res = await run(() =>
-    api.getPage<Cuti>(
-      `/companies/${companyId.value}/leaves?user_id=${me}${status.value ? `&status=${status.value}` : ''}&per_page=15&page=${page}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    const raw = res as unknown as { data: Cuti[]; meta?: PageMeta } | Cuti[]
-    if (Array.isArray(raw)) list.value = raw
-    else { list.value = raw.data; meta.value = raw.meta ?? null }
-  }
-}
 
 async function ajukan() {
   const res = await run(() =>
@@ -71,7 +74,7 @@ async function putuskan(c: Cuti, setuju: boolean) {
   )
   if (res) {
     okMsg.value = setuju ? 'Pengajuan disetujui.' : 'Pengajuan ditolak.'
-    muat(meta.value?.current_page ?? 1)
+    muat()
   }
 }
 
@@ -97,10 +100,10 @@ onMounted(async () => {
     <div class="grid gap-4 lg:grid-cols-5">
       <div class="lg:col-span-3">
         <div class="mb-3 flex gap-2">
-          <AppButton :variant="!status ? 'primary' : 'ghost'" @click="status = ''; muat()">Semua</AppButton>
+          <AppButton :variant="!status ? 'primary' : 'ghost'" @click="status = ''; muat(1)">Semua</AppButton>
           <AppButton
             v-for="s in ['diajukan', 'disetujui', 'ditolak']" :key="s"
-            :variant="status === s ? 'primary' : 'ghost'" @click="status = s; muat()"
+            :variant="status === s ? 'primary' : 'ghost'" @click="status = s; muat(1)"
           >{{ s }}</AppButton>
         </div>
         <AppEmpty v-if="!loading && !list.length" message="Belum ada pengajuan. Ganti filter atau ajukan baru." />
@@ -134,7 +137,7 @@ onMounted(async () => {
             </tbody>
           </table>
         </div>
-        <AppPager :meta="meta" @page="muat" />
+        <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
       </div>
 
       <div class="lg:col-span-2">

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api } from '../lib/api'
 import { useCompany } from '../composables/useCompany'
+import { usePagedList } from '../composables/usePagedList'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
 import { useConfirm } from '../composables/useConfirm'
@@ -67,7 +68,6 @@ const access = useAccessStore()
 const toast = useToast()
 const { confirm } = useConfirm()
 
-const daftar = useAsync()
 const detailAsync = useAsync()
 const referensi = useAsync()
 const aksi = useAsync()
@@ -76,11 +76,20 @@ const buatAsync = useAsync()
 const cabang = ref<Cabang[]>([])
 const items = ref<KatalogItem[]>([])
 const branchId = ref<number | null>(null)
-const list = ref<Opname[]>([])
-const meta = ref<PageMeta | null>(null)
-const halaman = ref(1)
-const perPage = ref(15)
 const tab = ref('semua')
+
+const daftar = usePagedList<Opname>((page, perPage) => {
+  if (!branchId.value) return Promise.resolve({ data: [], meta: null })
+  const params = new URLSearchParams({
+    per_page: String(perPage),
+    page: String(page),
+  })
+  if (tab.value !== 'semua') params.set('status', tab.value)
+  return api.getPage<Opname>(
+    `/companies/${companyId.value}/branches/${branchId.value}/stock/opnames?${params}`,
+    auth.token,
+  )
+}, { perPage: 15 })
 
 const detail = ref<Opname | null>(null)
 const detailOpen = ref(false)
@@ -211,41 +220,16 @@ function petunjuk(status: string) {
   return 'Opname ditolak. Stok tidak berubah.'
 }
 
-async function muat(page = halaman.value) {
-  if (!branchId.value) return
-  halaman.value = page
-  const params = new URLSearchParams({
-    per_page: String(perPage.value),
-    page: String(page),
-  })
-  if (tab.value !== 'semua') params.set('status', tab.value)
-  const res = await daftar.run(() =>
-    api.getPage<Opname>(
-      `/companies/${companyId.value}/branches/${branchId.value}/stock/opnames?${params}`,
-      auth.token,
-    ),
-  )
-  if (res) {
-    list.value = res.data
-    meta.value = res.meta
-  }
-}
-
 function gantiTab(key: string) {
   tab.value = key
-  muat(1)
+  void daftar.load(1)
 }
 
 function gantiCabang(value: string | number | null) {
   branchId.value = value === null ? null : Number(value)
   detail.value = null
   detailOpen.value = false
-  muat(1)
-}
-
-function gantiPerPage(value: number) {
-  perPage.value = value
-  muat(1)
+  void daftar.load(1)
 }
 
 async function lihat(id: number) {
@@ -286,7 +270,7 @@ async function transisi(kind: Aksi) {
   if (res) {
     detail.value = res
     toast.success(cfg.pesan)
-    await muat()
+    await daftar.reload()
   } else if (aksi.error.value) {
     toast.error(aksi.error.value)
   }
@@ -328,7 +312,7 @@ async function buat() {
     detail.value = res
     detailOpen.value = true
     toast.success('Opname dibuat sebagai draft.')
-    await muat(1)
+    await daftar.load(1)
   }
 }
 
@@ -346,7 +330,7 @@ onMounted(async () => {
     (auth.branchId && cabang.value.some((b) => b.id === auth.branchId)
       ? auth.branchId
       : (cabang.value[0]?.id ?? null))
-  await muat(1)
+  await daftar.load(1)
 })
 </script>
 
@@ -359,7 +343,7 @@ onMounted(async () => {
       icon="content_paste_search"
     >
       <template #actions>
-        <AppButton variant="ghost" :loading="daftar.loading.value" @click="muat()">Muat ulang</AppButton>
+        <AppButton variant="ghost" :loading="daftar.loading.value" @click="daftar.reload()">Muat ulang</AppButton>
         <AppButton v-if="boleh && branchId" @click="bukaBuat">Opname baru</AppButton>
       </template>
     </AppPageHeader>
@@ -383,7 +367,7 @@ onMounted(async () => {
       <AppTable
         class="mt-3"
         :loading="daftar.loading.value"
-        :empty="!list.length"
+        :empty="!daftar.rows.value.length"
         :colspan="5"
         empty-title="Belum ada opname"
         empty-message="Buat opname baru atau ubah filter status."
@@ -398,7 +382,7 @@ onMounted(async () => {
           </tr>
         </template>
         <tr
-          v-for="o in list"
+          v-for="o in daftar.rows.value"
           :key="o.id"
           class="cursor-pointer transition hover:bg-surface-low/70"
           @click="lihat(o.id)"
@@ -418,7 +402,7 @@ onMounted(async () => {
           <td><AppBadge :tone="tone(o.status)" dot>{{ labelStatus(o.status) }}</AppBadge></td>
         </tr>
       </AppTable>
-      <AppPager :meta="meta" @page="muat" @update:per-page="gantiPerPage" />
+      <AppPager :meta="daftar.meta.value" @page="daftar.setPage" @update:per-page="daftar.setPerPage" />
     </AppCard>
 
     <AppModal

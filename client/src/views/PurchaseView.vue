@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type PageMeta } from '../lib/api'
+import { api } from '../lib/api'
 import { rupiah, tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
+import { usePagedList } from '../composables/usePagedList'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
 import { useConfirm } from '../composables/useConfirm'
@@ -105,7 +106,6 @@ const access = useAccessStore()
 const toast = useToast()
 const { confirm } = useConfirm()
 
-const daftar = useAsync()
 const detailAsync = useAsync()
 const riwayat = useAsync()
 const referensi = useAsync()
@@ -116,13 +116,23 @@ const terimaAsync = useAsync()
 const cabang = ref<Cabang[]>([])
 const suppliers = ref<Supplier[]>([])
 const items = ref<KatalogItem[]>([])
-const list = ref<PO[]>([])
-const meta = ref<PageMeta | null>(null)
-const halaman = ref(1)
-const perPage = ref(15)
 const tab = ref('semua')
 const cari = ref('')
 const filterCabang = ref<number | null>(null)
+
+const daftar = usePagedList<PO>((page, perPage) => {
+  const params = new URLSearchParams({
+    per_page: String(perPage),
+    page: String(page),
+  })
+  if (tab.value !== 'semua') params.set('status', tab.value)
+  if (filterCabang.value !== null) params.set('branch_id', String(filterCabang.value))
+  if (cari.value.trim()) params.set('q', cari.value.trim())
+  return api.getPage<PO>(
+    `/companies/${companyId.value}/purchase-orders?${params}`,
+    auth.token,
+  )
+}, { perPage: 15 })
 
 const detail = ref<PO | null>(null)
 const detailOpen = ref(false)
@@ -309,45 +319,21 @@ function petunjuk(status: string) {
   return 'PO dibatalkan dan tidak bisa diproses lagi.'
 }
 
-async function muat(page = halaman.value) {
-  halaman.value = page
-  const params = new URLSearchParams({
-    per_page: String(perPage.value),
-    page: String(page),
-  })
-  if (tab.value !== 'semua') params.set('status', tab.value)
-  if (filterCabang.value !== null) params.set('branch_id', String(filterCabang.value))
-  if (cari.value.trim()) params.set('q', cari.value.trim())
-
-  const res = await daftar.run(() =>
-    api.getPage<PO>(`/companies/${companyId.value}/purchase-orders?${params}`, auth.token),
-  )
-  if (res) {
-    list.value = res.data
-    meta.value = res.meta
-  }
-}
-
 function gantiTab(key: string) {
   tab.value = key
-  muat(1)
+  void daftar.load(1)
 }
 
 function gantiCabang(value: string | number | null) {
   filterCabang.value = value === null ? null : Number(value)
-  muat(1)
-}
-
-function gantiPerPage(value: number) {
-  perPage.value = value
-  muat(1)
+  void daftar.load(1)
 }
 
 function resetFilter() {
   tab.value = 'semua'
   cari.value = ''
   filterCabang.value = null
-  muat(1)
+  void daftar.load(1)
 }
 
 async function lihat(id: number) {
@@ -392,7 +378,7 @@ async function transisi(kind: Aksi) {
   if (res) {
     detail.value = res
     toast.success(cfg.pesan)
-    await muat()
+    await daftar.reload()
     await muatRiwayat(id)
   } else if (aksi.error.value) {
     toast.error(aksi.error.value)
@@ -444,7 +430,7 @@ async function buatPo() {
     receipts.value = []
     detailOpen.value = true
     toast.success('PO dibuat sebagai draft.')
-    await muat(1)
+    await daftar.load(1)
   }
 }
 
@@ -499,7 +485,7 @@ async function terimaSekarang() {
         ? 'Penerimaan dicatat. Seluruh barang sudah diterima.'
         : 'Penerimaan dicatat. Stok dan tagihan sudah diperbarui.',
     )
-    await muat()
+    await daftar.reload()
     await muatRiwayat(id)
   } else if (terimaAsync.error.value) {
     toast.error(terimaAsync.error.value)
@@ -522,7 +508,7 @@ onMounted(async () => {
     suppliers.value = s.data
     items.value = i.data
   })
-  await muat(1)
+  await daftar.load(1)
 })
 </script>
 
@@ -535,7 +521,7 @@ onMounted(async () => {
       icon="shopping_cart"
     >
       <template #actions>
-        <AppButton variant="ghost" :loading="daftar.loading.value" @click="muat()">
+        <AppButton variant="ghost" :loading="daftar.loading.value" @click="daftar.reload()">
           Muat ulang
         </AppButton>
         <AppButton v-if="bolehBuat" @click="bukaBuat">PO baru</AppButton>
@@ -559,7 +545,7 @@ onMounted(async () => {
             v-model="cari"
             placeholder="Nomor PO, supplier, atau catatan…"
             :loading="daftar.loading.value"
-            @search="muat(1)"
+            @search="daftar.load(1)"
           />
         </AppField>
         <AppButton variant="ghost" @click="resetFilter">Reset</AppButton>
@@ -570,7 +556,7 @@ onMounted(async () => {
       <AppTable
         class="mt-3"
         :loading="daftar.loading.value"
-        :empty="!list.length"
+        :empty="!daftar.rows.value.length"
         :colspan="6"
         empty-title="Belum ada PO"
         empty-message="Buat PO baru atau ubah filter status dan cabang."
@@ -586,7 +572,7 @@ onMounted(async () => {
           </tr>
         </template>
         <tr
-          v-for="po in list"
+          v-for="po in daftar.rows.value"
           :key="po.id"
           class="cursor-pointer transition hover:bg-surface-low/70"
           @click="lihat(po.id)"
@@ -607,7 +593,7 @@ onMounted(async () => {
           <td><AppBadge :tone="tone(po.status)" dot>{{ labelStatus(po.status) }}</AppBadge></td>
         </tr>
       </AppTable>
-      <AppPager :meta="meta" @page="muat" @update:per-page="gantiPerPage" />
+      <AppPager :meta="daftar.meta.value" @page="daftar.setPage" @update:per-page="daftar.setPerPage" />
     </AppCard>
 
     <AppModal
