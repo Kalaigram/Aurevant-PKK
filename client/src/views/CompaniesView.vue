@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '../lib/api'
+import { api, assetUrl } from '../lib/api'
 import { rupiah, tanggal } from '../lib/format'
 import { useAuthStore } from '../stores/auth'
 import { useAsync } from '../composables/useAsync'
+import AppAvatar from '../components/ui/AppAvatar.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
 
-interface Company { id: number; name: string; slug: string; status: string }
+interface Company { id: number; name: string; slug: string; status: string; email: string | null; phone: string | null; logoUrl: string | null }
 interface Extra { branches: string[]; sub: string; ends: string | null; invoice: { id: number; amount: string; dueAt: string | null } | null }
 interface Invoice { id: number; amount: string; status: string; dueAt: string | null }
 
@@ -46,7 +47,7 @@ async function muat() {
 }
 
 function pilih(c: Company) {
-  auth.pickCompany(c.id, c.name)
+  auth.pickCompany(c.id, c.name, c.logoUrl)
   router.push(`/c/${c.id}/dashboard`)
 }
 
@@ -91,9 +92,8 @@ onMounted(muat)
     <div class="grid gap-3 md:grid-cols-2">
       <div v-for="c in list" :key="c.id" class="rounded-xl bg-card p-4 shadow-sm transition hover:shadow">
         <div class="flex items-start gap-3">
-          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-container font-display text-lg font-bold text-on-primary">
-            {{ c.name.charAt(0).toUpperCase() }}
-          </div>
+          <AppAvatar :name="c.name" :src="assetUrl(c.logoUrl)" size="lg" square
+            class="bg-primary-container text-on-primary ring-primary/20" />
           <div class="min-w-0 flex-1">
             <div class="flex items-center justify-between gap-2">
               <h2 class="font-display truncate font-semibold">{{ c.name }}</h2>
@@ -102,6 +102,9 @@ onMounted(muat)
               </AppBadge>
             </div>
             <p class="mt-0.5 font-mono text-xs text-secondary">{{ c.slug }}</p>
+            <p v-if="c.email || c.phone" class="mt-1 truncate text-xs text-secondary">
+              {{ [c.email, c.phone].filter(Boolean).join(' · ') }}
+            </p>
           </div>
         </div>
         <p v-if="extra[c.id]?.branches.length" class="mt-2 text-sm">

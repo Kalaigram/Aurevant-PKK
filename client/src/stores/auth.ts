@@ -6,6 +6,10 @@ export interface AuthUser {
   name: string
   email: string
   phone: string | null
+  avatarPath: string | null
+  avatarUrl: string | null
+  employeeUuid: string | null
+  ptkpStatus: string | null
   isSuperAdmin: boolean
 }
 
@@ -14,6 +18,7 @@ interface Stored {
   user: AuthUser | null
   companyId: number | null
   companyName: string | null
+  companyLogoUrl: string | null
   branchId: number | null
   branchCode: string | null
 }
@@ -23,7 +28,15 @@ function load(): Stored {
     const raw = localStorage.getItem('aurevant-auth')
     if (raw) return JSON.parse(raw) as Stored
   } catch { /* abaikan */ }
-  return { token: null, user: null, companyId: null, companyName: null, branchId: null, branchCode: null }
+  return {
+    token: null,
+    user: null,
+    companyId: null,
+    companyName: null,
+    companyLogoUrl: null,
+    branchId: null,
+    branchCode: null,
+  }
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -35,7 +48,7 @@ export const useAuthStore = defineStore('auth', {
     persist() {
       localStorage.setItem(
         'aurevant-auth',
-        JSON.stringify({ token: this.token, user: this.user, companyId: this.companyId, companyName: this.companyName, branchId: this.branchId, branchCode: this.branchCode }),
+        JSON.stringify({ token: this.token, user: this.user, companyId: this.companyId, companyName: this.companyName, companyLogoUrl: this.companyLogoUrl, branchId: this.branchId, branchCode: this.branchCode }),
       )
     },
     async login(login: string, password: string) {
@@ -44,6 +57,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = data.user
       this.companyId = null
       this.companyName = null
+      this.companyLogoUrl = null
       this.branchId = null
       this.branchCode = null
       this.persist()
@@ -54,6 +68,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = data.user
       this.companyId = null
       this.companyName = null
+      this.companyLogoUrl = null
       this.branchId = null
       this.branchCode = null
       this.persist()
@@ -63,11 +78,17 @@ export const useAuthStore = defineStore('auth', {
       this.user = await api.get<AuthUser>('/auth/me', this.token)
       this.persist()
     },
-    pickCompany(id: number, name: string) {
+    pickCompany(id: number, name: string, logoUrl: string | null = null) {
       this.companyId = id
       this.companyName = name
+      this.companyLogoUrl = logoUrl
       this.branchId = null
       this.branchCode = null
+      this.persist()
+    },
+    setCompanyIdentity(name: string, logoUrl: string | null) {
+      this.companyName = name
+      this.companyLogoUrl = logoUrl
       this.persist()
     },
     pickBranch(id: number, code: string) {
@@ -83,6 +104,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.companyId = null
       this.companyName = null
+      this.companyLogoUrl = null
       this.branchId = null
       this.branchCode = null
       this.persist()

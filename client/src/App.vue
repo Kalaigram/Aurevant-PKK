@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { api } from './lib/api'
+import { api, assetUrl } from './lib/api'
 import { useAuthStore } from './stores/auth'
 import { useAccessStore } from './stores/access'
 import { useConfirm } from './composables/useConfirm'
@@ -188,6 +188,7 @@ const groups = computed<Group[]>(() => {
       items: [
         item(`${c}/notifications`, 'Notifikasi', 'notifications'),
         item(`${c}/subscription`, 'Langganan', 'workspace_premium'),
+        item(`${c}/company`, 'Profil Perusahaan', 'storefront', ['pengaturan.kelola']),
         item(`${c}/branches`, 'Cabang', 'domain'),
         item(`${c}/roles`, 'Role & Akses', 'manage_accounts', ['pengaturan.kelola']),
         item(`${c}/employees`, 'Karyawan', 'groups', ['karyawan.kelola']),
@@ -333,7 +334,7 @@ onBeforeUnmount(() => {
           to="/companies"
           class="flex items-center gap-3 rounded-xl bg-white/10 p-2.5 ring-1 ring-white/10 transition hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-white/50"
         >
-          <AppAvatar :name="companyLabel" size="sm" square class="ring-white/20" />
+          <AppAvatar :name="companyLabel" :src="assetUrl(auth.companyLogoUrl)" size="sm" square class="ring-white/20" />
           <div class="min-w-0 flex-1">
             <p class="text-[10px] uppercase tracking-wider text-emerald-50/55">Perusahaan aktif</p>
             <p class="truncate text-sm font-semibold text-white">{{ companyLabel }}</p>
@@ -386,7 +387,7 @@ onBeforeUnmount(() => {
 
       <div class="border-t border-white/10 p-3">
         <div class="flex items-center gap-2.5 rounded-xl p-1.5">
-          <AppAvatar :name="auth.user?.name" size="sm" />
+          <AppAvatar :name="auth.user?.name" :src="assetUrl(auth.user?.avatarUrl)" size="sm" />
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-semibold text-white">{{ auth.user?.name }}</p>
             <p class="truncate text-[11px] text-emerald-50/55">{{ auth.user?.email }}</p>
@@ -455,7 +456,7 @@ onBeforeUnmount(() => {
           </RouterLink>
           <AppDropdown :items="userMenu" label="Menu pengguna" align="right">
             <template #trigger>
-              <AppAvatar :name="auth.user?.name" size="sm" />
+              <AppAvatar :name="auth.user?.name" :src="assetUrl(auth.user?.avatarUrl)" size="sm" />
             </template>
           </AppDropdown>
         </div>
@@ -521,7 +522,7 @@ onBeforeUnmount(() => {
   >
     <div class="space-y-5">
       <div class="flex items-center gap-3 rounded-xl bg-surface-low p-3">
-        <AppAvatar :name="auth.user?.name" size="md" />
+        <AppAvatar :name="auth.user?.name" :src="assetUrl(auth.user?.avatarUrl)" size="md" />
         <div class="min-w-0">
           <p class="truncate text-sm font-semibold text-ink">{{ auth.user?.name }}</p>
           <p class="truncate text-xs text-secondary">{{ auth.user?.email }}</p>

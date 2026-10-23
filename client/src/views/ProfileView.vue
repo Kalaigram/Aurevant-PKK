@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { api } from '../lib/api'
+import { api, assetUrl } from '../lib/api'
+import type { AuthUser } from '../stores/auth'
 import { useCompany } from '../composables/useCompany'
 import { useAsync } from '../composables/useAsync'
+import { useConfirm } from '../composables/useConfirm'
+import { useToast } from '../composables/useToast'
+import AppAvatar from '../components/ui/AppAvatar.vue'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
+import AppInput from '../components/ui/AppInput.vue'
 
 interface Card {
   name: string
@@ -20,11 +25,20 @@ interface Card {
 }
 
 const { auth, companyId } = useCompany()
+const toast = useToast()
+const { confirm } = useConfirm()
 const { loading, error, run } = useAsync()
+const { loading: profilLoading, error: profilError, run: runProfil } = useAsync()
+const { loading: fotoLoading, error: fotoError, run: runFoto } = useAsync()
 const { loading: pwLoading, error: pwError, run: runPw } = useAsync()
 const card = ref<Card | null>(null)
 const tanyaKeluar = ref(false)
+const berkas = ref<HTMLInputElement | null>(null)
 const ganti = ref({ current_password: '', password: '', password_confirmation: '' })
+const profil = ref({
+  name: auth.user?.name ?? '',
+  phone: auth.user?.phone ?? '',
+})
 const okPw = ref('')
 
 onMounted(async () => {
@@ -33,6 +47,59 @@ onMounted(async () => {
     api.get<Card>(`/companies/${companyId.value}/users/${auth.user!.id}/card`, auth.token),
   )
 })
+
+async function simpanProfil() {
+  const data = await runProfil(() =>
+    api.put<AuthUser>(
+      '/auth/profile',
+      { name: profil.value.name.trim(), phone: profil.value.phone.trim() || null },
+      auth.token,
+    ),
+  )
+  if (!data) return
+  auth.user = data
+  auth.persist()
+  profil.value = { name: data.name, phone: data.phone ?? '' }
+  toast.success('Data diri berhasil disimpan.')
+}
+
+async function pilihFoto(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    toast.error('Pilih foto JPG, PNG, atau WEBP.')
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    toast.error('Ukuran foto maksimal 2 MB.')
+    return
+  }
+
+  const form = new FormData()
+  form.append('avatar', file)
+  const data = await runFoto(() => api.postForm<AuthUser>('/auth/avatar', form, auth.token))
+  if (!data) return
+  auth.user = data
+  auth.persist()
+  toast.success('Foto profil diperbarui.')
+}
+
+async function hapusFoto() {
+  const setuju = await confirm({
+    title: 'Hapus foto profil?',
+    message: 'Foto akan diganti dengan inisial nama Anda.',
+    confirmLabel: 'Hapus foto',
+    tone: 'danger',
+  })
+  if (!setuju) return
+  const data = await runFoto(() => api.del<AuthUser>('/auth/avatar', auth.token))
+  if (!data) return
+  auth.user = data
+  auth.persist()
+  toast.success('Foto profil dihapus.')
+}
 
 async function gantiSandi() {
   okPw.value = ''
@@ -63,34 +130,86 @@ async function keluar() {
     <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
 
     <AppCard>
-      <div class="flex items-start justify-between gap-2">
-        <div>
-          <p class="font-mono text-xs text-secondary">UID #{{ auth.user?.id }}</p>
-          <h2 class="font-display mt-1 text-lg font-semibold">{{ auth.user?.name }}</h2>
-          <p class="text-sm text-secondary">{{ card?.company ?? auth.companyName }}<span v-if="card?.branch"> · {{ card.branch }}</span></p>
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <AppAvatar
+          :name="auth.user?.name"
+          :src="assetUrl(auth.user?.avatarUrl)"
+          size="xl"
+        />
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 class="font-display text-lg font-semibold">{{ auth.user?.name }}</h2>
+              <p class="text-sm text-secondary">
+                {{ card?.company ?? auth.companyName }}
+                <span v-if="card?.branch"> · {{ card.branch }}</span>
+              </p>
+            </div>
+            <div v-if="card?.role" class="rounded bg-primary-container/15 px-2 py-0.5 text-xs font-semibold text-primary">
+              {{ card.role }}
+            </div>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <input
+              ref="berkas"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              class="hidden"
+              @change="pilihFoto"
+            />
+            <AppButton size="sm" variant="secondary" :loading="fotoLoading" @click="berkas?.click()">
+              <AppIcon name="add_a_photo" :size="16" />Ganti foto
+            </AppButton>
+            <AppButton
+              v-if="auth.user?.avatarUrl"
+              size="sm"
+              variant="ghost"
+              :loading="fotoLoading"
+              @click="hapusFoto"
+            >
+              <AppIcon name="delete" :size="16" />Hapus foto
+            </AppButton>
+          </div>
+          <p class="mt-2 text-xs text-secondary">Foto JPG, PNG, atau WEBP maksimal 2 MB.</p>
         </div>
-        <div v-if="card?.role" class="rounded bg-primary-container/15 px-2 py-0.5 text-xs font-semibold text-primary">{{ card.role }}</div>
       </div>
-      <dl class="mt-4 space-y-3 text-sm">
-        <div>
-          <dt class="text-xs uppercase tracking-wider text-secondary">ID akun</dt>
-          <dd class="font-semibold">{{ auth.user?.id }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs uppercase tracking-wider text-secondary">Nama lengkap</dt>
-          <dd class="font-semibold">{{ auth.user?.name }}</dd>
-        </div>
+      <AppBanner tone="red" :message="fotoError" />
+      <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2">
         <div>
           <dt class="text-xs uppercase tracking-wider text-secondary">Email resmi</dt>
           <dd class="font-semibold">{{ auth.user?.email }}</dd>
         </div>
         <div>
           <dt class="text-xs uppercase tracking-wider text-secondary">Nomor HP</dt>
-          <dd class="font-semibold">{{ auth.user?.phone ?? '–' }}
-            <span v-if="auth.user?.phone" class="ml-1 rounded bg-primary-container/15 px-1.5 py-0.5 text-xs font-semibold text-primary">Aktif</span>
-          </dd>
+          <dd class="font-semibold">{{ auth.user?.phone ?? '–' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-wider text-secondary">ID karyawan</dt>
+          <dd class="font-mono text-xs font-semibold">{{ auth.user?.employeeUuid ?? '–' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-wider text-secondary">Status PTKP</dt>
+          <dd class="font-semibold">{{ auth.user?.ptkpStatus ?? '–' }}</dd>
         </div>
       </dl>
+    </AppCard>
+
+    <AppCard title="Data diri" class="mt-3">
+      <p class="-mt-1 mb-3 text-xs text-secondary">
+        Nama tampil di kartu karyawan dan riwayat aktivitas. Nomor HP dipakai untuk masuk.
+      </p>
+      <AppBanner tone="red" :message="profilError" />
+      <div class="grid gap-3 sm:grid-cols-2">
+        <AppField label="Nama lengkap" required>
+          <AppInput v-model="profil.name" autocomplete="name" />
+        </AppField>
+        <AppField label="Nomor HP" optional>
+          <AppInput v-model="profil.phone" type="tel" autocomplete="tel" placeholder="08xxxxxxxxxx" />
+        </AppField>
+      </div>
+      <AppButton class="mt-3" :loading="profilLoading" :disabled="!profil.name.trim()" @click="simpanProfil">
+        <AppIcon name="save" :size="18" />Simpan data diri
+      </AppButton>
     </AppCard>
 
     <AppCard title="Hak akses & organisasi" class="mt-3">

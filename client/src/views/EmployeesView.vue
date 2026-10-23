@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api } from '../lib/api'
+import { api, assetUrl } from '../lib/api'
 import { tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
 import { usePagedList } from '../composables/usePagedList'
 import { useToast } from '../composables/useToast'
+import AppAvatar from '../components/ui/AppAvatar.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -25,6 +26,7 @@ interface Penempatan {
   userId: number
   userName: string | null
   userEmail: string | null
+  userAvatarUrl: string | null
   branchId: number | null
   branchCode: string | null
   branchName: string | null
@@ -423,8 +425,17 @@ onMounted(async () => {
 
           <tr v-for="item in list" :key="item.id">
             <td>
-              <p class="font-semibold text-ink">{{ namaPengguna(item) }}</p>
-              <p class="text-xs text-secondary">{{ item.userEmail ?? `#${item.userId}` }}</p>
+              <div class="flex items-center gap-2.5">
+                <AppAvatar
+                  :name="namaPengguna(item)"
+                  :src="assetUrl(item.userAvatarUrl)"
+                  size="sm"
+                />
+                <div class="min-w-0">
+                  <p class="font-semibold text-ink">{{ namaPengguna(item) }}</p>
+                  <p class="text-xs text-secondary">{{ item.userEmail ?? `#${item.userId}` }}</p>
+                </div>
+              </div>
             </td>
             <td>
               <AppBadge v-if="item.branchId === null" tone="green">Akses penuh</AppBadge>

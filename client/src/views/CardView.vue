@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import { api, fetchBlob } from '../lib/api'
+import { api, assetUrl, fetchBlob } from '../lib/api'
 import { useCompany } from '../composables/useCompany'
 import { useAsync } from '../composables/useAsync'
+import AppAvatar from '../components/ui/AppAvatar.vue'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -13,7 +14,11 @@ interface Card {
   email: string
   phone: string | null
   employeeUuid: string
+  avatarUrl: string | null
   company: string
+  companyLogoUrl: string | null
+  companyEmail: string | null
+  companyPhone: string | null
   branch: string | null
   role: string | null
 }
@@ -58,16 +63,35 @@ function cetak() {
     <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
 
     <div v-if="card && sisi === 'depan'" class="rounded-xl bg-primary p-5 text-white shadow">
-      <div class="flex items-start justify-between">
-        <div>
-          <p class="font-display font-bold">{{ card.company }}</p>
-          <p class="text-xs uppercase tracking-wider text-emerald-50/80">Kartu karyawan</p>
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-2">
+          <AppAvatar
+            :name="card.company"
+            :src="assetUrl(card.companyLogoUrl)"
+            size="sm"
+            square
+            class="ring-white/30"
+          />
+          <div class="min-w-0">
+            <p class="truncate font-display font-bold">{{ card.company }}</p>
+            <p class="text-xs uppercase tracking-wider text-emerald-50/80">Kartu karyawan</p>
+          </div>
         </div>
-        <AppIcon name="badge" :size="28" />
+        <AppIcon name="badge" :size="28" class="shrink-0" />
       </div>
-      <h2 class="font-display mt-4 text-xl font-bold">{{ card.name }}</h2>
-      <p class="text-sm font-semibold text-emerald-100">{{ card.role ?? 'Karyawan' }}</p>
-      <p class="text-sm text-emerald-50/85">{{ card.branch ?? '' }}</p>
+      <div class="mt-4 flex items-center gap-3">
+        <AppAvatar
+          :name="card.name"
+          :src="assetUrl(card.avatarUrl)"
+          size="xl"
+          class="ring-white/40"
+        />
+        <div class="min-w-0">
+          <h2 class="font-display truncate text-xl font-bold">{{ card.name }}</h2>
+          <p class="text-sm font-semibold text-emerald-100">{{ card.role ?? 'Karyawan' }}</p>
+          <p class="text-sm text-emerald-50/85">{{ card.branch ?? '' }}</p>
+        </div>
+      </div>
       <div class="mt-4 flex items-end justify-between gap-4">
         <p class="font-mono text-xs text-emerald-50/85">{{ card.employeeUuid }}</p>
         <img v-if="qrUrl" :src="qrUrl" alt="QR kartu karyawan" class="h-24 w-24 rounded-lg bg-white p-1" />
@@ -80,6 +104,9 @@ function cetak() {
       <div class="mt-3 space-y-1 text-sm">
         <p>{{ card.email }}</p>
         <p>{{ card.phone ?? '' }}</p>
+        <p v-if="card.companyEmail || card.companyPhone" class="pt-2 text-xs text-emerald-50/80">
+          {{ [card.companyEmail, card.companyPhone].filter(Boolean).join(' · ') }}
+        </p>
       </div>
       <div class="mt-4 flex items-center justify-center">
         <img v-if="qrUrl" :src="qrUrl" alt="QR kartu karyawan" class="h-36 w-36 rounded-lg bg-white p-2" />
