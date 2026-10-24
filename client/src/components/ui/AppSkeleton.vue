@@ -4,7 +4,7 @@ withDefaults(
     lines?: number
     height?: string
     width?: string
-    rounded?: 'sm' | 'md' | 'lg' | 'full'
+    rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
   }>(),
   { lines: 1, height: '0.75rem', width: '100%', rounded: 'md' },
 )
@@ -13,6 +13,7 @@ const roundedClass = {
   sm: 'rounded-sm',
   md: 'rounded-md',
   lg: 'rounded-lg',
+  xl: 'rounded-xl',
   full: 'rounded-full',
 }
 </script>
@@ -22,7 +23,7 @@ const roundedClass = {
     <div
       v-for="line in lines"
       :key="line"
-      class="animate-pulse bg-surface-low"
+      class="animate-pulse bg-surface-low/90"
       :class="roundedClass[rounded]"
       :style="{
         height,

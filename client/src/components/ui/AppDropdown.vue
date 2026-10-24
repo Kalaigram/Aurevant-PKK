@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue'
 import AppIcon from './AppIcon.vue'
 
 interface DropdownItem {
@@ -27,17 +27,18 @@ const open = ref(false)
 const trigger = ref<HTMLElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
 const position = ref<Record<string, string>>({})
+const menuId = `dropdown-${useId()}`
 
 const triggerClasses = computed(() => [
-  'inline-flex items-center justify-center gap-2 rounded-lg text-ink transition hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
-  props.label ? 'px-3 py-2 text-sm font-medium' : 'p-1',
+  'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl text-ink transition hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-1',
+  props.label ? 'px-3.5 py-2 text-sm font-medium' : 'h-10 w-10 p-2',
   props.triggerClass,
 ])
 
 function updatePosition() {
   const rect = trigger.value?.getBoundingClientRect()
   if (!rect) return
-  const estimated = Math.min(props.items.length * 38 + 16, 320)
+  const estimated = Math.min(props.items.length * 40 + 16, 320)
   let top = rect.bottom + 6
   if (top + estimated > window.innerHeight - 8) top = Math.max(8, rect.top - estimated - 6)
   const width = Math.max(rect.width, props.menuWidth)
@@ -129,6 +130,7 @@ onBeforeUnmount(() => {
       :aria-label="label || 'Buka menu'"
       aria-haspopup="menu"
       :aria-expanded="open"
+      :aria-controls="open ? menuId : undefined"
       :class="triggerClasses"
       @click="toggle"
       @keydown.down.prevent="openMenu"
@@ -151,10 +153,11 @@ onBeforeUnmount(() => {
       >
         <div
           v-if="open"
+          :id="menuId"
           ref="menu"
           role="menu"
           :aria-label="label || 'Menu'"
-          class="fixed z-[90] max-h-[min(320px,calc(100vh-16px))] origin-top-right overflow-y-auto overscroll-contain rounded-xl border border-outline/70 bg-card p-1 shadow-xl"
+          class="fixed z-[90] max-h-[min(320px,calc(100vh-16px))] origin-top-right overflow-y-auto overscroll-contain rounded-xl border border-outline/70 bg-card p-1 shadow-float"
           :style="position"
           @keydown="onMenuKeydown"
         >
@@ -164,7 +167,7 @@ onBeforeUnmount(() => {
               v-else-if="item.to && !item.disabled"
               :to="item.to"
               role="menuitem"
-              class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition hover:bg-surface-low focus:bg-surface-low focus:outline-none"
+              class="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition hover:bg-surface-low focus-visible:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/55"
               :class="item.danger ? 'text-danger' : 'text-ink'"
               @click="close"
             >
@@ -176,7 +179,7 @@ onBeforeUnmount(() => {
               type="button"
               role="menuitem"
               :disabled="item.disabled"
-              class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-surface-low focus:bg-surface-low focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+              class="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-surface-low focus-visible:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/55 disabled:cursor-not-allowed disabled:opacity-40"
               :class="item.danger ? 'text-danger' : 'text-ink'"
               @click="choose(item)"
             >

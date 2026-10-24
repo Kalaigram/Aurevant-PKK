@@ -65,15 +65,15 @@ function changePerPage(event: Event) {
     v-if="meta && total > 0"
     class="mt-3 flex flex-col gap-3 text-sm text-secondary sm:flex-row sm:items-center sm:justify-between"
   >
-    <p class="text-xs">
+    <p class="text-xs tabular-nums">
       Menampilkan <span class="font-medium text-ink">{{ from }}–{{ to }}</span> dari
       <span class="font-medium text-ink">{{ total }}</span>
     </p>
 
-    <nav v-if="last > 1" class="flex flex-wrap items-center gap-1" aria-label="Paginasi">
+    <nav v-if="last > 1" class="flex flex-wrap items-center gap-1.5" aria-label="Paginasi">
       <button
         type="button"
-        class="flex h-8 w-8 items-center justify-center rounded-lg border border-outline bg-card text-ink transition hover:bg-surface-low disabled:cursor-not-allowed disabled:opacity-40"
+        class="flex h-11 w-11 items-center justify-center rounded-xl border border-outline/80 bg-card text-ink transition hover:border-outline-strong hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-40 sm:h-9 sm:w-9"
         :disabled="current <= 1"
         aria-label="Halaman sebelumnya"
         @click="go(current - 1)"
@@ -81,15 +81,15 @@ function changePerPage(event: Event) {
         <AppIcon name="chevron_left" :size="18" />
       </button>
       <template v-for="(page, index) in pages" :key="`${page}-${index}`">
-        <span v-if="page === '…'" class="px-1 text-xs text-secondary">…</span>
+        <span v-if="page === '…'" class="px-1 text-xs text-secondary" aria-hidden="true">…</span>
         <button
           v-else
           type="button"
-          class="min-w-8 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
+          class="min-h-11 min-w-11 rounded-xl px-2.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-1 sm:min-h-9 sm:min-w-9"
           :class="
             page === current
-              ? 'bg-primary text-on-primary shadow-sm'
-              : 'border border-outline bg-card text-ink hover:bg-surface-low'
+              ? 'bg-primary-container text-on-primary shadow-card'
+              : 'border border-outline/80 bg-card text-ink hover:border-outline-strong hover:bg-surface-low'
           "
           :aria-current="page === current ? 'page' : undefined"
           :aria-label="`Halaman ${page}`"
@@ -100,7 +100,7 @@ function changePerPage(event: Event) {
       </template>
       <button
         type="button"
-        class="flex h-8 w-8 items-center justify-center rounded-lg border border-outline bg-card text-ink transition hover:bg-surface-low disabled:cursor-not-allowed disabled:opacity-40"
+        class="flex h-11 w-11 items-center justify-center rounded-xl border border-outline/80 bg-card text-ink transition hover:border-outline-strong hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-40 sm:h-9 sm:w-9"
         :disabled="current >= last"
         aria-label="Halaman berikutnya"
         @click="go(current + 1)"
@@ -112,7 +112,7 @@ function changePerPage(event: Event) {
     <label v-if="showPerPage" class="flex items-center gap-2 text-xs">
       <span>Baris</span>
       <select
-        class="rounded-lg border border-outline bg-card px-2 py-1.5 text-xs text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+        class="min-h-9 rounded-lg border border-outline/80 bg-card px-2.5 py-1.5 text-xs text-ink transition hover:border-outline-strong focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
         :value="meta.per_page"
         aria-label="Jumlah baris per halaman"
         @change="changePerPage"

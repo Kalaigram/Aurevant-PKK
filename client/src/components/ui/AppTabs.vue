@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useId } from 'vue'
+
 interface TabItem {
   key: string
   label: string
@@ -6,16 +8,27 @@ interface TabItem {
   disabled?: boolean
 }
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     items: TabItem[]
     modelValue: string
     label?: string
+    idPrefix?: string
+    panelPrefix?: string
   }>(),
-  { label: 'Tab' },
+  { label: 'Tab', idPrefix: '', panelPrefix: '' },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [key: string] }>()
+const generatedId = useId()
+
+function tabId(key: string) {
+  return `${props.idPrefix || `tabs-${generatedId}`}-${key}`
+}
+
+function panelId(key: string) {
+  return props.panelPrefix ? `${props.panelPrefix}-${key}` : undefined
+}
 
 function select(item: TabItem) {
   if (item.disabled) return
@@ -47,23 +60,25 @@ function onKeydown(event: KeyboardEvent) {
 <template>
   <div
     role="tablist"
+    aria-orientation="horizontal"
     :aria-label="label"
     class="flex gap-1 overflow-x-auto border-b border-outline/70"
     @keydown="onKeydown"
   >
     <button
       v-for="item in items"
-      :id="`tab-${item.key}`"
+      :id="tabId(item.key)"
       :key="item.key"
       type="button"
       role="tab"
       :aria-selected="modelValue === item.key"
+      :aria-controls="panelId(item.key)"
       :tabindex="modelValue === item.key ? 0 : -1"
       :disabled="item.disabled"
-      class="relative inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-40"
+      class="relative inline-flex min-h-11 shrink-0 items-center gap-1.5 border-b-2 px-3.5 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-1 disabled:opacity-40"
       :class="
         modelValue === item.key
-          ? 'border-primary text-primary'
+          ? 'border-primary text-primary-ink'
           : 'border-transparent text-secondary hover:border-outline-strong hover:text-ink'
       "
       @click="select(item)"
@@ -71,7 +86,8 @@ function onKeydown(event: KeyboardEvent) {
       {{ item.label }}
       <span
         v-if="item.count !== undefined"
-        class="rounded-full bg-surface-low px-1.5 py-0.5 text-[10px] font-semibold text-secondary"
+        class="rounded-full px-1.5 py-0.5 text-2xs font-semibold tabular-nums"
+        :class="modelValue === item.key ? 'bg-primary-soft text-primary-ink' : 'bg-surface-low text-secondary'"
       >
         {{ item.count }}
       </span>

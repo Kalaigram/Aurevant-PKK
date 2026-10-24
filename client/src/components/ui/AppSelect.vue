@@ -47,8 +47,12 @@ function onChange(event: Event) {
       :value="model === null ? '' : model"
       :disabled="disabled"
       :aria-invalid="invalid || undefined"
-      class="w-full appearance-none rounded-lg border bg-card py-2.5 pl-3 pr-9 text-sm text-ink shadow-sm transition focus:outline-none focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:bg-surface-low disabled:text-secondary"
-      :class="invalid ? 'border-danger focus:border-danger' : 'border-outline focus:border-primary'"
+      class="min-h-11 w-full appearance-none rounded-xl border bg-card py-2.5 pl-3.5 pr-10 text-sm text-ink transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-low disabled:text-secondary"
+      :class="
+        invalid
+          ? 'border-danger focus:border-danger focus:ring-danger/20'
+          : 'border-outline/90 focus:border-primary focus:ring-primary/30'
+      "
       @change="onChange"
     >
       <option v-if="placeholder" value="">{{ placeholder }}</option>
@@ -66,7 +70,7 @@ function onChange(event: Event) {
     <AppIcon
       name="expand_more"
       :size="18"
-      class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-secondary"
+      class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-secondary"
     />
   </div>
 </template>

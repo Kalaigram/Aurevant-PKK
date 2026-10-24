@@ -56,7 +56,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="flex items-center gap-2 rounded-lg border border-outline bg-card px-3 shadow-sm transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15"
+    class="flex min-h-11 items-center gap-2 rounded-xl border border-outline/90 bg-card px-3.5 transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30"
   >
     <AppIcon name="search" :size="18" class="text-secondary" />
     <input
@@ -67,7 +67,7 @@ onBeforeUnmount(() => {
       :aria-label="label"
       :placeholder="placeholder"
       :disabled="disabled"
-      class="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-ink placeholder:text-secondary/60 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+      class="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-ink placeholder:text-secondary/65 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
       @keydown.enter.prevent="onEnter"
     />
     <svg
@@ -83,7 +83,7 @@ onBeforeUnmount(() => {
     <button
       v-else-if="model"
       type="button"
-      class="rounded-md p-1 text-secondary transition hover:bg-surface-low hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+      class="flex h-8 w-8 items-center justify-center rounded-lg text-secondary transition hover:bg-surface-low hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
       aria-label="Hapus pencarian"
       @click="clear"
     >

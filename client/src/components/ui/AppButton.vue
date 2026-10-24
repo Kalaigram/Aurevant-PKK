@@ -23,9 +23,9 @@ const props = withDefaults(
 const styles = {
   primary: 'bg-primary-container text-on-primary shadow-sm hover:bg-primary-hover',
   secondary: 'bg-surface-low text-ink hover:bg-outline/30',
-  danger: 'bg-danger text-white shadow-sm hover:bg-red-800',
-  ghost: 'border border-outline bg-transparent text-ink hover:bg-surface-low',
-  subtle: 'bg-primary-soft text-primary hover:bg-primary-soft/70',
+  danger: 'bg-danger text-on-primary shadow-sm hover:bg-danger-hover',
+  ghost: 'border border-outline bg-transparent text-ink hover:border-outline-strong hover:bg-surface-low',
+  subtle: 'bg-primary-soft text-primary-ink hover:bg-primary-soft/70',
 }
 
 const sizes = {
@@ -34,9 +34,14 @@ const sizes = {
   lg: 'min-h-11 px-5 py-3 text-sm',
 }
 
+const stateClass = computed(() =>
+  props.loading ? 'cursor-wait' : 'disabled:cursor-not-allowed disabled:opacity-55',
+)
+
 const classes = computed(() => [
   styles[props.variant],
   sizes[props.size],
+  stateClass.value,
   props.block ? 'w-full' : '',
 ])
 </script>
@@ -46,7 +51,7 @@ const classes = computed(() => [
     :type="type"
     :disabled="loading || disabled"
     :aria-busy="loading || undefined"
-    class="inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+    class="inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-[background-color,border-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-2 active:translate-y-px disabled:shadow-none"
     :class="classes"
   >
     <svg

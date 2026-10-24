@@ -50,7 +50,7 @@ onBeforeUnmount(() => {
   <div
     :role="item.tone === 'error' ? 'alert' : 'status'"
     aria-atomic="true"
-    class="pointer-events-auto flex w-full items-start gap-3 rounded-xl border border-l-4 border-outline/70 bg-card p-3.5 shadow-lg"
+    class="pointer-events-auto flex w-full items-start gap-3 rounded-2xl border border-l-4 border-outline/70 bg-card p-4 shadow-float"
     :class="tones[item.tone]"
     @mouseenter="pause"
     @mouseleave="resume"
@@ -64,7 +64,7 @@ onBeforeUnmount(() => {
     </div>
     <button
       type="button"
-      class="-mr-1 rounded-md p-1 text-secondary transition hover:bg-surface-low hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+      class="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-secondary transition hover:bg-surface-low hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
       aria-label="Tutup notifikasi"
       @click="emit('dismiss', item.id)"
     >

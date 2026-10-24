@@ -1,0 +1,325 @@
+# UI Polish Plan — Aurevant PKK
+
+Status: **Phase 1 selesai dan terverifikasi, menunggu review/commit**  
+Branch: `feat/ui-design-system`  
+Design system: [`doc/DESIGN.md`](./DESIGN.md)  
+Arah visual: **calm green premium**  
+Mode: light only
+
+## 1. Tujuan
+
+Melakukan polish UI web secara menyeluruh dan terukur tanpa mengubah alur bisnis.
+
+Hasil yang ingin dicapai:
+
+- seluruh halaman memakai satu sistem visual;
+- hierarchy halaman lebih jelas;
+- tabel, form, modal, dan navigasi konsisten;
+- pengalaman mobile dan keyboard lebih baik;
+- tidak ada hardcoded style baru di luar token;
+- perubahan bisa di-review dan di-rollback per fase.
+
+## 2. Guardrail
+
+- Jangan mengubah API, permission, atau alur data.
+- Jangan menyentuh file Android.
+- Jangan menambah dependency UI baru.
+- Jangan menambah dark mode.
+- Jangan memakai raw hex/status color baru di view.
+- Jangan membuat modal custom; gunakan `AppModal` atau `AppConfirm`.
+- Jangan memakai `outline-none` tanpa focus ring pengganti.
+- Jangan mengubah halaman dengan data yang belum dipahami.
+- Jangan men-stage file Android, `postman/`, atau `android/.kotlin/`.
+- Commit hanya setelah verifikasi dan persetujuan.
+- Setiap fase harus lolos type-check, lint, dan build sebelum lanjut.
+
+## 3. Baseline Audit
+
+### High
+
+- [ ] Modal custom `z-20` berada di bawah header `z-30` dan bottom nav `z-40`.
+  - `ExpensesView`, `ReceivablesView`, `RolesView`, `PlansView`, `TenantsView`, `ProfileView`, `CompaniesView`.
+- [x] Focus ring shared components sudah diganti ring 2px dengan kontras cukup; audit per view menyusul di fase halaman.
+- [ ] Baris/card click-only tidak dapat diakses keyboard.
+  - `ApprovalsView`, `NotificationsView`, `AuditView`, `TenantsView`, `SalesView`, `PurchaseView`, `TransfersView`, `OpnamesView`, `ServicesView`.
+- [ ] Kontrol POS terlalu padat dan beberapa ikon tanpa label.
+- [ ] Microcopy sidebar kontrasnya terlalu rendah.
+- [ ] Demo credential tampil permanen di login.
+
+### Medium
+
+- [ ] Dua sistem page header: `AppPageHeader` vs heading manual.
+- [ ] Stat card diduplikasi di banyak halaman.
+- [x] `AppCard` sudah punya padding prop; migrasi `!p-3` dilakukan saat polish view.
+- [ ] Tabel mentah di `LeavesView`, `HrAttendanceView`, `TenantsView`, `JournalView`.
+- [ ] Filter bar dan field belum seragam.
+- [ ] Loading state literal “Memuat…” di banyak halaman.
+- [ ] Tabel mobile belum punya strategi seragam.
+- [ ] Raw Tailwind status colors tersebar di beberapa komponen.
+- [x] `AppTabs` sudah mendukung `aria-controls` lewat prop `panel-prefix`; pemasangan panel dilakukan per view.
+
+### Low
+
+- [ ] Label status/bucket masih ada yang mentah.
+- [ ] Type scale 10–11px terlalu sering.
+- [ ] Beberapa tanggal/kode belum diformat.
+- [ ] Beberapa tombol ikon belum punya accessible name.
+
+## 4. Urutan Eksekusi
+
+### Phase 0 — Design contract
+
+- [x] Buat `doc/DESIGN.md`.
+- [x] Buat rencana bertahap ini.
+- [x] Tetapkan branch kerja.
+- [x] Review dan approval arah visual.
+- [x] Kunci token final sebelum menyentuh komponen.
+
+**Gate:** jangan mulai Phase 1 sebelum `DESIGN.md` disetujui.
+
+### Phase 1 — Foundation dan shared components
+
+Tujuan: satu perubahan di komponen bersama otomatis memperbaiki seluruh halaman.
+
+- [x] Update token di `client/src/assets/main.css`.
+- [x] Tambah shadow, type scale, focus ring, ambient background, page transition.
+- [x] Rapikan `AppButton`, `AppCard`, `AppStat`, `AppBadge`, `AppBanner`.
+- [x] Rapikan `AppInput`, `AppSearch`, `AppSelect`, `AppTextarea`, `AppMoneyInput`, `AppField`.
+- [x] Rapikan `AppTable`, `AppPager`, `AppEmpty`, `AppSkeleton`.
+- [x] Rapikan `AppModal`, `AppConfirm`, `AppDropdown`, `AppTabs`.
+- [x] Rapikan `AppPageHeader`.
+
+**Acceptance:**
+
+- seluruh komponen punya state default, hover, focus, disabled, loading, error;
+- tidak ada raw color baru;
+- tidak ada regresi type-check;
+- build CSS bersih.
+
+**Status:** selesai — `type-check`, `lint`, dan `build` lulus (177 modul, CSS 67.13 kB). Belum di-commit.
+
+**Commit:** `feat(ui): foundation tokens and shared components`
+
+### Phase 2 — App shell dan navigasi
+
+File utama: `client/src/App.vue`.
+
+- [ ] Sidebar: contrast, spacing, active state, company switcher, footer user.
+- [ ] Header: tinggi, glass, tanggal, notifikasi, avatar, mobile trigger.
+- [ ] Main content: max width, page transition, padding.
+- [ ] Footer.
+- [ ] Bottom nav mobile: floating, active state, badge, safe area.
+- [ ] Drawer menu mobile: grouping, touch target, current page.
+- [ ] Skip link dan focus order.
+
+**Acceptance:**
+
+- sidebar nyaman dibaca;
+- nav aktif terlihat jelas;
+- mobile bottom nav tidak menutupi konten;
+- semua icon-only button punya label;
+- keyboard traversal masuk akal.
+
+**Commit:** `feat(ui): premium app shell and navigation`
+
+### Phase 3 — Auth dan pemilihan perusahaan
+
+File:
+
+- `client/src/components/AuthLayout.vue`
+- `client/src/views/LoginView.vue`
+- `client/src/views/RegisterView.vue`
+- `client/src/views/ForgotPasswordView.vue`
+- `client/src/views/ResetPasswordView.vue`
+- `client/src/views/CompaniesView.vue`
+
+- [ ] Auth layout: brand panel, form hierarchy, mobile version.
+- [ ] Form fields memakai `AppInput`/`AppField`.
+- [ ] Password visibility dan error state.
+- [ ] Demo credential dipindahkan ke environment demo atau dihapus.
+- [ ] Companies: kartu perusahaan, status, cabang, tagihan, modal shared.
+- [ ] Empty/loading state.
+
+**Commit:** `feat(ui): auth and company selection polish`
+
+### Phase 4 — Dashboard
+
+File: `client/src/views/DashboardView.vue`.
+
+- [ ] Hero perusahaan + status + periode.
+- [ ] Quick actions sesuai permission.
+- [ ] Finansial memakai `AppStat`.
+- [ ] Penjualan memakai `AppStat` + sparkline.
+- [ ] Perlu perhatian.
+- [ ] Kehadiran, karyawan, payroll.
+- [ ] Loading skeleton.
+- [ ] Format tanggal dan status.
+
+**Commit:** `feat(ui): dashboard hierarchy and data cards`
+
+### Phase 5 — Operasional
+
+File:
+
+- `PosView`
+- `SalesView`
+- `ServicesView`
+- `PurchaseView`
+- `CatalogView`
+- `PricesView`
+- `CustomersView`
+- `StockView`
+- `TransfersView`
+- `OpnamesView`
+- `ApprovalsView`
+
+- [ ] Page header seragam.
+- [ ] Filter bar dan action bar.
+- [ ] Tabel/list loading, empty, mobile overflow.
+- [ ] Baris clickable dapat diakses keyboard.
+- [ ] POS: label pembayaran, layout mobile, touch target.
+- [ ] Detail/action modal memakai `AppModal`.
+- [ ] Status dan format angka konsisten.
+
+**Commit:** `feat(ui): operational page polish`
+
+### Phase 6 — Keuangan
+
+File:
+
+- `ExpensesView`
+- `DebtsView`
+- `ReceivablesView`
+- `JournalView`
+- `ReportsView`
+- `PeriodsView`
+
+- [ ] Ganti modal custom dengan `AppModal`.
+- [ ] Stat memakai `AppStat`.
+- [ ] Filter dan field memakai komponen shared.
+- [ ] Tabel jurnal dan laporan.
+- [ ] Format bucket/status.
+- [ ] Empty/loading state.
+
+**Commit:** `feat(ui): finance page polish`
+
+### Phase 7 — SDM
+
+File:
+
+- `AttendanceView`
+- `HrAttendanceView`
+- `LeavesView`
+- `ScheduleView`
+- `PayrollView`
+- `SlipView`
+- `EmployeesView`
+- `CardView`
+
+- [ ] Tabel/filter shared.
+- [ ] Ringkasan kehadiran.
+- [ ] Schedule grid dan navigasi.
+- [ ] Payroll summary dan aksi.
+- [ ] Employee card/avatar.
+- [ ] Format tanggal dan status.
+
+**Commit:** `feat(ui): HR page polish`
+
+### Phase 8 — Admin dan pengaturan
+
+File:
+
+- `NotificationsView`
+- `SubscriptionView`
+- `CompanyProfileView`
+- `ProfileView`
+- `BranchesView`
+- `RolesView`
+- `TenantsView`
+- `PlansView`
+- `AuditView`
+- `ImportView`
+- `NationalHolidaysView`
+
+- [ ] Page header.
+- [ ] Modal shared.
+- [ ] Form dan tabel.
+- [ ] Status langganan.
+- [ ] Empty/loading state.
+- [ ] Akses keyboard.
+
+**Commit:** `feat(ui): admin settings and accessibility polish`
+
+### Phase 9 — QA dan hardening
+
+- [ ] Cek 375px, 390px, 768px, 1024px, 1440px, 1600px.
+- [ ] Cek keyboard: tab order, focus, Escape, modal trap.
+- [ ] Cek kontras teks kecil dan badge.
+- [ ] Cek `prefers-reduced-motion`.
+- [ ] Cek tabel overflow dan bottom nav overlap.
+- [ ] Smoke test per role demo.
+- [ ] `npm run type-check`.
+- [ ] `npm run lint`.
+- [ ] `npm run build`.
+- [ ] Review diff; pastikan file Android tidak ikut.
+
+**Commit:** `fix(ui): responsive and accessibility hardening`
+
+## 5. Page Inventory
+
+| Grup | Halaman | Status |
+|---|---|---|
+| Foundation | `main.css`, shared components | selesai |
+| Auth | Login, Register, Forgot, Reset | belum |
+| Gateway | Companies | belum |
+| Dashboard | Dashboard | belum |
+| Operasional | POS, Sales, Services, Purchase, Catalog, Prices, Customers, Stock, Transfers, Opnames, Approvals | belum |
+| Keuangan | Expenses, Debts, Receivables, Journal, Reports, Periods | belum |
+| SDM | Attendance, HrAttendance, Leaves, Schedule, Payroll, Slip, Employees, Card | belum |
+| Admin | Notifications, Subscription, CompanyProfile, Profile, Branches, Roles, Tenants, Plans, Audit, Import, NationalHolidays | belum |
+| Shell | App.vue, AuthLayout, CompanyShell | belum |
+
+Status yang dipakai: `belum`, `sedang`, `selesai`, `blocked`.
+
+## 6. Verifikasi
+
+Per fase:
+
+```bash
+cd client
+npm run type-check
+npm run lint
+npm run build
+```
+
+Manual:
+
+- desktop 1440px;
+- tablet 768px;
+- mobile 375px;
+- keyboard only;
+- satu akun owner dan satu akun role terbatas;
+- halaman dengan data kosong;
+- halaman dengan data panjang.
+
+## 7. Commit dan Rollback
+
+- Satu fase satu commit.
+- Jangan gabungkan polish dengan perubahan backend.
+- Jangan commit file Android.
+- Jika satu fase bermasalah, revert commit fase tersebut, bukan seluruh branch.
+- Jangan push sebelum seluruh rangkaian selesai dan disetujui.
+
+## 8. Definition of Done
+
+- Semua halaman memakai `AppPageHeader` atau pola yang setara.
+- Tidak ada modal custom.
+- Semua form punya label dan error state.
+- Semua interactive element punya focus state dan accessible name.
+- Semua tabel punya loading, empty, dan overflow mobile.
+- Tidak ada hardcoded status color baru.
+- Tidak ada teks “Memuat…” untuk loading utama.
+- Kontras teks minimal 4.5:1.
+- Mobile bottom nav tidak menutupi konten.
+- Type-check, lint, dan build bersih.
+- File Android dan file tidak terkait tidak ikut di-stage.

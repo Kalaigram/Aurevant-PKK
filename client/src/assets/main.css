@@ -7,37 +7,65 @@
   --color-primary: #005d42;
   --color-primary-container: #0b6b4f;
   --color-primary-hover: #004a35;
+  --color-primary-ink: #003d2b;
   --color-primary-soft: #e7f2ed;
   --color-on-primary: #ffffff;
   --color-tertiary: #005d3e;
-  --color-secondary: #5b6b64;
+  --color-secondary: #52635b;
   --color-surface: #f6f8f7;
-  --color-surface-low: #eef2f0;
+  --color-surface-low: #edf2ef;
+  --color-surface-raised: #fbfcfb;
   --color-card: #ffffff;
   --color-ink: #14201b;
+  --color-scrim: #0b1712;
   --color-outline: #d7e0db;
   --color-outline-strong: #b8c6bf;
   --color-danger: #b42318;
+  --color-danger-hover: #912018;
   --color-danger-bg: #fde8e6;
   --color-warn: #b45309;
+  --color-warn-ink: #7c3e06;
   --color-warn-bg: #fef3c7;
   --color-ok: #15803d;
+  --color-ok-ink: #10622f;
   --color-ok-bg: #e7f6ec;
   --color-info: #1d4ed8;
+  --color-info-ink: #1e3a8a;
   --color-info-bg: #e8efff;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-3xs: 0.625rem;
+  --text-3xs--line-height: 0.875rem;
+
+  --shadow-card: 0 1px 2px rgba(20, 32, 27, 0.04), 0 1px 3px rgba(20, 32, 27, 0.03);
+  --shadow-lifted: 0 4px 12px rgba(20, 32, 27, 0.06), 0 1px 3px rgba(20, 32, 27, 0.04);
+  --shadow-float: 0 12px 32px rgba(20, 32, 27, 0.12), 0 2px 8px rgba(20, 32, 27, 0.05);
+  --shadow-sidebar: 0 18px 44px rgba(0, 30, 22, 0.14);
 }
 
 @layer base {
   html {
     color-scheme: light;
+    scroll-padding-top: 5.5rem;
   }
 
   body {
     @apply min-h-screen bg-surface text-ink antialiased;
+    background-image:
+      radial-gradient(1100px 620px at 6% -8%, rgba(0, 93, 66, 0.07), transparent 62%),
+      radial-gradient(860px 520px at 100% 0%, rgba(82, 99, 91, 0.055), transparent 58%);
+    background-attachment: fixed;
     font-feature-settings:
       'cv02' 1,
       'cv03' 1,
       'cv04' 1;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
 
   button,
@@ -76,7 +104,8 @@
 }
 
 .app-table-wrap {
-  @apply overflow-hidden rounded-xl border border-outline/70 bg-card shadow-sm;
+  @apply overflow-hidden rounded-2xl border border-outline/60 bg-card shadow-card;
+  -webkit-overflow-scrolling: touch;
 }
 
 .app-table {
@@ -90,30 +119,30 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: color-mix(in srgb, var(--color-surface-low) 72%, white);
+  background: color-mix(in srgb, var(--color-surface-low) 76%, white);
   color: var(--color-secondary);
-  font-size: 0.6875rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.045em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 .app-table th,
 .app-table td {
-  padding: 0.7rem 0.9rem;
+  padding: 0.75rem 0.9rem;
   text-align: left;
   vertical-align: middle;
 }
 
 .app-table th:first-child,
 .app-table td:first-child {
-  padding-left: 1rem;
+  padding-left: 1.15rem;
 }
 
 .app-table th:last-child,
 .app-table td:last-child {
-  padding-right: 1rem;
+  padding-right: 1.15rem;
 }
 
 .app-table tbody tr {
@@ -121,17 +150,53 @@
 }
 
 .app-table tbody tr:hover {
-  background: color-mix(in srgb, var(--color-surface-low) 45%, white);
+  background: color-mix(in srgb, var(--color-surface-low) 48%, white);
+}
+
+.app-table tbody tr:focus-visible {
+  outline-offset: -2px;
 }
 
 .app-table tbody tr + tr td {
   border-top: 1px solid color-mix(in srgb, var(--color-outline) 65%, white);
 }
 
+.app-table .num {
+  font-variant-numeric: tabular-nums;
+}
+
 .app-table tfoot td {
   border-top: 1px solid var(--color-outline);
   background: var(--color-surface-low);
   font-weight: 600;
+}
+
+.page-enter-active,
+.page-leave-active {
+  transition:
+    opacity 160ms ease,
+    transform 200ms ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-3px);
+}
+
+.app-glass {
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.1);
+}
+
+.ambient-glow {
+  background:
+    radial-gradient(520px 280px at 18% 0%, rgba(0, 93, 66, 0.12), transparent 70%),
+    radial-gradient(420px 240px at 85% 15%, rgba(82, 99, 91, 0.1), transparent 72%);
 }
 
 .toast-enter-active,

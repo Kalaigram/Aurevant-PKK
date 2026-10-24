@@ -50,8 +50,12 @@ function onBlur() {
 
 <template>
   <div
-    class="flex items-center gap-2 rounded-lg border bg-card px-3 shadow-sm transition focus-within:ring-2 focus-within:ring-primary/15"
-    :class="invalid ? 'border-danger focus-within:border-danger' : 'border-outline focus-within:border-primary'"
+    class="flex min-h-11 items-center gap-2 rounded-xl border bg-card px-3.5 transition focus-within:ring-2"
+    :class="
+      invalid
+        ? 'border-danger focus-within:border-danger focus-within:ring-danger/20'
+        : 'border-outline/90 focus-within:border-primary focus-within:ring-primary/30'
+    "
   >
     <span class="text-sm font-medium text-secondary">Rp</span>
     <input
@@ -65,7 +69,7 @@ function onBlur() {
       :disabled="disabled"
       :readonly="readonly"
       :aria-invalid="invalid || undefined"
-      class="min-w-0 flex-1 bg-transparent py-2.5 text-sm tabular-nums text-ink placeholder:text-secondary/60 focus:outline-none disabled:cursor-not-allowed disabled:text-secondary"
+      class="min-w-0 flex-1 bg-transparent py-2.5 text-sm tabular-nums text-ink placeholder:text-secondary/65 focus:outline-none disabled:cursor-not-allowed disabled:text-secondary"
       @input="onInput"
       @blur="onBlur"
     />

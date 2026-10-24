@@ -128,7 +128,7 @@ onBeforeUnmount(unlockScroll)
     <Transition name="modal">
       <div
         v-if="open"
-        class="modal-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-[1px] sm:items-center sm:p-4"
+        class="modal-overlay fixed inset-0 z-50 flex items-end justify-center bg-scrim/45 backdrop-blur-[2px] sm:items-center sm:p-4"
         @click.self="closeOnBackdrop && close()"
         @keydown="onKeydown"
       >
@@ -140,37 +140,41 @@ onBeforeUnmount(unlockScroll)
           :aria-describedby="description ? descriptionId : undefined"
           :aria-label="!title ? description || 'Dialog' : undefined"
           tabindex="-1"
-          class="modal-panel flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-card shadow-2xl outline-none sm:rounded-2xl"
+          class="modal-panel flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-outline/60 bg-card shadow-float outline-none sm:rounded-2xl"
           :class="sizes[size]"
         >
+          <div
+            class="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-outline-strong/70 sm:hidden"
+            aria-hidden="true"
+          />
           <header
             v-if="title || description || !hideClose"
             class="flex items-start justify-between gap-4 border-b border-outline/60 px-4 py-4 sm:px-5"
           >
             <div class="min-w-0">
-              <h2 v-if="title" :id="titleId" class="font-display text-base font-semibold text-ink">
+              <h2 v-if="title" :id="titleId" class="font-display text-lg font-semibold tracking-tight text-ink">
                 {{ title }}
               </h2>
-              <p v-if="description" :id="descriptionId" class="mt-1 text-sm text-secondary">
+              <p v-if="description" :id="descriptionId" class="mt-1 text-sm leading-relaxed text-secondary">
                 {{ description }}
               </p>
             </div>
             <button
               v-if="!hideClose"
               type="button"
-              class="-mr-1 rounded-lg p-1.5 text-secondary transition hover:bg-surface-low hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              class="-mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-secondary transition hover:bg-surface-low hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
               aria-label="Tutup dialog"
               @click="close"
             >
               <AppIcon name="close" :size="20" />
             </button>
           </header>
-          <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+          <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
             <slot />
           </div>
           <footer
             v-if="$slots.footer"
-            class="flex flex-wrap items-center justify-end gap-2 border-t border-outline/60 bg-surface-low/40 px-4 py-3 sm:px-5"
+            class="flex flex-wrap items-center justify-end gap-2 border-t border-outline/60 bg-surface-low/45 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:pb-3"
           >
             <slot name="footer" />
           </footer>

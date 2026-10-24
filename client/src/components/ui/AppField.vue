@@ -67,14 +67,21 @@ watch(
 
 <template>
   <div ref="root" class="min-w-0">
-    <label :for="controlId" class="mb-1.5 flex items-center gap-1 text-sm font-medium text-ink">
+    <label :for="controlId" class="mb-1.5 flex items-center gap-1 text-[13px] font-semibold text-ink">
       {{ label }}
       <span v-if="required" class="text-danger" aria-hidden="true">*</span>
       <span v-if="optional" class="text-xs font-normal text-secondary">(opsional)</span>
     </label>
     <slot :id="controlId" />
-    <p v-if="hint && !error" :id="hintId" class="mt-1 text-xs text-secondary">{{ hint }}</p>
-    <p v-if="error" :id="errorId" class="mt-1 text-xs font-medium text-danger" aria-live="polite">
+    <p v-if="hint && !error" :id="hintId" class="mt-1.5 text-xs leading-relaxed text-secondary">
+      {{ hint }}
+    </p>
+    <p
+      v-if="error"
+      :id="errorId"
+      class="mt-1.5 text-xs font-medium leading-relaxed text-danger"
+      aria-live="polite"
+    >
       {{ error }}
     </p>
   </div>

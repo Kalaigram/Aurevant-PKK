@@ -16,10 +16,10 @@ const props = withDefaults(
 const emit = defineEmits<{ dismiss: [] }>()
 
 const styles = {
-  red: 'border-danger/20 bg-danger-bg/70 text-red-900',
-  green: 'border-ok/20 bg-ok-bg text-emerald-900',
-  amber: 'border-warn/20 bg-warn-bg/80 text-amber-900',
-  blue: 'border-info/20 bg-info-bg text-blue-900',
+  red: 'border-danger/25 bg-danger-bg/75 text-danger',
+  green: 'border-ok/25 bg-ok-bg text-ok-ink',
+  amber: 'border-warn/30 bg-warn-bg/85 text-warn-ink',
+  blue: 'border-info/25 bg-info-bg text-info-ink',
   gray: 'border-outline bg-surface-low text-ink',
 }
 
@@ -42,7 +42,7 @@ const ikon = computed(() => props.icon || icons[props.tone])
     class="mb-4 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm"
     :class="styles[tone]"
   >
-    <AppIcon :name="ikon" :size="20" class="mt-0.5" />
+    <AppIcon :name="ikon" :size="20" class="mt-0.5 opacity-90" />
     <div class="min-w-0 flex-1">
       <p v-if="title" class="font-semibold">{{ title }}</p>
       <div class="leading-relaxed">
@@ -52,7 +52,7 @@ const ikon = computed(() => props.icon || icons[props.tone])
     <button
       v-if="dismissible"
       type="button"
-      class="-mr-1 rounded-md p-1 opacity-70 transition hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
+      class="-mr-1 rounded-lg p-1.5 opacity-70 transition hover:bg-ink/5 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2"
       aria-label="Tutup pemberitahuan"
       @click="emit('dismiss')"
     >
