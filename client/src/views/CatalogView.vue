@@ -345,6 +345,11 @@ async function hapusSupplier(s: Supplier) {
   if (sukses) await loadSuppliers()
 }
 
+const labelTipe = (type: string) =>
+  type === 'barang' ? 'Barang' : type === 'jasa' ? 'Jasa' : type
+const labelStatusItem = (status: string) =>
+  status === 'aktif' ? 'Aktif' : status === 'nonaktif' ? 'Nonaktif' : status
+
 function komisi(it: Item) {
   if (!it.commissionType) return '—'
   return it.commissionType === 'persen'
@@ -403,13 +408,15 @@ onMounted(async () => {
             <td v-if="bolehKatalog" class="text-right">
               <div class="flex justify-end gap-2">
                 <AppButton variant="ghost" size="sm" @click="bukaKategori(k)">Ubah</AppButton>
-                <button
-                  type="button"
-                  class="text-xs font-semibold text-danger hover:underline"
+                <AppButton
+                  variant="ghost"
+                  size="sm"
+                  class="text-danger"
+                  :aria-label="`Hapus kategori ${k.name}`"
                   @click="hapusKategori(k)"
                 >
                   Hapus
-                </button>
+                </AppButton>
               </div>
             </td>
           </tr>
@@ -465,7 +472,11 @@ onMounted(async () => {
               <p class="font-mono text-xs text-secondary">{{ it.code }}</p>
             </td>
             <td class="text-secondary">{{ it.categoryName ?? '—' }}</td>
-            <td><AppBadge :tone="it.type === 'jasa' ? 'blue' : 'gray'">{{ it.type }}</AppBadge></td>
+            <td>
+              <AppBadge :tone="it.type === 'jasa' ? 'blue' : 'gray'">
+                {{ labelTipe(it.type) }}
+              </AppBadge>
+            </td>
             <td class="hidden text-secondary md:table-cell">
               {{ it.unit ?? '—' }}
               <span v-if="it.trackStock" class="ml-1 text-[11px] text-primary">stok</span>
@@ -476,18 +487,22 @@ onMounted(async () => {
               <span v-if="komisi(it) === '—' && !it.durationMinutes">—</span>
             </td>
             <td>
-              <AppBadge :tone="it.status === 'aktif' ? 'green' : 'gray'">{{ it.status }}</AppBadge>
+              <AppBadge :tone="it.status === 'aktif' ? 'green' : 'gray'">
+                {{ labelStatusItem(it.status) }}
+              </AppBadge>
             </td>
             <td v-if="bolehKatalog" class="text-right">
               <div class="flex justify-end gap-2">
                 <AppButton variant="ghost" size="sm" @click="bukaItem(it)">Ubah</AppButton>
-                <button
-                  type="button"
-                  class="text-xs font-semibold text-danger hover:underline"
+                <AppButton
+                  variant="ghost"
+                  size="sm"
+                  class="text-danger"
+                  :aria-label="`Hapus item ${it.name}`"
                   @click="hapusItem(it)"
                 >
                   Hapus
-                </button>
+                </AppButton>
               </div>
             </td>
           </tr>
@@ -530,13 +545,15 @@ onMounted(async () => {
             <td v-if="bolehKatalog" class="text-right">
               <div class="flex justify-end gap-2">
                 <AppButton variant="ghost" size="sm" @click="bukaSupplier(s)">Ubah</AppButton>
-                <button
-                  type="button"
-                  class="text-xs font-semibold text-danger hover:underline"
+                <AppButton
+                  variant="ghost"
+                  size="sm"
+                  class="text-danger"
+                  :aria-label="`Hapus supplier ${s.name}`"
                   @click="hapusSupplier(s)"
                 >
                   Hapus
-                </button>
+                </AppButton>
               </div>
             </td>
           </tr>

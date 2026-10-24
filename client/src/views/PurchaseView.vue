@@ -590,7 +590,19 @@ onMounted(async () => {
           <td class="text-right text-sm tabular-nums">
             {{ qty(jumlahDiterima(po)) }} / {{ qty(jumlahDipesan(po)) }}
           </td>
-          <td><AppBadge :tone="tone(po.status)" dot>{{ labelStatus(po.status) }}</AppBadge></td>
+          <td>
+            <div class="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <AppBadge :tone="tone(po.status)" dot>{{ labelStatus(po.status) }}</AppBadge>
+              <button
+                type="button"
+                class="rounded text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+                :aria-label="`Lihat PO nomor ${po.id}`"
+                @click.stop="lihat(po.id)"
+              >
+                Detail
+              </button>
+            </div>
+          </td>
         </tr>
       </AppTable>
       <AppPager :meta="daftar.meta.value" @page="daftar.setPage" @update:per-page="daftar.setPerPage" />

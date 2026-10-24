@@ -421,7 +421,19 @@ onMounted(async () => {
           <td class="hidden md:table-cell">{{ n.customerName ?? 'Umum' }}</td>
           <td class="text-right tabular-nums">{{ n.items.length }}</td>
           <td class="text-right font-medium tabular-nums">{{ rupiah(n.grandTotal) }}</td>
-          <td><AppBadge :tone="tone(n.status)" dot>{{ labelStatus(n.status) }}</AppBadge></td>
+          <td>
+            <div class="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <AppBadge :tone="tone(n.status)" dot>{{ labelStatus(n.status) }}</AppBadge>
+              <button
+                type="button"
+                class="rounded text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+                :aria-label="`Lihat nota ${n.number}`"
+                @click.stop="lihat(n.id)"
+              >
+                Detail
+              </button>
+            </div>
+          </td>
         </tr>
       </AppTable>
       <AppPager

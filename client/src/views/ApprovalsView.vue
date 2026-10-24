@@ -12,10 +12,15 @@ import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
-import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
-import AppPager from '../components/ui/AppPager.vue'
+import AppField from '../components/ui/AppField.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
+import AppInput from '../components/ui/AppInput.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPager from '../components/ui/AppPager.vue'
+import AppSelect from '../components/ui/AppSelect.vue'
+import AppTabs from '../components/ui/AppTabs.vue'
+import AppTextarea from '../components/ui/AppTextarea.vue'
 
 interface Approval {
   id: number
@@ -40,10 +45,22 @@ const ACTIONS = [
   { value: 'opname.approve', label: 'Setujui opname', req: 'stok.opname', decide: 'stok.opname' },
 ] as const
 const NEED_ENTITY = ['sale.void', 'sale.refund', 'po.approve', 'transfer.approve', 'opname.approve']
+const STATUS_TABS = [
+  { key: 'diajukan', label: 'Menunggu' },
+  { key: 'disetujui', label: 'Disetujui' },
+  { key: 'ditolak', label: 'Ditolak' },
+]
+const STATUS_LABEL: Record<string, string> = {
+  diajukan: 'Menunggu',
+  disetujui: 'Disetujui',
+  ditolak: 'Ditolak',
+}
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const { loading: loadingMutasi, error: errorMutasi, run } = useAsync()
+const detailAsync = useAsync()
+const pengajuAsync = useAsync()
+const mutasiAsync = useAsync()
 const status = ref('diajukan')
 const filterAksi = ref('')
 const {
@@ -62,16 +79,23 @@ const {
     ),
   { perPage: 15 },
 )
-const loading = computed(() => loadingList.value || loadingMutasi.value)
-const error = computed(() => errorList.value || errorMutasi.value)
+const loading = computed(() => loadingList.value || mutasiAsync.loading.value)
+const error = computed(() => errorList.value || mutasiAsync.error.value)
 const detail = ref<Approval | null>(null)
+const detailOpen = ref(false)
+const formOpen = ref(false)
 const pengaju = ref<{ name: string; role: string | null } | null>(null)
 const okMsg = ref('')
 const konfirmasi = ref<'setuju' | 'tolak' | null>(null)
 const catatan = ref('')
 const galatCatatan = ref(false)
 
-const form = ref({ action: 'sale.void', entity_id: '', reason: '', note: '' })
+const form = ref<{ action: string; entity_id: number | null; reason: string; note: string }>({
+  action: 'sale.void',
+  entity_id: null,
+  reason: '',
+  note: '',
+})
 const tampilMentah = ref(false)
 const payloadRows = computed(() =>
   Object.entries(detail.value?.payload ?? {}).map(([key, value]) => ({
@@ -82,46 +106,92 @@ const payloadRows = computed(() =>
 )
 const judulAksi = (item: Approval) => labelAksi(item.action, item.actionLabel)
 const entitasLabel = (item: Approval) =>
-  item.entityType ? `${labelEntitas(item.entityType)} #${item.entityId ?? '—'}` : 'Tanpa data terkait'
+  item.entityType ? `${labelEntitas(item.entityType)} #${item.entityId ?? '-'}` : 'Tanpa data terkait'
+const labelStatus = (value: string) => STATUS_LABEL[value] ?? value
+const tone = (value: string) => (value === 'disetujui' ? 'green' : value === 'ditolak' ? 'red' : 'amber')
 
-const bolehAjukan = () => ACTIONS.filter((a) => access.can(a.req))
+const bolehAjukan = () => ACTIONS.filter((action) => access.can(action.req))
+const opsiAjukan = computed(() =>
+  bolehAjukan().map((action) => ({ value: action.value, label: action.label })),
+)
+const opsiAksi = ACTIONS.map((action) => ({ value: action.value, label: action.label }))
 const bolehPutuskan = (action: string) => {
-  const found = ACTIONS.find((a) => a.value === action)
+  const found = ACTIONS.find((item) => item.value === action)
   return found ? access.can(found.decide) : false
 }
-const tone = (s: string) => (s === 'disetujui' ? 'green' : s === 'ditolak' ? 'red' : 'amber')
+
+function formKosong() {
+  return {
+    action: opsiAjukan.value[0]?.value ?? '',
+    entity_id: null,
+    reason: '',
+    note: '',
+  }
+}
+
+function bukaForm() {
+  mutasiAsync.error.value = ''
+  form.value = formKosong()
+  formOpen.value = true
+}
 
 async function lihat(id: number) {
-  konfirmasi.value = null
-  catatan.value = ''
-  tampilMentah.value = false
-  const found = await run(() => api.get<Approval>(`/companies/${companyId.value}/approvals/${id}`, auth.token))
-  detail.value = found
+  detailOpen.value = true
+  detail.value = null
   pengaju.value = null
-  if (found) {
-    const card = await run(() =>
-      api.get<{ name: string; role: string | null }>(`/companies/${companyId.value}/users/${found.requestedBy}/card`, auth.token),
-    )
-    if (card) pengaju.value = { name: card.name, role: card.role }
-  }
+  tampilMentah.value = false
+  const found = await detailAsync.run(() =>
+    api.get<Approval>(`/companies/${companyId.value}/approvals/${id}`, auth.token),
+  )
+  if (!found) return
+  detail.value = found
+  const card = await pengajuAsync.run(() =>
+    api.get<{ name: string; role: string | null }>(
+      `/companies/${companyId.value}/users/${found.requestedBy}/card`,
+      auth.token,
+    ),
+  )
+  if (card) pengaju.value = { name: card.name, role: card.role }
+}
+
+function tutupDetail() {
+  detailOpen.value = false
 }
 
 async function ajukan() {
   const payload: Record<string, unknown> = {}
-  if (form.value.reason) payload.reason = form.value.reason
-  const res = await run(() =>
-    api.post<Approval>(`/companies/${companyId.value}/approvals`, {
-      action: form.value.action,
-      entity_id: form.value.entity_id ? Number(form.value.entity_id) : undefined,
-      payload,
-      note: form.value.note || undefined,
-    }, auth.token),
+  if (form.value.reason.trim()) payload.reason = form.value.reason.trim()
+  const res = await mutasiAsync.run(() =>
+    api.post<Approval>(
+      `/companies/${companyId.value}/approvals`,
+      {
+        action: form.value.action,
+        entity_id: form.value.entity_id ?? undefined,
+        payload,
+        note: form.value.note.trim() || undefined,
+      },
+      auth.token,
+    ),
   )
   if (res) {
     okMsg.value = 'Pengajuan terkirim, menunggu atasan.'
-    form.value = { action: 'sale.void', entity_id: '', reason: '', note: '' }
+    formOpen.value = false
+    form.value = formKosong()
     muat(1)
   }
+}
+
+function bukaKonfirmasi(mode: 'setuju' | 'tolak') {
+  mutasiAsync.error.value = ''
+  galatCatatan.value = false
+  catatan.value = ''
+  detailOpen.value = false
+  konfirmasi.value = mode
+}
+
+function batalKonfirmasi() {
+  konfirmasi.value = null
+  if (detail.value) detailOpen.value = true
 }
 
 async function putuskan(setuju: boolean) {
@@ -131,15 +201,17 @@ async function putuskan(setuju: boolean) {
     return
   }
   galatCatatan.value = false
-  const res = await run(() =>
+  const res = await mutasiAsync.run(() =>
     api.post<Approval>(
       `/companies/${companyId.value}/approvals/${detail.value!.id}/${setuju ? 'approve' : 'reject'}`,
-      { note: catatan.value || undefined }, auth.token,
+      { note: catatan.value || undefined },
+      auth.token,
     ),
   )
   if (res) {
     okMsg.value = setuju ? 'Disetujui dan dijalankan.' : 'Ditolak.'
     konfirmasi.value = null
+    detailOpen.value = false
     catatan.value = ''
     detail.value = res
     muat()
@@ -147,144 +219,312 @@ async function putuskan(setuju: boolean) {
 }
 
 async function salinPayload() {
-  if (detail.value?.payload) await navigator.clipboard.writeText(JSON.stringify(detail.value.payload, null, 2))
+  if (detail.value?.payload) {
+    await navigator.clipboard.writeText(JSON.stringify(detail.value.payload, null, 2))
+  }
+}
+
+function gantiStatus(key: string) {
+  status.value = key
+  muat(1)
+}
+
+function gantiAksi(value: string | number | null) {
+  filterAksi.value = value === null ? '' : String(value)
+  muat(1)
+}
+
+function resetFilter() {
+  filterAksi.value = ''
+  muat(1)
 }
 
 onMounted(async () => {
   await access.load(companyId.value, auth.token)
-  const bisa = bolehAjukan()
-  form.value.action = bisa.length ? bisa[0]!.value : ''
+  form.value = formKosong()
   muat()
 })
 </script>
 
 <template>
   <div>
-    <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Pusat otorisasi multi-cabang</p>
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <h1 class="font-display text-xl font-semibold">Kotak persetujuan</h1>
-      <p class="text-sm text-secondary">Keputusan hanya oleh atasan yang berhak.</p>
-    </div>
+    <AppPageHeader
+      eyebrow="Pusat otorisasi multi-cabang"
+      title="Kotak persetujuan"
+      subtitle="Tinjau pengajuan dari cabang, verifikasi data, lalu setujui atau tolak dengan jejak audit."
+      icon="fact_check"
+    >
+      <template #actions>
+        <AppButton variant="ghost" :loading="loadingList" @click="muat()">Muat ulang</AppButton>
+        <AppButton v-if="opsiAjukan.length" @click="bukaForm">Ajukan baru</AppButton>
+      </template>
+    </AppPageHeader>
+
     <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="error" />
 
-    <div class="grid gap-4 lg:grid-cols-5">
-      <div class="lg:col-span-2">
-        <AppCard title="Ajukan baru">
-          <template v-if="!bolehAjukan().length">
-            <p class="text-sm text-secondary">Anda tidak punya hak mengajukan persetujuan apa pun.</p>
-          </template>
-          <template v-else>
-            <AppField label="Jenis pengajuan">
-              <select v-model="form.action" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none">
-                <option v-for="a in bolehAjukan()" :key="a.value" :value="a.value">{{ a.label }}</option>
-              </select>
-            </AppField>
-            <div v-if="NEED_ENTITY.includes(form.action)" class="mt-3">
-              <AppField label="Nomor data (ID nota, PO, transfer, atau opname)">
-                <input v-model="form.entity_id" type="number" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none" />
-              </AppField>
-            </div>
-            <div class="mt-3">
-              <AppField label="Alasan">
-                <textarea v-model="form.reason" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 focus:border-primary focus:outline-none" rows="2" />
-              </AppField>
-            </div>
-            <AppButton :loading="loading" class="mt-3" @click="ajukan">Kirim pengajuan</AppButton>
-            <p class="mt-2 text-xs text-secondary">Nota diskon & retur diajukan dari halaman Nota (Batch B).</p>
-          </template>
-        </AppCard>
-
-        <AppCard v-if="detail" title="Detail pengajuan" class="mt-4">
-          <div class="flex items-center justify-between gap-2">
-            <p class="font-display font-semibold">{{ judulAksi(detail) }} <span class="font-normal text-secondary">#{{ detail.id }}</span></p>
-            <AppBadge :tone="tone(detail.status)">{{ detail.status }}</AppBadge>
-          </div>
-          <p class="mt-1 text-sm text-secondary">
-            Diajukan oleh <strong class="text-ink">{{ pengaju?.name ?? '—' }}</strong>
-            <span v-if="pengaju?.role"> ({{ pengaju.role }})</span>
-            · {{ entitasLabel(detail) }}
-          </p>
-          <div class="mt-3 flex items-center justify-between">
-            <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Data verifikasi</p>
-            <div class="flex gap-3">
-              <button class="text-xs font-semibold text-primary" @click="tampilMentah = !tampilMentah">
-                {{ tampilMentah ? 'Ringkas' : 'Mentah' }}
-              </button>
-              <button class="text-xs font-semibold text-primary" @click="salinPayload">Salin</button>
-            </div>
-          </div>
-          <pre v-if="tampilMentah" class="mt-1 overflow-x-auto rounded-lg bg-surface-low p-3 text-xs">{{ JSON.stringify(detail.payload, null, 2) }}</pre>
-          <dl v-else class="mt-2 divide-y divide-outline/50 text-sm">
-            <div v-for="row in payloadRows" :key="row.key" class="flex justify-between gap-4 py-2">
-              <dt class="shrink-0 text-secondary">{{ row.label }}</dt>
-              <dd class="break-words text-right font-medium text-ink">{{ row.value }}</dd>
-            </div>
-            <p v-if="!payloadRows.length" class="py-2 text-sm text-secondary">Tidak ada data tambahan.</p>
-          </dl>
-          <p v-if="detail.note" class="mt-2 text-sm text-secondary">Catatan: {{ detail.note }}</p>
-          <p v-if="detail.decidedAt" class="text-xs text-secondary">Diputus {{ tanggal(detail.decidedAt) }}</p>
-          <div v-if="detail.status === 'diajukan' && bolehPutuskan(detail.action)" class="mt-3 flex gap-2">
-            <AppButton :loading="loading" @click="konfirmasi = 'setuju'">Setujui & jalankan</AppButton>
-            <AppButton variant="danger" :loading="loading" @click="konfirmasi = 'tolak'">Tolak</AppButton>
-          </div>
-          <p v-else-if="detail.status === 'diajukan'" class="mt-3 text-sm text-secondary">Hanya atasan yang berhak memutuskan pengajuan ini.</p>
-        </AppCard>
-      </div>
-
-      <div class="lg:col-span-3">
-        <div class="mb-3 flex flex-wrap gap-2">
-          <AppButton
-            v-for="s in ['diajukan', 'disetujui', 'ditolak']" :key="s"
-            :variant="status === s ? 'primary' : 'ghost'" @click="status = s; muat(1)"
-          >{{ s }}<span v-if="s === 'diajukan' && meta"> ({{ meta.total }})</span></AppButton>
-          <select v-model="filterAksi" class="rounded-lg border border-outline bg-card px-3 py-2 text-sm focus:border-primary focus:outline-none" @change="muat(1)">
-            <option value="">Semua aksi</option>
-            <option v-for="a in ACTIONS" :key="a.value" :value="a.value">{{ a.label }}</option>
-          </select>
+    <AppCard>
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <AppTabs
+          :items="STATUS_TABS"
+          :model-value="status"
+          label="Status pengajuan"
+          @update:model-value="gantiStatus"
+        />
+        <div class="flex flex-wrap items-end gap-2">
+          <AppField label="Jenis aksi" class="w-full sm:w-56">
+            <AppSelect
+              :model-value="filterAksi"
+              :options="opsiAksi"
+              placeholder="Semua aksi"
+              @update:model-value="gantiAksi"
+            />
+          </AppField>
+          <AppButton v-if="filterAksi" variant="ghost" @click="resetFilter">Reset</AppButton>
         </div>
-        <p class="mb-2 text-sm text-secondary">Antrian menunggu otorisasi, yang terlama dulu.</p>
-        <AppEmpty v-if="!loading && !list.length" message="Tidak ada pengajuan." />
-        <AppCard v-for="a in list" :key="a.id" class="cursor-pointer transition hover:shadow" @click="lihat(a.id)">
-          <div class="flex items-center gap-3">
-            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-low text-primary">
-              <AppIcon name="fact_check" :size="20" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center justify-between gap-2">
-                <p class="truncate font-semibold">{{ judulAksi(a) }} <span class="font-normal text-secondary">#{{ a.id }}</span></p>
-                <AppBadge :tone="tone(a.status)">{{ a.status }}</AppBadge>
-              </div>
-              <p class="truncate text-sm text-secondary">{{ a.note ?? entitasLabel(a) }}</p>
-            </div>
-          </div>
-        </AppCard>
-        <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
       </div>
-    </div>
+
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <p class="text-sm text-secondary">
+          {{
+            status === 'diajukan'
+              ? 'Antrian menunggu otorisasi, yang terlama dulu.'
+              : 'Riwayat keputusan pengajuan.'
+          }}
+        </p>
+        <p v-if="meta" class="text-xs tabular-nums text-secondary">{{ meta.total }} pengajuan</p>
+      </div>
+
+      <div v-if="loadingList" class="mt-3 space-y-2" aria-busy="true">
+        <div v-for="i in 4" :key="i" class="h-20 animate-pulse rounded-2xl bg-surface-low" />
+        <span class="sr-only" role="status">Memuat pengajuan...</span>
+      </div>
+
+      <AppEmpty
+        v-else-if="!list.length"
+        class="mt-3"
+        icon="task_alt"
+        title="Tidak ada pengajuan"
+        :message="
+          status === 'diajukan'
+            ? 'Antrian bersih. Pengajuan baru dari cabang akan muncul di sini.'
+            : 'Belum ada riwayat untuk status ini.'
+        "
+      />
+
+      <div v-else class="mt-3 space-y-2">
+        <button
+          v-for="a in list"
+          :key="a.id"
+          type="button"
+          class="group flex w-full items-start gap-3 rounded-2xl border border-outline/70 bg-card p-4 text-left shadow-card transition hover:border-outline-strong hover:bg-surface-low/40 hover:shadow-lifted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-2"
+          :aria-label="`Lihat pengajuan ${judulAksi(a)} nomor ${a.id}`"
+          @click="lihat(a.id)"
+        >
+          <span
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-ink"
+          >
+            <AppIcon name="fact_check" :size="21" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="flex flex-wrap items-center justify-between gap-2">
+              <span class="truncate font-display text-sm font-semibold text-ink">
+                {{ judulAksi(a) }}
+                <span class="font-normal text-secondary">#{{ a.id }}</span>
+              </span>
+              <AppBadge :tone="tone(a.status)" dot>{{ labelStatus(a.status) }}</AppBadge>
+            </span>
+            <span class="mt-1 block truncate text-sm text-secondary">
+              {{ a.note ?? entitasLabel(a) }}
+            </span>
+            <span class="mt-1 block text-xs text-secondary">
+              {{ entitasLabel(a) }} - diajukan oleh pengguna #{{ a.requestedBy }}
+            </span>
+          </span>
+          <AppIcon
+            name="chevron_right"
+            :size="18"
+            class="mt-1 shrink-0 text-secondary transition group-hover:translate-x-0.5"
+          />
+        </button>
+      </div>
+
+      <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
+    </AppCard>
+
+    <AppModal
+      :open="formOpen"
+      title="Ajukan persetujuan"
+      description="Pengajuan akan masuk ke antrian atasan yang berhak memutuskan."
+      size="md"
+      @close="formOpen = false"
+    >
+      <AppBanner tone="red" :message="mutasiAsync.error.value" />
+      <div class="grid gap-3">
+        <AppField label="Jenis pengajuan" required>
+          <AppSelect v-model="form.action" :options="opsiAjukan" placeholder="Pilih jenis" />
+        </AppField>
+        <AppField
+          v-if="NEED_ENTITY.includes(form.action)"
+          label="ID data terkait"
+          required
+          hint="Nomor nota, PO, transfer, atau opname yang diajukan."
+        >
+          <AppInput v-model="form.entity_id" type="number" min="1" placeholder="cth. 128" />
+        </AppField>
+        <AppField label="Alasan" hint="Jelaskan singkat kenapa pengajuan ini diperlukan.">
+          <AppTextarea v-model="form.reason" :rows="3" :maxlength="500" show-count />
+        </AppField>
+        <AppField label="Catatan tambahan" optional>
+          <AppTextarea v-model="form.note" :rows="2" :maxlength="500" />
+        </AppField>
+      </div>
+      <template #footer>
+        <AppButton variant="ghost" @click="formOpen = false">Batal</AppButton>
+        <AppButton
+          :loading="mutasiAsync.loading.value"
+          :disabled="!form.action || (NEED_ENTITY.includes(form.action) && !form.entity_id)"
+          @click="ajukan"
+        >
+          Kirim pengajuan
+        </AppButton>
+      </template>
+    </AppModal>
+
+    <AppModal
+      :open="detailOpen"
+      :title="detail ? `${judulAksi(detail)} #${detail.id}` : 'Detail pengajuan'"
+      :description="detail ? `${entitasLabel(detail)}${pengaju ? ` - ${pengaju.name}` : ''}` : ''"
+      size="lg"
+      @close="tutupDetail"
+    >
+      <div v-if="detailAsync.loading.value && !detail" class="space-y-2" aria-busy="true">
+        <div v-for="i in 4" :key="i" class="h-10 animate-pulse rounded-lg bg-surface-low" />
+        <span class="sr-only" role="status">Memuat detail pengajuan...</span>
+      </div>
+      <AppBanner v-else-if="detailAsync.error.value" tone="red" :message="detailAsync.error.value" />
+      <template v-else-if="detail">
+        <div class="flex flex-wrap items-center gap-2">
+          <AppBadge :tone="tone(detail.status)" dot>{{ labelStatus(detail.status) }}</AppBadge>
+          <span class="text-sm text-secondary">{{ entitasLabel(detail) }}</span>
+        </div>
+
+        <dl class="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+          <div class="rounded-xl bg-surface-low px-3 py-2">
+            <dt class="text-xs text-secondary">Diajukan oleh</dt>
+            <dd class="font-medium text-ink">
+              {{ pengaju?.name ?? `Pengguna #${detail.requestedBy}` }}
+              <span v-if="pengaju?.role" class="font-normal text-secondary">({{ pengaju.role }})</span>
+            </dd>
+          </div>
+          <div class="rounded-xl bg-surface-low px-3 py-2">
+            <dt class="text-xs text-secondary">Jenis aksi</dt>
+            <dd class="font-medium text-ink">{{ judulAksi(detail) }}</dd>
+          </div>
+          <div class="rounded-xl bg-surface-low px-3 py-2">
+            <dt class="text-xs text-secondary">Status</dt>
+            <dd class="font-medium text-ink">{{ labelStatus(detail.status) }}</dd>
+          </div>
+          <div class="rounded-xl bg-surface-low px-3 py-2">
+            <dt class="text-xs text-secondary">Diputus</dt>
+            <dd class="font-medium text-ink">
+              {{ detail.decidedAt ? tanggal(detail.decidedAt) : 'Belum diputus' }}
+            </dd>
+          </div>
+        </dl>
+
+        <div class="mt-4 flex items-center justify-between gap-2">
+          <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Data verifikasi</p>
+          <div class="flex gap-3">
+            <button
+              type="button"
+              class="rounded text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+              @click="tampilMentah = !tampilMentah"
+            >
+              {{ tampilMentah ? 'Ringkas' : 'Mentah' }}
+            </button>
+            <button
+              type="button"
+              class="rounded text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+              @click="salinPayload"
+            >
+              Salin
+            </button>
+          </div>
+        </div>
+        <pre
+          v-if="tampilMentah"
+          class="mt-1 overflow-x-auto rounded-lg bg-surface-low p-3 text-xs"
+        >{{ JSON.stringify(detail.payload, null, 2) }}</pre>
+        <dl v-else class="mt-2 divide-y divide-outline/50 text-sm">
+          <div v-for="row in payloadRows" :key="row.key" class="flex justify-between gap-4 py-2">
+            <dt class="shrink-0 text-secondary">{{ row.label }}</dt>
+            <dd class="break-words text-right font-medium text-ink">{{ row.value }}</dd>
+          </div>
+          <p v-if="!payloadRows.length" class="py-2 text-sm text-secondary">
+            Tidak ada data tambahan.
+          </p>
+        </dl>
+
+        <p v-if="detail.note" class="mt-3 rounded-xl bg-surface-low px-3 py-2 text-sm text-secondary">
+          <span class="font-medium text-ink">Catatan:</span> {{ detail.note }}
+        </p>
+        <p
+          v-if="detail.status === 'diajukan' && !bolehPutuskan(detail.action)"
+          class="mt-3 text-sm text-secondary"
+        >
+          Hanya atasan yang berhak memutuskan pengajuan ini.
+        </p>
+      </template>
+      <template #footer>
+        <AppButton variant="ghost" @click="tutupDetail">Tutup</AppButton>
+        <template v-if="detail?.status === 'diajukan' && bolehPutuskan(detail.action)">
+          <AppButton variant="danger" :loading="loading" @click="bukaKonfirmasi('tolak')">
+            Tolak
+          </AppButton>
+          <AppButton :loading="loading" @click="bukaKonfirmasi('setuju')">
+            Setujui &amp; jalankan
+          </AppButton>
+        </template>
+      </template>
+    </AppModal>
 
     <AppModal
       :open="Boolean(konfirmasi && detail)"
       :title="konfirmasi === 'setuju' ? 'Setujui pengajuan?' : 'Tolak pengajuan?'"
-      :description="`${detail ? judulAksi(detail) : ''} #${detail?.id ?? ''}. ${konfirmasi === 'setuju' ? 'Aksi langsung dijalankan dan tercatat di audit.' : 'Pengaju akan melihat alasan Anda.'}`"
+      :description="
+        detail
+          ? `${judulAksi(detail)} #${detail.id}. ${
+              konfirmasi === 'setuju'
+                ? 'Aksi langsung dijalankan dan tercatat di audit.'
+                : 'Pengaju akan melihat alasan Anda.'
+            }`
+          : ''
+      "
       size="sm"
-      @close="konfirmasi = null"
+      @close="batalKonfirmasi"
     >
-      <label class="block text-sm font-medium text-ink" for="keputusan-catatan">
-        Catatan{{ konfirmasi === 'tolak' ? ' (wajib diisi)' : ' (opsional)' }}
-      </label>
-      <textarea
-        id="keputusan-catatan"
-        v-model="catatan"
-        rows="3"
-        class="mt-1 w-full rounded-lg border border-outline bg-card px-3 py-2 text-sm focus:border-primary focus:outline-none"
-      />
-      <p v-if="galatCatatan" class="mt-1 text-xs text-danger">Tulis dulu alasan penolakan.</p>
+      <AppBanner tone="red" :message="mutasiAsync.error.value" />
+      <AppField
+        :label="`Catatan${konfirmasi === 'tolak' ? ' (wajib diisi)' : ' (opsional)'}`"
+        :required="konfirmasi === 'tolak'"
+        :error="galatCatatan ? 'Tulis alasan penolakan terlebih dahulu.' : ''"
+      >
+        <AppTextarea
+          v-model="catatan"
+          :rows="3"
+          :maxlength="500"
+          show-count
+          :invalid="galatCatatan"
+          placeholder="Tambahkan konteks untuk pengaju..."
+        />
+      </AppField>
       <template #footer>
-        <AppButton variant="ghost" @click="konfirmasi = null">Batal</AppButton>
+        <AppButton variant="ghost" @click="batalKonfirmasi">Batal</AppButton>
         <AppButton
           :variant="konfirmasi === 'setuju' ? 'primary' : 'danger'"
           :loading="loading"
+          :disabled="konfirmasi === 'tolak' && !catatan.trim()"
           @click="putuskan(konfirmasi === 'setuju')"
         >
           {{ konfirmasi === 'setuju' ? 'Jalankan persetujuan' : 'Tolak pengajuan' }}

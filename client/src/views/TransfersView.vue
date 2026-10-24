@@ -463,7 +463,19 @@ onMounted(async () => {
           </td>
           <td class="text-right tabular-nums">{{ tr.items.length }}</td>
           <td class="hidden sm:table-cell text-secondary">{{ tr.note ?? '—' }}</td>
-          <td><AppBadge :tone="tone(tr.status)" dot>{{ labelStatus(tr.status) }}</AppBadge></td>
+          <td>
+            <div class="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <AppBadge :tone="tone(tr.status)" dot>{{ labelStatus(tr.status) }}</AppBadge>
+              <button
+                type="button"
+                class="rounded text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+                :aria-label="`Lihat transfer nomor ${tr.id}`"
+                @click.stop="lihat(tr.id)"
+              >
+                Detail
+              </button>
+            </div>
+          </td>
         </tr>
       </AppTable>
       <AppPager :meta="daftar.meta.value" @page="daftar.setPage" @update:per-page="daftar.setPerPage" />

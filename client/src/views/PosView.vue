@@ -12,7 +12,11 @@ import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppInput from '../components/ui/AppInput.vue'
+import AppMoneyInput from '../components/ui/AppMoneyInput.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppSearch from '../components/ui/AppSearch.vue'
+import AppSelect from '../components/ui/AppSelect.vue'
 
 interface Cabang {
   id: number
@@ -39,7 +43,7 @@ interface Baris {
 }
 interface Bayar {
   method: string
-  amount: number
+  amount: number | null
   tendered: number | null
   reference: string
 }
@@ -64,8 +68,8 @@ const cabang = ref<Cabang[]>([])
 const branchId = ref<number | null>(null)
 const shiftId = ref<number | null>(null)
 const shiftInfo = ref('')
-const bukaKas = ref(0)
-const tutupKas = ref(0)
+const bukaKas = ref<number | null>(0)
+const tutupKas = ref<number | null>(0)
 const katalog = ref<Harga[]>([])
 const cari = ref('')
 const keranjang = ref<Baris[]>([])
@@ -102,6 +106,9 @@ const kembalian = computed(() => {
   return Math.max(0, tunai.tendered - total.value)
 })
 const cabangAktif = computed(() => cabang.value.find((b) => b.id === branchId.value) ?? null)
+const opsiCabang = computed(() =>
+  cabang.value.map((b) => ({ value: b.id, label: `${b.code} - ${b.name}` })),
+)
 const METODE_LABEL: Record<string, string> = {
   tunai: 'Tunai',
   transfer: 'Transfer',
@@ -109,11 +116,43 @@ const METODE_LABEL: Record<string, string> = {
   ewallet: 'E-wallet',
   dp: 'Uang muka',
 }
+const TIPE_LABEL: Record<string, string> = {
+  barang: 'Barang',
+  jasa: 'Jasa',
+}
+const STATUS_STRUK: Record<string, string> = {
+  lunas: 'Lunas',
+  void: 'Void',
+  retur: 'Retur',
+}
 const labelMetode = (method: string) => METODE_LABEL[method] ?? method
+const labelTipe = (type: string) => TIPE_LABEL[type] ?? type
+const labelStatusStruk = (status: string) => STATUS_STRUK[status] ?? status
 const namaItem = (id: number) => katalog.value.find((item) => item.id === id)?.name ?? `Barang #${id}`
 
 function kunciShift() {
   return `aurevant-shift-${companyId.value}-${branchId.value}`
+}
+
+function muatShiftTersimpan() {
+  if (!branchId.value) {
+    shiftId.value = null
+    shiftInfo.value = ''
+    return
+  }
+  const tersimpan = localStorage.getItem(kunciShift())
+  shiftId.value = tersimpan ? Number(tersimpan) : null
+  shiftInfo.value = tersimpan ? `Melanjutkan shift #${tersimpan}.` : ''
+}
+
+function gantiCabang(value: string | number | null) {
+  branchId.value = value === null ? null : Number(value)
+  keranjang.value = []
+  bayar.value = [{ method: 'tunai', amount: 0, tendered: null, reference: '' }]
+  struk.value = null
+  formMsg.value = ''
+  muatShiftTersimpan()
+  void muatKatalog()
 }
 
 function tambah(item: Harga) {
@@ -121,6 +160,23 @@ function tambah(item: Harga) {
   if (ada) ada.qty++
   else keranjang.value.push({ item, qty: 1, discPct: 0, discAmt: 0, taxPct: 0 })
   struk.value = null
+}
+
+function setAngka(
+  baris: Baris,
+  key: 'qty' | 'discPct' | 'discAmt' | 'taxPct',
+  value: string | number | null,
+) {
+  baris[key] = Number(value) || 0
+}
+
+function tambahPembayaran() {
+  bayar.value.push({
+    method: 'transfer',
+    amount: Math.max(0, total.value - dibayar.value),
+    tendered: null,
+    reference: '',
+  })
 }
 
 async function muatKatalog() {
@@ -145,7 +201,7 @@ async function bukaShift() {
   const res = await page.run(() =>
     api.post<{ id: number }>(
       `/companies/${companyId.value}/branches/${branchId.value}/shifts`,
-      { opening_cash: bukaKas.value },
+      { opening_cash: bukaKas.value ?? 0 },
       auth.token,
     ),
   )
@@ -172,7 +228,7 @@ async function tutupShift() {
     api.post(
       `/companies/${companyId.value}/branches/${branchId.value}/shifts/${shiftId.value}/close`,
       {
-        closing_cash_counted: tutupKas.value,
+        closing_cash_counted: tutupKas.value ?? 0,
       },
       auth.token,
     ),
@@ -261,7 +317,7 @@ async function bayarSekarang() {
         })),
         payments: bayar.value.map((p) => ({
           method: p.method,
-          amount: p.amount,
+          amount: Number(p.amount) || 0,
           ...(p.tendered ? { tendered: p.tendered } : {}),
           ...(p.reference ? { reference: p.reference } : {}),
         })),
@@ -292,13 +348,7 @@ onMounted(async () => {
       ? auth.branchId
       : (cabang.value[0]?.id ?? null)
   branchId.value = favorit
-  const tersimpan = branchId.value
-    ? localStorage.getItem(`aurevant-shift-${companyId.value}-${branchId.value}`)
-    : null
-  if (tersimpan) {
-    shiftId.value = Number(tersimpan)
-    shiftInfo.value = `Melanjutkan shift #${tersimpan}.`
-  }
+  muatShiftTersimpan()
   muatKatalog()
 })
 </script>
@@ -315,68 +365,76 @@ onMounted(async () => {
     <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="formMsg || page.error.value" />
 
-    <AppCard title="Shift & cabang">
-      <div class="flex flex-wrap items-end gap-2">
-        <AppField label="Cabang">
-          <select
-            v-model="branchId"
-            class="rounded-lg border border-outline bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-            @change="muatKatalog"
-          >
-            <option v-for="b in cabang" :key="b.id" :value="b.id">
-              {{ b.code }} — {{ b.name }}
-            </option>
-          </select>
+    <AppCard title="Shift & cabang" subtitle="Pilih cabang dan kelola shift kasir.">
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:items-end">
+        <AppField label="Cabang" class="sm:col-span-2 xl:col-span-1">
+          <AppSelect
+            :model-value="branchId"
+            :options="opsiCabang"
+            placeholder="Pilih cabang"
+            @update:model-value="gantiCabang"
+          />
         </AppField>
         <AppField v-if="bolehBuka && !shiftId" label="Kas awal">
-          <input
-            v-model.number="bukaKas"
-            type="number"
-            min="0"
-            class="w-36 rounded-lg border border-outline bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-          />
+          <AppMoneyInput v-model="bukaKas" />
         </AppField>
-        <AppButton v-if="bolehBuka && !shiftId" @click="bukaShift">Buka shift</AppButton>
+        <AppButton v-if="bolehBuka && !shiftId" class="w-full" @click="bukaShift">
+          Buka shift
+        </AppButton>
         <AppField v-if="bolehTutup && shiftId" label="Hitung kas fisik">
-          <input
-            v-model.number="tutupKas"
-            type="number"
-            min="0"
-            class="w-36 rounded-lg border border-outline bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-          />
+          <AppMoneyInput v-model="tutupKas" />
         </AppField>
-        <AppButton v-if="bolehTutup && shiftId" variant="secondary" @click="tutupShift"
-          >Tutup shift #{{ shiftId }}</AppButton
+        <AppButton
+          v-if="bolehTutup && shiftId"
+          variant="secondary"
+          class="w-full"
+          @click="tutupShift"
         >
+          Tutup shift #{{ shiftId }}
+        </AppButton>
       </div>
-      <p v-if="shiftInfo" class="mt-2 text-sm text-secondary">{{ shiftInfo }}</p>
-      <p v-if="!shiftId && bolehKasir" class="mt-2 text-sm font-medium text-warn">
-        Shift belum terbuka. Buka shift dulu agar pembayaran bisa diproses.
-      </p>
+      <p v-if="shiftInfo" class="mt-3 text-sm text-secondary">{{ shiftInfo }}</p>
+      <AppBanner
+        v-if="!shiftId && bolehKasir"
+        tone="amber"
+        class="mt-3"
+        message="Shift belum terbuka. Buka shift dulu agar pembayaran bisa diproses."
+      />
     </AppCard>
 
     <div v-if="bolehKasir" class="mt-4 grid gap-4 xl:grid-cols-5">
       <div class="xl:col-span-3">
         <AppField label="Cari barang / jasa">
-          <input
+          <AppSearch
             v-model="cari"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-            placeholder="Nama atau kode…"
+            label="Cari barang atau jasa"
+            placeholder="Nama atau kode item..."
           />
         </AppField>
-        <div class="mt-2 grid gap-2 sm:grid-cols-2">
+        <div class="mt-3 grid gap-2 sm:grid-cols-2">
           <button
             v-for="it in tampilKatalog"
             :key="it.id"
+            type="button"
+            class="min-h-20 rounded-xl border border-outline/70 bg-card p-3 text-left shadow-card transition hover:border-outline-strong hover:bg-surface-low/40 hover:shadow-lifted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-2"
+            :aria-label="`Tambah ${it.name}, ${rupiah(it.price)}`"
             @click="tambah(it)"
-            class="cursor-pointer rounded-xl bg-card p-3 text-left shadow-sm transition hover:shadow"
           >
-            <p class="font-semibold">{{ it.name }}</p>
-            <p class="font-mono text-xs text-secondary">{{ it.code }} · {{ it.type }}</p>
+            <p class="font-semibold text-ink">{{ it.name }}</p>
+            <p class="font-mono text-xs text-secondary">
+              {{ it.code }} - {{ labelTipe(it.type) }}
+              <span v-if="it.unit">- {{ it.unit }}</span>
+            </p>
             <p class="font-display mt-1 font-bold text-primary">{{ rupiah(it.price) }}</p>
           </button>
         </div>
-        <AppEmpty v-if="!tampilKatalog.length" message="Tidak ada item berharga di cabang ini." />
+        <AppEmpty
+          v-if="!tampilKatalog.length"
+          class="mt-3"
+          icon="search_off"
+          title="Item tidak ditemukan"
+          :message="cari ? 'Ubah kata kunci pencarian.' : 'Tidak ada item berharga di cabang ini.'"
+        />
       </div>
 
       <div class="xl:col-span-2">
@@ -390,51 +448,65 @@ onMounted(async () => {
           <div
             v-for="b in keranjang"
             :key="b.item.id"
-            class="border-b border-surface-low py-2 last:border-0"
+            class="border-b border-surface-low py-3 last:border-0"
           >
-            <div class="flex items-center justify-between gap-2">
-              <p class="font-semibold">{{ b.item.name }}</p>
-              <button
-                class="text-xs text-danger"
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="truncate font-semibold text-ink">{{ b.item.name }}</p>
+                <p class="font-mono text-xs text-secondary">
+                  {{ b.item.code }} - {{ rupiah(b.item.price) }}
+                </p>
+              </div>
+              <AppButton
+                variant="ghost"
+                size="sm"
+                class="text-danger"
+                :aria-label="`Hapus ${b.item.name} dari keranjang`"
                 @click="keranjang = keranjang.filter((x) => x !== b)"
               >
-                buang
-              </button>
+                Hapus
+              </AppButton>
             </div>
-            <div class="mt-1 grid grid-cols-4 gap-1 text-sm">
-              <label
-                >Qty<input
-                  v-model.number="b.qty"
+            <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <AppField label="Qty">
+                <AppInput
+                  :model-value="b.qty"
                   type="number"
                   min="0.001"
                   step="any"
-                  class="mt-0.5 w-full rounded border border-outline px-2 py-1"
-              /></label>
-              <label
-                >Disc %<input
-                  v-model.number="b.discPct"
+                  @update:model-value="setAngka(b, 'qty', $event)"
+                />
+              </AppField>
+              <AppField label="Disc %">
+                <AppInput
+                  :model-value="b.discPct"
                   type="number"
                   min="0"
                   max="100"
-                  class="mt-0.5 w-full rounded border border-outline px-2 py-1"
-              /></label>
-              <label
-                >Disc Rp<input
-                  v-model.number="b.discAmt"
+                  @update:model-value="setAngka(b, 'discPct', $event)"
+                />
+              </AppField>
+              <AppField label="Disc Rp">
+                <AppInput
+                  :model-value="b.discAmt"
                   type="number"
                   min="0"
-                  class="mt-0.5 w-full rounded border border-outline px-2 py-1"
-              /></label>
-              <label
-                >PPN %<input
-                  v-model.number="b.taxPct"
+                  @update:model-value="setAngka(b, 'discAmt', $event)"
+                />
+              </AppField>
+              <AppField label="PPN %">
+                <AppInput
+                  :model-value="b.taxPct"
                   type="number"
                   min="0"
                   max="100"
-                  class="mt-0.5 w-full rounded border border-outline px-2 py-1"
-              /></label>
+                  @update:model-value="setAngka(b, 'taxPct', $event)"
+                />
+              </AppField>
             </div>
-            <p class="mt-1 text-right font-mono text-sm">{{ rupiah(barisTotal(b).total) }}</p>
+            <p class="mt-2 text-right font-mono text-sm font-semibold text-ink">
+              {{ rupiah(barisTotal(b).total) }}
+            </p>
           </div>
           <div class="mt-2 space-y-1 text-sm">
             <div class="flex justify-between">
@@ -447,76 +519,68 @@ onMounted(async () => {
           </div>
         </AppCard>
 
-        <AppCard title="Bayar" class="mt-4">
+        <AppCard title="Bayar" subtitle="Pilih metode dan isi nominal pembayaran." class="mt-4">
           <div
             v-for="(p, i) in bayar"
             :key="i"
-            class="mb-2 grid grid-cols-2 gap-1 rounded-lg bg-surface-low p-2"
+            class="mb-3 rounded-xl border border-outline/70 bg-surface-low/60 p-3 last:mb-0"
           >
-            <select
-              v-model="p.method"
-              class="rounded border border-outline bg-card px-2 py-1.5 text-sm"
-            >
-              <option v-for="m in METHODS" :key="m" :value="m">{{ labelMetode(m) }}</option>
-            </select>
-            <input
-              v-model.number="p.amount"
-              type="number"
-              min="0"
-              placeholder="Nominal"
-              class="rounded border border-outline bg-card px-2 py-1.5 text-sm"
-            />
-            <input
-              v-model.number="p.tendered"
-              type="number"
-              min="0"
-              placeholder="Tunai diterima (kembalian)"
-              class="rounded border border-outline bg-card px-2 py-1.5 text-sm"
-            />
-            <div class="flex gap-1">
-              <input
-                v-model="p.reference"
-                placeholder="Referensi"
-                maxlength="100"
-                class="w-full rounded border border-outline bg-card px-2 py-1.5 text-sm"
-              />
-              <button
+            <div class="mb-2 flex items-center justify-between gap-2">
+              <p class="text-xs font-semibold uppercase tracking-wider text-secondary">
+                Pembayaran {{ i + 1 }}
+              </p>
+              <AppButton
                 v-if="bayar.length > 1"
-                class="text-xs text-danger"
+                variant="ghost"
+                size="sm"
+                class="text-danger"
+                :aria-label="`Hapus pembayaran ${i + 1}`"
                 @click="bayar.splice(i, 1)"
               >
-                ✕
-              </button>
+                Hapus
+              </AppButton>
+            </div>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <AppField label="Metode" required>
+                <AppSelect v-model="p.method">
+                  <option v-for="m in METHODS" :key="m" :value="m">{{ labelMetode(m) }}</option>
+                </AppSelect>
+              </AppField>
+              <AppField label="Nominal" required>
+                <AppMoneyInput v-model="p.amount" />
+              </AppField>
+              <AppField
+                v-if="p.method === 'tunai'"
+                label="Uang diterima"
+                hint="Dipakai untuk menghitung kembalian."
+              >
+                <AppMoneyInput v-model="p.tendered" />
+              </AppField>
+              <AppField v-else label="Referensi" hint="Nomor transaksi atau catatan pembayaran.">
+                <AppInput v-model="p.reference" maxlength="100" placeholder="Opsional" />
+              </AppField>
             </div>
           </div>
-          <div class="flex gap-2">
-            <AppButton
-              variant="ghost"
-              @click="
-                bayar.push({
-                  method: 'transfer',
-                  amount: Math.max(0, total - dibayar),
-                  tendered: null,
-                  reference: '',
-                })
-              "
-              >+ Split</AppButton
-            >
-            <AppButton :loading="page.loading.value" class="flex-1" @click="bayarSekarang"
-              >Bayar {{ rupiah(total) }}</AppButton
-            >
+          <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+            <AppButton variant="ghost" @click="tambahPembayaran">Tambah pembayaran</AppButton>
+            <AppButton :loading="page.loading.value" class="flex-1" @click="bayarSekarang">
+              Bayar {{ rupiah(total) }}
+            </AppButton>
           </div>
-          <p v-if="kembalian" class="mt-2 text-sm">
-            Kembalian: <strong>{{ rupiah(kembalian) }}</strong>
+          <p v-if="kembalian" class="mt-2 text-sm text-secondary">
+            Kembalian: <strong class="text-ink">{{ rupiah(kembalian) }}</strong>
           </p>
           <p class="mt-1 text-xs text-secondary">
-            Satu persen dan satu nominal tidak boleh diisi bersamaan per baris.
+            Isi diskon persen atau nominal, bukan keduanya, untuk setiap baris.
           </p>
         </AppCard>
 
         <AppCard v-if="struk" title="Struk" class="no-print mt-4">
           <p class="font-display font-bold">
-            {{ struk.number }} <AppBadge tone="green">{{ struk.status }}</AppBadge>
+            {{ struk.number }}
+            <AppBadge :tone="struk.status === 'lunas' ? 'green' : 'amber'">
+              {{ labelStatusStruk(struk.status) }}
+            </AppBadge>
           </p>
           <div class="mt-2 space-y-1 border-y border-outline/60 py-2 text-sm">
             <div v-for="(item, i) in struk.items" :key="`${item.itemId}-${i}`" class="flex justify-between gap-2">

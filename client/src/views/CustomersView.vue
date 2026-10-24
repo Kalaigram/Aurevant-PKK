@@ -214,13 +214,15 @@ onMounted(async () => {
           <td v-if="bolehKelola" class="text-right">
             <div class="flex justify-end gap-2">
               <AppButton variant="ghost" size="sm" @click="bukaUbah(p)">Ubah</AppButton>
-              <button
-                type="button"
-                class="text-xs font-semibold text-danger hover:underline"
+              <AppButton
+                variant="ghost"
+                size="sm"
+                class="text-danger"
+                :aria-label="`Hapus pelanggan ${p.name}`"
                 @click="hapus(p)"
               >
                 Hapus
-              </button>
+              </AppButton>
             </div>
           </td>
         </tr>

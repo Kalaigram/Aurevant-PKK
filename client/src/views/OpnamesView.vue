@@ -399,7 +399,19 @@ onMounted(async () => {
             {{ jumlahSelisih(o) }}
           </td>
           <td class="hidden sm:table-cell text-secondary">{{ o.note ?? '—' }}</td>
-          <td><AppBadge :tone="tone(o.status)" dot>{{ labelStatus(o.status) }}</AppBadge></td>
+          <td>
+            <div class="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <AppBadge :tone="tone(o.status)" dot>{{ labelStatus(o.status) }}</AppBadge>
+              <button
+                type="button"
+                class="rounded text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+                :aria-label="`Lihat opname nomor ${o.id}`"
+                @click.stop="lihat(o.id)"
+              >
+                Detail
+              </button>
+            </div>
+          </td>
         </tr>
       </AppTable>
       <AppPager :meta="daftar.meta.value" @page="daftar.setPage" @update:per-page="daftar.setPerPage" />

@@ -13,7 +13,7 @@ withDefaults(
 </script>
 
 <template>
-  <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+  <header class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
     <div class="flex min-w-0 items-start gap-3.5">
       <span
         v-if="icon"

@@ -17,6 +17,7 @@ import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
 import AppSearch from '../components/ui/AppSearch.vue'
 import AppSelect from '../components/ui/AppSelect.vue'
+import AppStat from '../components/ui/AppStat.vue'
 import AppTable from '../components/ui/AppTable.vue'
 
 interface Cabang {
@@ -76,6 +77,7 @@ const opsiTipe = [
   { value: 'barang', label: 'Barang' },
   { value: 'jasa', label: 'Jasa' },
 ]
+const labelTipe = (type: string) => (type === 'barang' ? 'Barang' : type === 'jasa' ? 'Jasa' : type)
 
 const hargaMap = computed<Record<number, string>>(() => {
   const map: Record<number, string> = {}
@@ -173,26 +175,22 @@ onMounted(async () => {
     <AppBanner tone="red" :message="error" />
 
     <div class="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Cabang</p>
-        <p class="font-display text-2xl font-bold">{{ cabang.length }}</p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Item total</p>
-        <p class="font-display text-2xl font-bold">{{ meta?.total ?? 0 }}</p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Sudah ada harga</p>
-        <p class="font-display text-2xl font-bold">{{ sudahAdaHarga }}</p>
-        <p class="mt-0.5 text-[11px] text-secondary">di halaman ini</p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Belum ada harga</p>
-        <p class="font-display text-2xl font-bold" :class="belumAdaHarga ? 'text-warn' : ''">
-          {{ belumAdaHarga }}
-        </p>
-        <p class="mt-0.5 text-[11px] text-secondary">di halaman ini</p>
-      </AppCard>
+      <AppStat label="Cabang" :value="cabang.length" icon="storefront" />
+      <AppStat label="Item total" :value="meta?.total ?? 0" icon="inventory_2" />
+      <AppStat
+        label="Sudah ada harga"
+        :value="sudahAdaHarga"
+        icon="price_check"
+        tone="positive"
+        hint="Di halaman ini"
+      />
+      <AppStat
+        label="Belum ada harga"
+        :value="belumAdaHarga"
+        icon="price_change"
+        :tone="belumAdaHarga ? 'warning' : 'default'"
+        hint="Di halaman ini"
+      />
     </div>
 
     <AppCard>
@@ -214,6 +212,7 @@ onMounted(async () => {
         <AppSelect
           v-model="filterTipe"
           class="w-36"
+          aria-label="Filter tipe item"
           placeholder="Semua tipe"
           :options="opsiTipe"
           @update:model-value="gantiTipe"
@@ -250,7 +249,11 @@ onMounted(async () => {
               {{ it.code }}<span v-if="it.unit"> · {{ it.unit }}</span>
             </p>
           </td>
-          <td><AppBadge :tone="it.type === 'jasa' ? 'blue' : 'gray'">{{ it.type }}</AppBadge></td>
+          <td>
+            <AppBadge :tone="it.type === 'jasa' ? 'blue' : 'gray'">
+              {{ labelTipe(it.type) }}
+            </AppBadge>
+          </td>
           <td class="text-right">
             <span v-if="it.id in hargaMap" class="font-semibold tabular-nums">
               {{ rupiah(hargaMap[it.id]) }}
@@ -264,6 +267,7 @@ onMounted(async () => {
                 type="number"
                 min="0"
                 class="w-32"
+                :aria-label="`Harga baru ${it.name}`"
                 :placeholder="hargaMap[it.id] ?? 'cth. 50000'"
               />
               <AppButton

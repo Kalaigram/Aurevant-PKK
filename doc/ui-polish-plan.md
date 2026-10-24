@@ -1,6 +1,6 @@
 # UI Polish Plan — Aurevant PKK
 
-Status: **Phase 4 selesai — siap review dan commit**  
+Status: **Phase 5 selesai — siap review dan commit**  
 Branch: `feat/ui-design-system`  
 Design system: [`doc/DESIGN.md`](./DESIGN.md)  
 Arah visual: **calm green premium**  
@@ -40,9 +40,10 @@ Hasil yang ingin dicapai:
 - [ ] Modal custom `z-20` berada di bawah header `z-30` dan bottom nav `z-40`.
   - `ExpensesView`, `ReceivablesView`, `RolesView`, `PlansView`, `TenantsView`, `ProfileView`.
 - [x] Focus ring shared components sudah diganti ring 2px dengan kontras cukup; audit per view menyusul di fase halaman.
-- [ ] Baris/card click-only tidak dapat diakses keyboard.
-  - `ApprovalsView`, `NotificationsView`, `AuditView`, `TenantsView`, `SalesView`, `PurchaseView`, `TransfersView`, `OpnamesView`, `ServicesView`.
-- [ ] Kontrol POS terlalu padat dan beberapa ikon tanpa label.
+- [x] Baris/card click-only di halaman operasional sudah punya aksi keyboard.
+  - `ApprovalsView`, `SalesView`, `PurchaseView`, `TransfersView`, `OpnamesView`, `ServicesView`.
+- [ ] Baris/card click-only tersisa: `NotificationsView`, `AuditView`, `TenantsView` (Phase 8).
+- [x] Kontrol POS sudah diberi label, touch target, dan layout mobile.
 - [x] Microcopy sidebar kontrasnya terlalu rendah — diperbaiki di Phase 2.
 - [x] Demo credential tampil permanen di login - dibatasi ke development atau env demo di Phase 3.
 
@@ -179,13 +180,15 @@ File:
 - `OpnamesView`
 - `ApprovalsView`
 
-- [ ] Page header seragam.
-- [ ] Filter bar dan action bar.
-- [ ] Tabel/list loading, empty, mobile overflow.
-- [ ] Baris clickable dapat diakses keyboard.
-- [ ] POS: label pembayaran, layout mobile, touch target.
-- [ ] Detail/action modal memakai `AppModal`.
-- [ ] Status dan format angka konsisten.
+- [x] Page header seragam.
+- [x] Filter bar dan action bar.
+- [x] Tabel/list loading, empty, mobile overflow.
+- [x] Baris clickable dapat diakses keyboard.
+- [x] POS: label pembayaran, layout mobile, touch target.
+- [x] Detail/action modal memakai `AppModal`.
+- [x] Status dan format angka konsisten.
+
+**Status:** selesai — `type-check`, `lint`, dan `build` lulus (CSS 78.47 kB). Visual QA dengan backend demo: desktop 1440px untuk 11 halaman operasional, tablet 768px dan mobile 390px untuk POS/Approvals/Sales tanpa horizontal overflow. Detail modal diuji pada Approvals, Sales, Services, Purchase, Transfers, dan Opnames. POS diuji tambah item, split pembayaran, dan label metode; tidak ada console error atau request gagal.
 
 **Commit:** `feat(ui): operational page polish`
 
@@ -279,7 +282,7 @@ File:
 | Auth | Login, Register, Forgot, Reset | selesai |
 | Gateway | Companies | selesai |
 | Dashboard | Dashboard | selesai |
-| Operasional | POS, Sales, Services, Purchase, Catalog, Prices, Customers, Stock, Transfers, Opnames, Approvals | belum |
+| Operasional | POS, Sales, Services, Purchase, Catalog, Prices, Customers, Stock, Transfers, Opnames, Approvals | selesai |
 | Keuangan | Expenses, Debts, Receivables, Journal, Reports, Periods | belum |
 | SDM | Attendance, HrAttendance, Leaves, Schedule, Payroll, Slip, Employees, Card | belum |
 | Admin | Notifications, Subscription, CompanyProfile, Profile, Branches, Roles, Tenants, Plans, Audit, Import, NationalHolidays | belum |

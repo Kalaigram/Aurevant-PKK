@@ -560,7 +560,19 @@ onMounted(async () => {
           </td>
           <td class="hidden text-secondary md:table-cell">{{ ringkasPekerjaan(o) }}</td>
           <td class="text-right font-semibold tabular-nums">{{ rupiah(o.total) }}</td>
-          <td><AppBadge :tone="tone(o.status)" dot>{{ labelStatus(o.status) }}</AppBadge></td>
+          <td>
+            <div class="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <AppBadge :tone="tone(o.status)" dot>{{ labelStatus(o.status) }}</AppBadge>
+              <button
+                type="button"
+                class="rounded text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+                :aria-label="`Lihat order jasa nomor ${o.id}`"
+                @click.stop="lihat(o)"
+              >
+                Detail
+              </button>
+            </div>
+          </td>
         </tr>
       </AppTable>
       <AppPager :meta="meta" @page="load" @update:per-page="setPerPage" />
