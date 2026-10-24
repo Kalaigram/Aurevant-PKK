@@ -6,12 +6,18 @@ import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
 import { usePagedList } from '../composables/usePagedList'
-import AppCard from '../components/ui/AppCard.vue'
+import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
-import AppField from '../components/ui/AppField.vue'
+import AppCard from '../components/ui/AppCard.vue'
+import AppDateInput from '../components/ui/AppDateInput.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppField from '../components/ui/AppField.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
+import AppSkeleton from '../components/ui/AppSkeleton.vue'
+import AppTable from '../components/ui/AppTable.vue'
+import AppTabs from '../components/ui/AppTabs.vue'
 
 interface Baris {
   account?: { code?: string; name?: string }
@@ -43,9 +49,16 @@ const SUMBER: Record<string, string> = {
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const tab = ref<'jurnal' | 'neraca'>('jurnal')
-const dari = ref(new Date().toISOString().slice(0, 10))
-const sampai = ref(new Date().toISOString().slice(0, 10))
+const tab = ref('jurnal')
+const hariIni = new Date()
+const dari = ref(
+  new Date(hariIni.getFullYear(), hariIni.getMonth(), 1).toLocaleDateString('sv-SE'),
+)
+const sampai = ref(hariIni.toLocaleDateString('sv-SE'))
+const tabs = [
+  { key: 'jurnal', label: 'Jurnal' },
+  { key: 'neraca', label: 'Neraca saldo' },
+]
 const {
   rows: list,
   meta,
@@ -62,8 +75,10 @@ const {
     ),
   { perPage: 15 },
 )
-const { error: errorNeraca, run } = useAsync()
+const { loading: loadingNeraca, error: errorNeraca, run } = useAsync()
 const error = computed(() => errorJurnal.value || errorNeraca.value)
+const memuat = computed(() => loadingJurnal.value || loadingNeraca.value)
+const periodeLabel = computed(() => `${tanggal(dari.value)} - ${tanggal(sampai.value)}`)
 const neraca = ref<{
   rows: { code: string; name: string; debit: string | number; credit: string | number }[]
   total_debit: string | number
@@ -84,6 +99,12 @@ async function muatNeraca() {
 
 const totalBaris = (e: Entri, k: 'debit' | 'credit') =>
   (e.lines ?? []).reduce((s, l) => s + Number(l[k] ?? 0), 0)
+const labelSumber = (source?: string) => (source ? (SUMBER[source] ?? source) : 'Lainnya')
+
+function tampilkan() {
+  muatJurnal(1)
+  muatNeraca()
+}
 
 onMounted(async () => {
   await access.load(companyId.value, auth.token)
@@ -94,113 +115,160 @@ onMounted(async () => {
 
 <template>
   <div>
-    <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Buku besar otomatis</p>
-    <h1 class="font-display mb-4 text-xl font-semibold">Jurnal & neraca saldo</h1>
+    <AppPageHeader
+      eyebrow="Buku besar otomatis"
+      title="Jurnal & neraca saldo"
+      subtitle="Jurnal dibuat otomatis oleh sistem. Pilih rentang tanggal untuk meninjau mutasi dan neraca saldo."
+      icon="menu_book"
+    />
+
     <AppBanner tone="red" :message="error" />
+
     <AppEmpty
       v-if="!boleh"
+      icon="lock"
+      title="Akses terbatas"
       message="Halaman ini hanya untuk yang diberi wewenang melihat keuangan."
     />
+
     <template v-else>
-      <p class="mb-3 text-xs text-secondary">
-        Jurnal dibuat otomatis oleh sistem (tidak ada input manual).
-      </p>
-      <div class="mb-3 flex flex-wrap items-end gap-2">
-        <AppField label="Dari"
-          ><input
-            v-model="dari"
-            type="date"
-            class="rounded-lg border border-outline bg-card px-2 py-2 text-sm"
-        /></AppField>
-        <AppField label="Sampai"
-          ><input
-            v-model="sampai"
-            type="date"
-            class="rounded-lg border border-outline bg-card px-2 py-2 text-sm"
-        /></AppField>
-        <AppButton variant="ghost" @click="muatJurnal(1); muatNeraca()"
-          >Tampilkan</AppButton
-        >
-        <span class="flex gap-2">
-          <AppButton :variant="tab === 'jurnal' ? 'primary' : 'ghost'" @click="tab = 'jurnal'"
-            >Jurnal</AppButton
-          >
-          <AppButton :variant="tab === 'neraca' ? 'primary' : 'ghost'" @click="tab = 'neraca'"
-            >Neraca saldo</AppButton
-          >
-        </span>
+      <AppTabs
+        :model-value="tab"
+        :items="tabs"
+        label="Jenis laporan"
+        class="mb-4"
+        @update:model-value="tab = $event"
+      />
+
+      <div class="mb-4 flex flex-wrap items-end gap-2">
+        <AppField label="Dari" class="w-full sm:w-40">
+          <AppDateInput v-model="dari" />
+        </AppField>
+        <AppField label="Sampai" class="w-full sm:w-40">
+          <AppDateInput v-model="sampai" />
+        </AppField>
+        <AppButton :loading="memuat" @click="tampilkan">Tampilkan</AppButton>
+        <p class="text-xs text-secondary sm:ml-auto sm:pb-2.5">{{ periodeLabel }}</p>
       </div>
 
       <div v-if="tab === 'jurnal'">
-        <p v-if="loadingJurnal" class="text-sm text-secondary">Memuat…</p>
-        <AppEmpty v-else-if="!list.length" message="Tidak ada entri jurnal pada rentang ini." />
-        <div class="space-y-3">
+        <div v-if="loadingJurnal" class="space-y-3" aria-busy="true">
+          <AppCard v-for="i in 3" :key="i">
+            <AppSkeleton :lines="5" />
+          </AppCard>
+          <span class="sr-only" role="status">Memuat jurnal...</span>
+        </div>
+
+        <AppEmpty
+          v-else-if="!list.length"
+          icon="menu_book"
+          title="Tidak ada entri jurnal"
+          message="Tidak ada jurnal pada rentang tanggal ini. Coba perluas periode."
+        />
+
+        <div v-else class="space-y-3">
           <AppCard v-for="e in list" :key="e.id">
-            <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <strong
-                >#{{ e.id }} · {{ SUMBER[e.source_type ?? ''] ?? e.source_type }} —
-                {{ e.memo ?? '' }}</strong
-              >
-              <span class="text-xs text-secondary">{{ tanggal(e.date) }}</span>
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="font-display font-semibold text-ink">#{{ e.id }}</p>
+                  <AppBadge tone="blue">{{ labelSumber(e.source_type) }}</AppBadge>
+                </div>
+                <p class="mt-1 text-sm leading-relaxed text-secondary">
+                  {{ e.memo || 'Tanpa memo' }}
+                </p>
+              </div>
+              <p class="text-xs text-secondary">{{ tanggal(e.date) }}</p>
             </div>
-            <table class="mt-2 w-full text-sm">
-              <tbody>
-                <tr v-for="(l, i) in e.lines ?? []" :key="i" class="border-t border-outline/50">
-                  <td class="py-1 font-mono text-xs text-secondary">{{ l.account?.code }}</td>
-                  <td class="py-1">{{ l.account?.name }}</td>
-                  <td class="py-1 text-right">{{ rupiah(l.debit ?? 0) }}</td>
-                  <td class="py-1 text-right">{{ rupiah(l.credit ?? 0) }}</td>
+
+            <AppTable
+              class="mt-3"
+              dense
+              :colspan="4"
+              :caption="`Rincian jurnal #${e.id}`"
+              :empty="!(e.lines?.length)"
+              empty-message="Tidak ada baris jurnal."
+            >
+              <template #head>
+                <tr>
+                  <th>Kode</th>
+                  <th>Akun</th>
+                  <th class="text-right">Debit</th>
+                  <th class="text-right">Kredit</th>
                 </tr>
-              </tbody>
-              <tfoot>
-                <tr class="border-t border-outline font-semibold">
-                  <td colspan="2" class="py-1 text-xs text-secondary">Total (debit = kredit)</td>
-                  <td class="py-1 text-right">{{ rupiah(totalBaris(e, 'debit')) }}</td>
-                  <td class="py-1 text-right">{{ rupiah(totalBaris(e, 'credit')) }}</td>
+              </template>
+              <tr v-for="(l, i) in e.lines ?? []" :key="i">
+                <td class="font-mono text-xs text-secondary">{{ l.account?.code }}</td>
+                <td>{{ l.account?.name }}</td>
+                <td class="text-right tabular-nums">{{ rupiah(l.debit ?? 0) }}</td>
+                <td class="text-right tabular-nums">{{ rupiah(l.credit ?? 0) }}</td>
+              </tr>
+              <template #foot>
+                <tr class="font-semibold">
+                  <td colspan="2" class="text-xs text-secondary">Total (debit = kredit)</td>
+                  <td class="text-right tabular-nums">{{ rupiah(totalBaris(e, 'debit')) }}</td>
+                  <td class="text-right tabular-nums">{{ rupiah(totalBaris(e, 'credit')) }}</td>
                 </tr>
-              </tfoot>
-            </table>
+              </template>
+            </AppTable>
           </AppCard>
         </div>
+
         <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
       </div>
 
       <AppCard v-else>
-        <h2 class="font-display font-semibold">Neraca saldo</h2>
-        <div v-if="neraca" class="mt-2 overflow-x-auto">
-          <table class="w-full min-w-[520px] text-sm">
-            <thead>
-              <tr class="text-left text-xs uppercase tracking-wider text-secondary">
-                <th class="py-1">Kode</th>
-                <th class="py-1">Akun</th>
-                <th class="py-1 text-right">Debit</th>
-                <th class="py-1 text-right">Kredit</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="r in neraca.rows" :key="r.code" class="border-t border-outline/50">
-                <td class="py-1 font-mono text-xs">{{ r.code }}</td>
-                <td class="py-1">{{ r.name }}</td>
-                <td class="py-1 text-right">{{ rupiah(r.debit) }}</td>
-                <td class="py-1 text-right">{{ rupiah(r.credit) }}</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr class="border-t border-outline font-bold">
-                <td colspan="2" class="py-1">Total</td>
-                <td class="py-1 text-right">{{ rupiah(neraca.total_debit) }}</td>
-                <td class="py-1 text-right">{{ rupiah(neraca.total_credit) }}</td>
-              </tr>
-            </tfoot>
-          </table>
-          <p
-            v-if="Number(neraca.total_debit) !== Number(neraca.total_credit)"
-            class="mt-2 text-sm text-danger"
-          >
-            Total tidak seimbang — hubungi pengembang.
-          </p>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-display font-semibold text-ink">Neraca saldo</h2>
+            <p class="mt-0.5 text-xs text-secondary">{{ periodeLabel }}</p>
+          </div>
+          <AppBadge tone="gray">Trial balance</AppBadge>
         </div>
-        <AppEmpty v-else message="Belum ada data. Atur rentang tanggal lalu tampilkan." />
+
+        <AppTable
+          class="mt-3"
+          :loading="loadingNeraca"
+          :empty="!neraca?.rows.length"
+          :colspan="4"
+          caption="Neraca saldo"
+          empty-title="Belum ada data"
+          empty-message="Atur rentang tanggal lalu tekan Tampilkan."
+        >
+          <template #head>
+            <tr>
+              <th>Kode</th>
+              <th>Akun</th>
+              <th class="text-right">Debit</th>
+              <th class="text-right">Kredit</th>
+            </tr>
+          </template>
+          <tr v-for="r in neraca?.rows ?? []" :key="r.code">
+            <td class="font-mono text-xs text-secondary">{{ r.code }}</td>
+            <td>{{ r.name }}</td>
+            <td class="text-right tabular-nums">{{ rupiah(r.debit) }}</td>
+            <td class="text-right tabular-nums">{{ rupiah(r.credit) }}</td>
+          </tr>
+          <template v-if="neraca" #foot>
+            <tr class="font-semibold">
+              <td colspan="2">Total</td>
+              <td class="text-right tabular-nums">{{ rupiah(neraca.total_debit) }}</td>
+              <td class="text-right tabular-nums">{{ rupiah(neraca.total_credit) }}</td>
+            </tr>
+          </template>
+        </AppTable>
+
+        <p
+          v-if="
+            neraca?.rows.length && Number(neraca.total_debit) !== Number(neraca.total_credit)
+          "
+          class="mt-3 text-sm text-danger"
+        >
+          Total tidak seimbang — hubungi pengembang.
+        </p>
+        <p v-else-if="neraca?.rows.length" class="mt-2 text-xs text-secondary">
+          Total debit dan kredit seimbang.
+        </p>
       </AppCard>
     </template>
   </div>

@@ -13,10 +13,12 @@ import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
 import AppField from '../components/ui/AppField.vue'
+import AppInput from '../components/ui/AppInput.vue'
 import AppModal from '../components/ui/AppModal.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
 import AppSelect from '../components/ui/AppSelect.vue'
+import AppStat from '../components/ui/AppStat.vue'
 import AppTable from '../components/ui/AppTable.vue'
 import AppTabs from '../components/ui/AppTabs.vue'
 
@@ -52,8 +54,9 @@ const { loading: mutasiLoading, error: mutasiError, run: runMutasi } = useAsync(
 
 const tabStatus = ref('semua')
 const statistik = ref({ total: 0, buka: 0, tutup: 0 })
+const statistikLoading = ref(false)
 const tutupOpen = ref(false)
-const tahun = ref(new Date().getFullYear())
+const tahun = ref<number | null>(new Date().getFullYear())
 const bulan = ref(String(new Date().getMonth() + 1))
 
 const {
@@ -85,18 +88,24 @@ const opsiBulan = BULAN.map((nama, index) => ({
   label: nama,
 }))
 const statusLabel = (status: string) => (status === 'buka' ? 'Terbuka' : 'Tertutup')
+const statusTone = (status: string) => (status === 'buka' ? 'green' : 'gray')
 
 async function muatStatistik() {
-  const base = `/companies/${companyId.value}/accounting-periods?per_page=1`
-  const [semua, buka, tutup] = await Promise.all([
-    api.getPage<Periode>(base, auth.token).catch(() => null),
-    api.getPage<Periode>(`${base}&status=buka`, auth.token).catch(() => null),
-    api.getPage<Periode>(`${base}&status=tutup`, auth.token).catch(() => null),
-  ])
-  statistik.value = {
-    total: semua?.meta?.total ?? 0,
-    buka: buka?.meta?.total ?? 0,
-    tutup: tutup?.meta?.total ?? 0,
+  statistikLoading.value = true
+  try {
+    const base = `/companies/${companyId.value}/accounting-periods?per_page=1`
+    const [semua, buka, tutup] = await Promise.all([
+      api.getPage<Periode>(base, auth.token).catch(() => null),
+      api.getPage<Periode>(`${base}&status=buka`, auth.token).catch(() => null),
+      api.getPage<Periode>(`${base}&status=tutup`, auth.token).catch(() => null),
+    ])
+    statistik.value = {
+      total: semua?.meta?.total ?? 0,
+      buka: buka?.meta?.total ?? 0,
+      tutup: tutup?.meta?.total ?? 0,
+    }
+  } finally {
+    statistikLoading.value = false
   }
 }
 
@@ -111,6 +120,7 @@ function bukaTutup() {
 }
 
 async function tutupPeriode() {
+  if (!tahun.value) return
   const res = await runMutasi(() =>
     api.post(
       `/companies/${companyId.value}/accounting-periods/close`,
@@ -170,19 +180,26 @@ onMounted(async () => {
 
     <AppBanner tone="red" :message="error" />
 
-    <div class="mb-4 grid gap-3 md:grid-cols-3">
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Total periode</p>
-        <p class="font-display text-2xl font-bold">{{ statistik.total }}</p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Terbuka</p>
-        <p class="font-display text-2xl font-bold">{{ statistik.buka }}</p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Tertutup</p>
-        <p class="font-display text-2xl font-bold">{{ statistik.tutup }}</p>
-      </AppCard>
+    <div class="mb-4 grid gap-3 sm:grid-cols-3">
+      <AppStat
+        label="Total periode"
+        :value="statistik.total"
+        icon="calendar_month"
+        :loading="statistikLoading"
+      />
+      <AppStat
+        label="Terbuka"
+        :value="statistik.buka"
+        icon="lock_open"
+        tone="positive"
+        :loading="statistikLoading"
+      />
+      <AppStat
+        label="Tertutup"
+        :value="statistik.tutup"
+        icon="lock"
+        :loading="statistikLoading"
+      />
     </div>
 
     <AppCard>
@@ -216,7 +233,7 @@ onMounted(async () => {
               <p class="text-xs text-secondary">{{ item.month }}/{{ item.year }}</p>
             </td>
             <td>
-              <AppBadge :tone="item.status === 'buka' ? 'green' : 'red'">
+              <AppBadge :tone="statusTone(item.status)" dot>
                 {{ statusLabel(item.status) }}
               </AppBadge>
             </td>
@@ -228,6 +245,7 @@ onMounted(async () => {
                 v-if="item.status !== 'buka'"
                 size="sm"
                 variant="ghost"
+                :aria-label="`Buka lagi periode ${item.label}`"
                 @click="bukaLagi(item)"
               >
                 Buka lagi
@@ -248,15 +266,10 @@ onMounted(async () => {
       size="sm"
       @close="tutupOpen = false"
     >
+      <AppBanner tone="red" :message="mutasiError" />
       <form id="close-period-form" class="space-y-3" @submit.prevent="tutupPeriode">
         <AppField label="Tahun" required>
-          <input
-            v-model.number="tahun"
-            type="number"
-            min="2000"
-            max="2100"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-          />
+          <AppInput v-model="tahun" type="number" min="2000" max="2100" />
         </AppField>
         <AppField label="Bulan" required>
           <AppSelect v-model="bulan" :options="opsiBulan" />
@@ -264,7 +277,12 @@ onMounted(async () => {
       </form>
       <template #footer>
         <AppButton variant="ghost" @click="tutupOpen = false">Batal</AppButton>
-        <AppButton type="submit" form="close-period-form" :loading="mutasiLoading">
+        <AppButton
+          type="submit"
+          form="close-period-form"
+          :loading="mutasiLoading"
+          :disabled="!tahun"
+        >
           Tutup periode
         </AppButton>
       </template>

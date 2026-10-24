@@ -3,6 +3,23 @@ export function rupiah(value: number | string | null | undefined): string {
   return 'Rp' + Number(value).toLocaleString('id-ID')
 }
 
+export function rupiahRingkas(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === '') return 'Rp0'
+  const n = Number(value)
+  const abs = Math.abs(n)
+  if (abs >= 1_000_000_000)
+    return (
+      'Rp' +
+      (n / 1_000_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 }) +
+      ' M'
+    )
+  if (abs >= 1_000_000)
+    return 'Rp' + (n / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' jt'
+  if (abs >= 1_000)
+    return 'Rp' + (n / 1_000).toLocaleString('id-ID', { maximumFractionDigits: 0 }) + ' rb'
+  return rupiah(n)
+}
+
 export function tanggal(iso: string | null | undefined): string {
   if (!iso) return '-'
   const d = new Date(iso.length <= 10 ? iso + 'T00:00:00' : iso)

@@ -14,6 +14,7 @@ import AppEmpty from '../components/ui/AppEmpty.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppSelect from '../components/ui/AppSelect.vue'
+import AppSkeleton from '../components/ui/AppSkeleton.vue'
 import AppStat from '../components/ui/AppStat.vue'
 import AppTable from '../components/ui/AppTable.vue'
 import AppTabs from '../components/ui/AppTabs.vue'
@@ -334,6 +335,8 @@ onMounted(async () => {
     <AppBanner tone="red" :message="error" />
     <AppEmpty
       v-if="!bolehKeuangan"
+      icon="lock"
+      title="Akses terbatas"
       message="Halaman ini hanya untuk yang diberi wewenang melihat keuangan."
     />
 
@@ -371,7 +374,17 @@ onMounted(async () => {
         <p class="text-xs text-secondary">{{ periodeLabel }}</p>
       </div>
 
-      <p v-if="loading" class="mt-5 text-sm text-secondary">Menghitung…</p>
+      <div v-if="loading" class="mt-4" aria-busy="true">
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <AppCard v-for="i in 4" :key="i">
+            <AppSkeleton :lines="2" />
+          </AppCard>
+        </div>
+        <AppCard class="mt-4">
+          <AppSkeleton :lines="6" />
+        </AppCard>
+        <span class="sr-only" role="status">Menghitung laporan...</span>
+      </div>
 
       <template v-else-if="hasil">
         <div v-if="tab === 'labarugi'" class="mt-4">
@@ -613,6 +626,15 @@ onMounted(async () => {
           </AppCard>
         </div>
       </template>
+
+      <AppEmpty
+        v-else
+        icon="assessment"
+        title="Belum ada laporan"
+        message="Pilih periode dan cabang, lalu tekan Tampilkan untuk memuat laporan."
+      >
+        <AppButton @click="tampilkan">Tampilkan laporan</AppButton>
+      </AppEmpty>
     </template>
   </div>
 </template>

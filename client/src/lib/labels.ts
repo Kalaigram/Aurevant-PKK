@@ -88,6 +88,14 @@ const ENTITY_LABELS: Record<string, string> = {
   work_shift: 'Shift kerja',
 }
 
+const AGING_BUCKET_LABELS: Record<string, string> = {
+  lancar: 'Belum jatuh tempo',
+  '1_30': 'Telat 1–30 hari',
+  '31_60': 'Telat 31–60 hari',
+  '61_90': 'Telat 61–90 hari',
+  lebih_90: 'Telat > 90 hari',
+}
+
 const FIELD_LABELS: Record<string, string> = {
   amount: 'Nominal',
   balance: 'Saldo',
@@ -150,6 +158,10 @@ function humanize(value: string) {
 
 export function labelAksi(action: string, fallback?: string | null) {
   return ACTION_LABELS[action] ?? (fallback?.trim() || humanize(action))
+}
+
+export function labelAgingBucket(bucket: string) {
+  return AGING_BUCKET_LABELS[bucket] ?? humanize(bucket)
 }
 
 export function labelEntitas(entity: string | null | undefined) {

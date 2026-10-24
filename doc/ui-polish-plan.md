@@ -203,12 +203,14 @@ File:
 - `ReportsView`
 - `PeriodsView`
 
-- [ ] Ganti modal custom dengan `AppModal`.
-- [ ] Stat memakai `AppStat`.
-- [ ] Filter dan field memakai komponen shared.
-- [ ] Tabel jurnal dan laporan.
-- [ ] Format bucket/status.
-- [ ] Empty/loading state.
+- [x] Ganti modal custom dengan `AppModal`.
+- [x] Stat memakai `AppStat`.
+- [x] Filter dan field memakai komponen shared.
+- [x] Tabel jurnal dan laporan.
+- [x] Format bucket/status.
+- [x] Empty/loading state.
+
+**Status:** selesai — `type-check`, `lint`, dan `build` lulus (CSS 78.97 kB). Visual QA dengan backend demo: desktop 1440px untuk 6 halaman keuangan dan mobile 390px untuk layout utama. Modal Expenses/Receivables/Periods, pembayaran inline Debts, tab Neraca saldo Journal, dan tab Harian Reports diuji. Aging memakai nominal ringkas + nominal lengkap pada total; tidak ada horizontal overflow, console error, atau request gagal. Sekaligus diperbaiki query `unpaid=true` menjadi `unpaid=1` pada Debts/Receivables agar sesuai validasi boolean Laravel.
 
 **Commit:** `feat(ui): finance page polish`
 
@@ -283,7 +285,7 @@ File:
 | Gateway | Companies | selesai |
 | Dashboard | Dashboard | selesai |
 | Operasional | POS, Sales, Services, Purchase, Catalog, Prices, Customers, Stock, Transfers, Opnames, Approvals | selesai |
-| Keuangan | Expenses, Debts, Receivables, Journal, Reports, Periods | belum |
+| Keuangan | Expenses, Debts, Receivables, Journal, Reports, Periods | selesai |
 | SDM | Attendance, HrAttendance, Leaves, Schedule, Payroll, Slip, Employees, Card | belum |
 | Admin | Notifications, Subscription, CompanyProfile, Profile, Branches, Roles, Tenants, Plans, Audit, Import, NationalHolidays | belum |
 | Shell | App.vue, AuthLayout, CompanyShell | selesai |

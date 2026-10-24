@@ -6,13 +6,22 @@ import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
 import { usePagedList } from '../composables/usePagedList'
+import { useConfirm } from '../composables/useConfirm'
 import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
-import AppField from '../components/ui/AppField.vue'
+import AppDateInput from '../components/ui/AppDateInput.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppField from '../components/ui/AppField.vue'
+import AppInput from '../components/ui/AppInput.vue'
+import AppModal from '../components/ui/AppModal.vue'
+import AppMoneyInput from '../components/ui/AppMoneyInput.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
+import AppSelect from '../components/ui/AppSelect.vue'
+import AppSkeleton from '../components/ui/AppSkeleton.vue'
+import AppTabs from '../components/ui/AppTabs.vue'
 
 interface Kategori {
   id: number
@@ -37,7 +46,8 @@ interface Biaya {
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
-const tab = ref<'biaya' | 'kategori'>('biaya')
+const { confirm } = useConfirm()
+const tab = ref('biaya')
 const filterStatus = ref('')
 const okMsg = ref('')
 const {
@@ -57,7 +67,6 @@ const {
   { perPage: 20 },
 )
 const { loading: loadingMutasi, error: errorMutasi, run } = useAsync()
-const loading = computed(() => loadingList.value || loadingMutasi.value)
 const error = computed(() => errorList.value || errorMutasi.value)
 const kategori = ref<Kategori[]>([])
 const cabang = ref<Cabang[]>([])
@@ -65,16 +74,62 @@ const cabang = ref<Cabang[]>([])
 const bolehCatat = computed(() => access.can('biaya.input'))
 const bolehPutus = computed(() => access.can('biaya.setujui'))
 
+const opsiStatus = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'disetujui', label: 'Disetujui' },
+  { value: 'ditolak', label: 'Ditolak' },
+]
+const opsiMetode = [
+  { value: 'tunai', label: 'Tunai' },
+  { value: 'transfer', label: 'Transfer' },
+]
+const opsiCabang = computed(() =>
+  cabang.value.map((c) => ({ value: c.id, label: `${c.code} - ${c.name}` })),
+)
+const opsiKategori = computed(() =>
+  kategori.value.map((k) => ({ value: k.id, label: k.name })),
+)
+const tabs = computed(() => [
+  { key: 'biaya', label: 'Daftar biaya' },
+  { key: 'kategori', label: 'Kategori', count: kategori.value.length },
+])
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: 'Draft',
+  disetujui: 'Disetujui',
+  ditolak: 'Ditolak',
+}
+const METODE_LABEL: Record<string, string> = {
+  tunai: 'Tunai',
+  transfer: 'Transfer',
+}
+const labelStatus = (status: string) => STATUS_LABEL[status] ?? status
+const labelMetode = (method?: string) => (method ? (METODE_LABEL[method] ?? method) : '—')
+const tone = (status: string): 'green' | 'red' | 'amber' =>
+  status === 'disetujui' ? 'green' : status === 'ditolak' ? 'red' : 'amber'
+const namaCabang = (id?: number) =>
+  id ? (cabang.value.find((c) => c.id === id)?.name ?? `Cabang #${id}`) : '—'
+
+function formKosong() {
+  return {
+    branch_id: null as number | null,
+    expense_category_id: null as number | null,
+    amount: null as number | null,
+    method: 'tunai',
+    date: new Date().toISOString().slice(0, 10),
+    description: '',
+  }
+}
+
 const showForm = ref(false)
-const fBiaya = ref({
-  branch_id: '',
-  expense_category_id: '',
-  amount: 0,
-  method: 'tunai',
-  date: new Date().toISOString().slice(0, 10),
-  description: '',
-})
+const fBiaya = ref(formKosong())
 const namaKat = ref('')
+const galatKategori = ref('')
+
+function bukaForm() {
+  fBiaya.value = formKosong()
+  showForm.value = true
+}
 
 async function muatCabang() {
   cabang.value =
@@ -95,13 +150,21 @@ async function muatKategori() {
 }
 
 async function simpanBiaya() {
+  if (
+    !fBiaya.value.branch_id ||
+    !fBiaya.value.expense_category_id ||
+    !fBiaya.value.amount ||
+    !fBiaya.value.description.trim()
+  ) {
+    return
+  }
   const res = await run(() =>
     api.post(
       `/companies/${companyId.value}/expenses`,
       {
-        branch_id: Number(fBiaya.value.branch_id),
-        expense_category_id: Number(fBiaya.value.expense_category_id),
-        amount: Number(fBiaya.value.amount),
+        branch_id: fBiaya.value.branch_id,
+        expense_category_id: fBiaya.value.expense_category_id,
+        amount: fBiaya.value.amount,
         method: fBiaya.value.method || undefined,
         date: fBiaya.value.date,
         description: fBiaya.value.description.trim(),
@@ -112,14 +175,7 @@ async function simpanBiaya() {
   if (res) {
     showForm.value = false
     okMsg.value = 'Biaya tercatat sebagai draft. Minta persetujuan agar masuk laporan.'
-    fBiaya.value = {
-      branch_id: '',
-      expense_category_id: '',
-      amount: 0,
-      method: 'tunai',
-      date: new Date().toISOString().slice(0, 10),
-      description: '',
-    }
+    fBiaya.value = formKosong()
     muatBiaya(1)
   }
 }
@@ -139,13 +195,14 @@ async function putuskan(id: number, setuju: boolean) {
 }
 
 async function tambahKategori() {
-  if (!namaKat.value.trim()) return
+  const name = namaKat.value.trim()
+  if (!name) {
+    galatKategori.value = 'Nama kategori wajib diisi.'
+    return
+  }
+  galatKategori.value = ''
   const res = await run(() =>
-    api.post(
-      `/companies/${companyId.value}/expense-categories`,
-      { name: namaKat.value.trim() },
-      auth.token,
-    ),
+    api.post(`/companies/${companyId.value}/expense-categories`, { name }, auth.token),
   )
   if (res) {
     namaKat.value = ''
@@ -154,15 +211,25 @@ async function tambahKategori() {
   }
 }
 
-async function hapusKategori(id: number) {
-  await run(() => api.del(`/companies/${companyId.value}/expense-categories/${id}`, auth.token))
+async function hapusKategori(k: Kategori) {
+  const yakin = await confirm({
+    title: `Hapus kategori ${k.name}?`,
+    message: 'Biaya lama tetap tersimpan, tetapi kategori ini tidak bisa dipakai lagi.',
+    confirmLabel: 'Hapus kategori',
+    tone: 'danger',
+  })
+  if (!yakin) return
+  await run(() => api.del(`/companies/${companyId.value}/expense-categories/${k.id}`, auth.token))
   if (!errorMutasi.value) {
     okMsg.value = 'Kategori dihapus.'
     muatKategori()
   }
 }
 
-const tone = (s: string) => (s === 'disetujui' ? 'green' : s === 'ditolak' ? 'red' : 'amber')
+function gantiStatus(value: string | number | null) {
+  filterStatus.value = value === null ? '' : String(value)
+  muatBiaya(1)
+}
 
 onMounted(async () => {
   await access.load(companyId.value, auth.token)
@@ -174,148 +241,236 @@ onMounted(async () => {
 
 <template>
   <div>
-    <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Operasional harian</p>
-    <h1 class="font-display mb-4 text-xl font-semibold">Biaya operasional</h1>
+    <AppPageHeader
+      eyebrow="Operasional harian"
+      title="Biaya operasional"
+      subtitle="Catat pengeluaran cabang, ajukan persetujuan, dan kelola kategori biaya."
+      icon="receipt_long"
+    >
+      <template #actions>
+        <AppButton v-if="bolehCatat && tab === 'biaya'" @click="bukaForm">Catat biaya</AppButton>
+      </template>
+    </AppPageHeader>
+
     <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="error" />
 
-    <div class="mb-3 flex gap-2">
-      <AppButton :variant="tab === 'biaya' ? 'primary' : 'ghost'" @click="tab = 'biaya'"
-        >Daftar biaya</AppButton
-      >
-      <AppButton :variant="tab === 'kategori' ? 'primary' : 'ghost'" @click="tab = 'kategori'"
-        >Kategori</AppButton
-      >
-    </div>
+    <AppTabs
+      :model-value="tab"
+      :items="tabs"
+      label="Tampilan biaya"
+      class="mb-4"
+      @update:model-value="tab = $event"
+    />
 
     <div v-if="tab === 'biaya'">
-      <div class="mb-3 flex flex-wrap items-center gap-2">
-        <label class="flex items-center gap-1.5 text-sm text-secondary"
-          >Status
-          <select
-            v-model="filterStatus"
-            class="rounded-lg border border-outline bg-card px-2 py-2 text-sm"
-            @change="muatBiaya(1)"
-          >
-            <option value="">Semua</option>
-            <option value="draft">Draft</option>
-            <option value="disetujui">Disetujui</option>
-            <option value="ditolak">Ditolak</option>
-          </select>
-        </label>
-        <AppButton v-if="bolehCatat" @click="showForm = true">Catat biaya</AppButton>
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <AppField label="Status" class="w-full sm:w-52">
+          <AppSelect
+            :model-value="filterStatus || null"
+            :options="opsiStatus"
+            placeholder="Semua status"
+            @update:model-value="gantiStatus"
+          />
+        </AppField>
+        <p class="text-xs leading-relaxed text-secondary sm:pb-2.5">
+          Yang masih draft belum masuk laporan laba rugi.
+        </p>
       </div>
-      <p class="mb-2 text-xs text-secondary">Yang masih draft belum masuk laporan laba rugi.</p>
-      <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
-      <AppEmpty v-else-if="!list.length" message="Belum ada biaya pada filter ini." />
-      <div class="grid gap-3 md:grid-cols-2">
+
+      <div v-if="loadingList" class="grid gap-3 md:grid-cols-2" aria-busy="true">
+        <AppCard v-for="i in 4" :key="i">
+          <AppSkeleton :lines="4" />
+        </AppCard>
+        <span class="sr-only" role="status">Memuat biaya...</span>
+      </div>
+
+      <AppEmpty
+        v-else-if="!list.length"
+        icon="receipt_long"
+        title="Belum ada biaya"
+        :message="
+          filterStatus
+            ? 'Tidak ada biaya dengan status ini. Ubah filter untuk melihat data lain.'
+            : 'Biaya yang dicatat akan muncul di sini sebagai draft.'
+        "
+      >
+        <AppButton v-if="bolehCatat" @click="bukaForm">Catat biaya</AppButton>
+      </AppEmpty>
+
+      <div v-else class="grid gap-3 md:grid-cols-2">
         <AppCard v-for="b in list" :key="b.id">
-          <div class="flex items-center justify-between gap-2">
-            <strong class="font-display">{{ rupiah(b.amount) }}</strong>
-            <AppBadge :tone="tone(b.status)">{{ b.status }}</AppBadge>
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="font-display text-lg font-bold tabular-nums text-ink">
+                {{ rupiah(b.amount) }}
+              </p>
+              <p class="mt-1 text-sm leading-relaxed text-ink">
+                {{ b.description ?? 'Tanpa keterangan' }}
+              </p>
+            </div>
+            <AppBadge :tone="tone(b.status)" dot>{{ labelStatus(b.status) }}</AppBadge>
           </div>
-          <p class="mt-1 text-sm">{{ b.description ?? '—' }}</p>
-          <p class="mt-0.5 text-xs text-secondary">
-            {{ b.categoryName ?? '' }} · {{ tanggal(b.date) }} · {{ b.method ?? '' }}
-          </p>
-          <div v-if="b.status === 'draft' && bolehPutus" class="mt-2 flex gap-2">
-            <AppButton @click="putuskan(b.id, true)">Setujui</AppButton>
-            <AppButton variant="ghost" @click="putuskan(b.id, false)">Tolak</AppButton>
+
+          <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-secondary">
+            <div>
+              <dt class="sr-only">Kategori</dt>
+              <dd>{{ b.categoryName ?? 'Tanpa kategori' }}</dd>
+            </div>
+            <div class="text-right">
+              <dt class="sr-only">Tanggal</dt>
+              <dd>{{ tanggal(b.date) }}</dd>
+            </div>
+            <div>
+              <dt class="sr-only">Cabang</dt>
+              <dd>{{ namaCabang(b.branchId) }}</dd>
+            </div>
+            <div class="text-right">
+              <dt class="sr-only">Cara bayar</dt>
+              <dd>{{ labelMetode(b.method) }}</dd>
+            </div>
+          </dl>
+
+          <div
+            v-if="b.status === 'draft' && bolehPutus"
+            class="mt-3 flex flex-wrap gap-2 border-t border-outline/50 pt-3"
+          >
+            <AppButton size="sm" :disabled="loadingMutasi" @click="putuskan(b.id, true)">
+              Setujui
+            </AppButton>
+            <AppButton
+              size="sm"
+              variant="ghost"
+              :disabled="loadingMutasi"
+              @click="putuskan(b.id, false)"
+            >
+              Tolak
+            </AppButton>
           </div>
         </AppCard>
       </div>
+
       <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
     </div>
 
     <AppCard v-else>
-      <h2 class="font-display font-semibold">Kategori biaya</h2>
-      <div v-if="bolehPutus" class="mt-2 flex gap-2">
-        <input
-          v-model="namaKat"
-          maxlength="255"
-          placeholder="cth. Listrik & air"
-          class="flex-1 rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-        />
-        <AppButton @click="tambahKategori">Tambah</AppButton>
+      <div class="flex flex-col gap-1">
+        <h2 class="font-display font-semibold text-ink">Kategori biaya</h2>
+        <p class="text-xs leading-relaxed text-secondary">
+          Kategori membantu merapikan laporan pengeluaran.
+        </p>
       </div>
-      <ul class="mt-3 divide-y divide-outline/60">
+
+      <div v-if="bolehPutus" class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+        <AppField label="Nama kategori" class="flex-1" :error="galatKategori">
+          <AppInput
+            v-model="namaKat"
+            maxlength="255"
+            placeholder="cth. Listrik & air"
+            @input="galatKategori = ''"
+          />
+        </AppField>
+        <AppButton
+          class="w-full sm:w-auto"
+          :loading="loadingMutasi"
+          @click="tambahKategori"
+        >
+          Tambah
+        </AppButton>
+      </div>
+
+      <ul v-if="kategori.length" class="mt-4 divide-y divide-outline/60">
         <li
           v-for="k in kategori"
           :key="k.id"
-          class="flex items-center justify-between py-2 text-sm"
+          class="flex items-center justify-between gap-3 py-2.5 text-sm"
         >
-          <span>{{ k.name }}</span>
-          <AppButton v-if="bolehPutus" variant="ghost" @click="hapusKategori(k.id)"
-            >Hapus</AppButton
+          <span class="min-w-0 text-ink">{{ k.name }}</span>
+          <AppButton
+            v-if="bolehPutus"
+            variant="ghost"
+            size="sm"
+            class="text-danger"
+            :aria-label="`Hapus kategori ${k.name}`"
+            @click="hapusKategori(k)"
           >
+            Hapus
+          </AppButton>
         </li>
       </ul>
-      <AppEmpty v-if="!kategori.length" message="Belum ada kategori." />
+      <AppEmpty
+        v-else
+        class="mt-4"
+        compact
+        icon="category"
+        title="Belum ada kategori"
+        message="Tambahkan kategori agar biaya bisa dikelompokkan."
+      />
     </AppCard>
 
-    <div
-      v-if="showForm"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="showForm = false"
+    <AppModal
+      :open="showForm"
+      title="Catat biaya baru"
+      description="Biaya akan disimpan sebagai draft dan menunggu persetujuan."
+      size="md"
+      @close="showForm = false"
     >
-      <form class="w-full max-w-md rounded-xl bg-card p-5 shadow-xl" @submit.prevent="simpanBiaya">
-        <h3 class="font-display font-semibold">Catat biaya baru</h3>
-        <div class="mt-2 grid grid-cols-2 gap-2">
-          <AppField label="Cabang"
-            ><select
+      <AppBanner tone="red" :message="errorMutasi" />
+      <form id="expense-form" class="grid gap-3" @submit.prevent="simpanBiaya">
+        <div class="grid gap-3 sm:grid-cols-2">
+          <AppField label="Cabang" required>
+            <AppSelect
               v-model="fBiaya.branch_id"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm"
-            >
-              <option value="">— pilih —</option>
-              <option v-for="c in cabang" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select></AppField
-          >
-          <AppField label="Kategori"
-            ><select
+              :options="opsiCabang"
+              placeholder="Pilih cabang"
+            />
+          </AppField>
+          <AppField label="Kategori" required>
+            <AppSelect
               v-model="fBiaya.expense_category_id"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm"
-            >
-              <option value="">— pilih —</option>
-              <option v-for="k in kategori" :key="k.id" :value="k.id">{{ k.name }}</option>
-            </select></AppField
+              :options="opsiKategori"
+              placeholder="Pilih kategori"
+            />
+          </AppField>
+          <AppField label="Nominal" required>
+            <AppMoneyInput v-model="fBiaya.amount" />
+          </AppField>
+          <AppField label="Cara bayar" required>
+            <AppSelect v-model="fBiaya.method" :options="opsiMetode" />
+          </AppField>
+          <AppField label="Tanggal" required class="sm:col-span-2">
+            <AppDateInput v-model="fBiaya.date" />
+          </AppField>
+          <AppField
+            label="Keterangan"
+            required
+            class="sm:col-span-2"
+            hint="Tuliskan kebutuhan biaya secara singkat."
           >
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <AppField label="Nominal (Rp)"
-            ><input
-              v-model.number="fBiaya.amount"
-              type="number"
-              min="0"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-          /></AppField>
-          <AppField label="Cara bayar"
-            ><select
-              v-model="fBiaya.method"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm"
-            >
-              <option value="tunai">Tunai</option>
-              <option value="transfer">Transfer</option>
-            </select></AppField
-          >
-        </div>
-        <AppField label="Tanggal"
-          ><input
-            v-model="fBiaya.date"
-            type="date"
-            class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-        /></AppField>
-        <AppField label="Keterangan (wajib)"
-          ><input
-            v-model="fBiaya.description"
-            maxlength="500"
-            placeholder="cth. Bayar listrik bulan ini"
-            class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-        /></AppField>
-        <div class="mt-3 flex justify-end gap-2">
-          <AppButton variant="ghost" type="button" @click="showForm = false">Batal</AppButton>
-          <AppButton type="submit">Simpan draft</AppButton>
+            <AppInput
+              v-model="fBiaya.description"
+              maxlength="500"
+              placeholder="cth. Bayar listrik bulan ini"
+            />
+          </AppField>
         </div>
       </form>
-    </div>
+      <template #footer>
+        <AppButton variant="ghost" @click="showForm = false">Batal</AppButton>
+        <AppButton
+          type="submit"
+          form="expense-form"
+          :loading="loadingMutasi"
+          :disabled="
+            !fBiaya.branch_id ||
+            !fBiaya.expense_category_id ||
+            !fBiaya.amount ||
+            !fBiaya.description.trim()
+          "
+        >
+          Simpan draft
+        </AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

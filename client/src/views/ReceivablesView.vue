@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../lib/api'
-import { rupiah, tanggal } from '../lib/format'
+import { rupiah, rupiahRingkas, tanggal } from '../lib/format'
+import { labelAgingBucket } from '../lib/labels'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
@@ -10,9 +11,18 @@ import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
-import AppField from '../components/ui/AppField.vue'
+import AppCheckbox from '../components/ui/AppCheckbox.vue'
+import AppDateInput from '../components/ui/AppDateInput.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppField from '../components/ui/AppField.vue'
+import AppInput from '../components/ui/AppInput.vue'
+import AppModal from '../components/ui/AppModal.vue'
+import AppMoneyInput from '../components/ui/AppMoneyInput.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
+import AppSelect from '../components/ui/AppSelect.vue'
+import AppSkeleton from '../components/ui/AppSkeleton.vue'
+import AppStat from '../components/ui/AppStat.vue'
 
 interface Bon {
   id: number
@@ -44,22 +54,64 @@ const {
 } = usePagedList<Bon>(
   (page, perPage) =>
     api.getPage<Bon>(
-      `/companies/${companyId.value}/receivables?per_page=${perPage}&page=${page}${hanyaBelumLunas.value ? '&unpaid=true' : ''}`,
+      `/companies/${companyId.value}/receivables?per_page=${perPage}&page=${page}${hanyaBelumLunas.value ? '&unpaid=1' : ''}`,
       auth.token,
     ),
   { perPage: 20 },
 )
-const { error: errorMutasi, run } = useAsync()
+const { loading: loadingMutasi, error: errorMutasi, run } = useAsync()
 const error = computed(() => errorList.value || errorMutasi.value)
 const aging = ref<{ buckets: Record<string, number>; total: number } | null>(null)
 const cabang = ref<Cabang[]>([])
 const showForm = ref(false)
-const fBon = ref({ branch_id: '', customer_id: '', amount: 0, due_at: '', note: '' })
+const fBon = ref(formKosong())
 const bayarId = ref<number | null>(null)
-const bayarNominal = ref(0)
+const bayarNominal = ref<number | null>(null)
 const bayarCara = ref('tunai')
 
 const boleh = computed(() => access.can('biaya.setujui'))
+const BUCKETS = ['lancar', '1_30', '31_60', '61_90', 'lebih_90']
+const opsiMetode = [
+  { value: 'tunai', label: 'Tunai' },
+  { value: 'transfer', label: 'Transfer' },
+  { value: 'qris', label: 'QRIS' },
+  { value: 'ewallet', label: 'E-wallet' },
+]
+const opsiCabang = computed(() =>
+  cabang.value.map((c) => ({ value: c.id, label: c.name })),
+)
+
+const bucketTone = (bucket: string): 'default' | 'warning' | 'negative' => {
+  if (bucket === 'lebih_90') return 'negative'
+  if (bucket === 'lancar') return 'default'
+  return 'warning'
+}
+
+const persenLunas = (b: Bon) => {
+  const total = Number(b.amount)
+  if (!total) return 0
+  return Math.min(100, Math.max(0, Math.round((Number(b.paidAmount) / total) * 100)))
+}
+
+function formKosong() {
+  return {
+    branch_id: null as number | null,
+    customer_id: '',
+    amount: null as number | null,
+    due_at: '',
+    note: '',
+  }
+}
+
+function bukaForm() {
+  fBon.value = formKosong()
+  showForm.value = true
+}
+
+function gantiFilter(value: boolean) {
+  hanyaBelumLunas.value = value
+  muatBon(1)
+}
 
 async function muatAging() {
   const ag = await api
@@ -83,13 +135,14 @@ async function muat() {
 }
 
 async function simpan() {
+  if (!fBon.value.branch_id || !fBon.value.amount) return
   const res = await run(() =>
     api.post(
       `/companies/${companyId.value}/receivables`,
       {
-        branch_id: Number(fBon.value.branch_id),
+        branch_id: fBon.value.branch_id,
         customer_id: fBon.value.customer_id === '' ? undefined : Number(fBon.value.customer_id),
-        amount: Number(fBon.value.amount),
+        amount: fBon.value.amount,
         due_at: fBon.value.due_at || undefined,
         note: fBon.value.note || undefined,
       },
@@ -99,7 +152,7 @@ async function simpan() {
   if (res) {
     showForm.value = false
     okMsg.value = 'Bon pelanggan tercatat.'
-    fBon.value = { branch_id: '', customer_id: '', amount: 0, due_at: '', note: '' }
+    fBon.value = formKosong()
     await Promise.all([muatBon(1), muatAging()])
   }
 }
@@ -107,6 +160,7 @@ async function simpan() {
 function mulaiTerima(b: Bon) {
   bayarId.value = b.id
   bayarNominal.value = Number(b.remaining)
+  bayarCara.value = 'tunai'
 }
 
 async function terima(b: Bon) {
@@ -124,7 +178,7 @@ async function terima(b: Bon) {
   if (res || !errorMutasi.value) {
     okMsg.value = 'Cicilan tercatat.'
     bayarId.value = null
-    bayarNominal.value = 0
+    bayarNominal.value = null
     await Promise.all([muatBon(), muatAging()])
   }
 }
@@ -137,140 +191,183 @@ onMounted(async () => {
 
 <template>
   <div>
-    <p class="text-xs font-semibold uppercase tracking-wider text-secondary">
-      Tagihan ke pelanggan
-    </p>
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <h1 class="font-display text-xl font-semibold">Piutang (bon)</h1>
-      <AppButton v-if="boleh" @click="showForm = true">Catat bon</AppButton>
-    </div>
+    <AppPageHeader
+      eyebrow="Tagihan ke pelanggan"
+      title="Piutang (bon)"
+      subtitle="Catat bon pelanggan dan pantau cicilan yang sudah diterima."
+      icon="request_quote"
+    >
+      <template #actions>
+        <AppButton v-if="boleh" @click="bukaForm">Catat bon</AppButton>
+      </template>
+    </AppPageHeader>
+
     <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="error" />
 
-    <div v-if="aging" class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-6">
-      <AppCard v-for="(v, k) in aging.buckets" :key="k" class="!p-3">
-        <p class="text-xs text-secondary">{{ k }}</p>
-        <p class="font-display text-lg font-bold">{{ rupiah(v) }}</p>
-      </AppCard>
-      <AppCard class="!p-3"
-        ><p class="text-xs text-secondary">Total</p>
-        <p class="font-display text-lg font-bold">{{ rupiah(aging.total) }}</p></AppCard
-      >
+    <div v-if="aging" class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
+      <AppStat
+        v-for="bucket in BUCKETS"
+        :key="bucket"
+        :label="labelAgingBucket(bucket)"
+        :value="rupiahRingkas(aging.buckets[bucket] ?? 0)"
+        icon="schedule"
+        :tone="bucketTone(bucket)"
+      />
+      <AppStat
+        label="Total piutang"
+        :value="rupiahRingkas(aging.total)"
+        :hint="rupiah(aging.total)"
+        icon="account_balance_wallet"
+        tone="negative"
+      />
     </div>
 
-    <label class="mb-3 flex items-center gap-2 text-sm">
-      <input
-        v-model="hanyaBelumLunas"
-        type="checkbox"
-        class="h-4 w-4 accent-emerald-700"
-        @change="muatBon(1)"
+    <div class="mb-4">
+      <AppCheckbox
+        :model-value="hanyaBelumLunas"
+        label="Hanya yang belum lunas"
+        hint="Sembunyikan bon yang sudah selesai."
+        @update:model-value="gantiFilter"
       />
-      Hanya yang belum lunas
-    </label>
+    </div>
 
-    <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
-    <AppEmpty v-else-if="!list.length" message="Tidak ada bon pada filter ini." />
-    <div class="grid gap-3 md:grid-cols-2">
+    <div v-if="loading" class="grid gap-3 md:grid-cols-2" aria-busy="true">
+      <AppCard v-for="i in 4" :key="i">
+        <AppSkeleton :lines="4" />
+      </AppCard>
+      <span class="sr-only" role="status">Memuat piutang...</span>
+    </div>
+
+    <AppEmpty
+      v-else-if="!list.length"
+      icon="request_quote"
+      title="Tidak ada bon"
+      :message="
+        hanyaBelumLunas
+          ? 'Semua bon pada filter ini sudah lunas.'
+          : 'Bon pelanggan yang dicatat akan muncul di sini.'
+      "
+    >
+      <AppButton v-if="boleh" @click="bukaForm">Catat bon</AppButton>
+    </AppEmpty>
+
+    <div v-else class="grid gap-3 md:grid-cols-2">
       <AppCard v-for="b in list" :key="b.id">
-        <div class="flex items-center justify-between gap-2">
-          <strong class="font-display">Bon #{{ b.id }}</strong>
-          <AppBadge :tone="b.isPaid ? 'green' : 'amber'">{{
-            b.isPaid ? 'Lunas' : 'Belum lunas'
-          }}</AppBadge>
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="font-display font-semibold text-ink">Bon #{{ b.id }}</p>
+            <p class="mt-0.5 text-xs text-secondary">
+              {{ b.customerId ? `Pelanggan #${b.customerId}` : 'Tanpa nama pelanggan' }}
+            </p>
+          </div>
+          <AppBadge :tone="b.isPaid ? 'green' : 'amber'" dot>
+            {{ b.isPaid ? 'Lunas' : 'Belum lunas' }}
+          </AppBadge>
         </div>
-        <div class="mt-2 h-2 overflow-hidden rounded bg-surface-low">
+
+        <div
+          class="mt-3 h-2 overflow-hidden rounded-full bg-surface-low"
+          role="progressbar"
+          :aria-label="`Pembayaran bon ${b.id}`"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          :aria-valuenow="persenLunas(b)"
+        >
           <div
-            class="h-full bg-primary-container"
-            :style="{
-              width: `${Number(b.amount) ? (Number(b.paidAmount) / Number(b.amount)) * 100 : 0}%`,
-            }"
+            class="h-full rounded-full bg-primary-container transition-[width] duration-300"
+            :style="{ width: `${persenLunas(b)}%` }"
           />
         </div>
-        <p class="mt-1 text-sm">
-          {{ rupiah(b.paidAmount) }} dari {{ rupiah(b.amount) }} · sisa
-          <strong>{{ rupiah(b.remaining) }}</strong>
-        </p>
-        <p class="text-xs text-secondary">
-          Jatuh tempo: {{ tanggal(b.dueAt)
-          }}{{ b.customerId ? ` · Pelanggan #${b.customerId}` : ' · Tanpa nama' }}
-        </p>
-        <div v-if="!b.isPaid && boleh" class="mt-2">
-          <AppButton v-if="bayarId !== b.id" variant="ghost" @click="mulaiTerima(b)">Terima cicilan</AppButton>
-          <div v-else class="flex flex-wrap items-end gap-2">
-            <AppField label="Nominal (Rp)"
-              ><input
-                v-model.number="bayarNominal"
-                type="number"
-                min="0"
-                class="w-32 rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-            /></AppField>
-            <AppField label="Cara"
-              ><select v-model="bayarCara" class="rounded-lg bg-surface-low px-3 py-2 text-sm">
-                <option value="tunai">Tunai</option>
-                <option value="transfer">Transfer</option>
-                <option value="qris">QRIS</option>
-                <option value="ewallet">E-wallet</option>
-              </select></AppField
-            >
-            <AppButton @click="terima(b)">Simpan</AppButton>
-            <AppButton variant="ghost" @click="bayarId = null">Batal</AppButton>
+
+        <div class="mt-2 flex flex-wrap items-baseline justify-between gap-2 text-sm">
+          <p class="text-secondary">
+            {{ rupiah(b.paidAmount) }} dari {{ rupiah(b.amount) }}
+          </p>
+          <p class="font-semibold tabular-nums text-ink">Sisa {{ rupiah(b.remaining) }}</p>
+        </div>
+        <p class="mt-1 text-xs text-secondary">Jatuh tempo {{ tanggal(b.dueAt) }}</p>
+
+        <div v-if="!b.isPaid && boleh" class="mt-3 border-t border-outline/50 pt-3">
+          <AppButton
+            v-if="bayarId !== b.id"
+            variant="ghost"
+            size="sm"
+            @click="mulaiTerima(b)"
+          >
+            Terima cicilan
+          </AppButton>
+          <div v-else class="grid gap-2 sm:grid-cols-2">
+            <AppField label="Nominal" required>
+              <AppMoneyInput v-model="bayarNominal" />
+            </AppField>
+            <AppField label="Cara bayar" required>
+              <AppSelect v-model="bayarCara" :options="opsiMetode" />
+            </AppField>
+            <div class="flex flex-wrap gap-2 sm:col-span-2">
+              <AppButton
+                size="sm"
+                :loading="loadingMutasi"
+                :disabled="!bayarNominal || bayarNominal <= 0"
+                @click="terima(b)"
+              >
+                Simpan pembayaran
+              </AppButton>
+              <AppButton size="sm" variant="ghost" @click="bayarId = null">Batal</AppButton>
+            </div>
           </div>
         </div>
       </AppCard>
     </div>
+
     <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
 
-    <div
-      v-if="showForm"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="showForm = false"
+    <AppModal
+      :open="showForm"
+      title="Catat bon baru"
+      description="Bon akan masuk ke daftar piutang dan bisa dicicil bertahap."
+      size="md"
+      @close="showForm = false"
     >
-      <form class="w-full max-w-md rounded-xl bg-card p-5 shadow-xl" @submit.prevent="simpan">
-        <h3 class="font-display font-semibold">Catat bon baru</h3>
-        <div class="mt-2 grid grid-cols-2 gap-2">
-          <AppField label="Cabang"
-            ><select
+      <AppBanner tone="red" :message="errorMutasi" />
+      <form id="receivable-form" class="grid gap-3" @submit.prevent="simpan">
+        <div class="grid gap-3 sm:grid-cols-2">
+          <AppField label="Cabang" required>
+            <AppSelect
               v-model="fBon.branch_id"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm"
-            >
-              <option value="">— pilih —</option>
-              <option v-for="c in cabang" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select></AppField
-          >
-          <AppField label="ID pelanggan (opsional)"
-            ><input
+              :options="opsiCabang"
+              placeholder="Pilih cabang"
+            />
+          </AppField>
+          <AppField label="ID pelanggan" optional hint="Kosongkan untuk bon tanpa nama.">
+            <AppInput
               v-model="fBon.customer_id"
               inputmode="numeric"
-              placeholder="Kosong = tanpa nama"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-          /></AppField>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <AppField label="Nominal (Rp)"
-            ><input
-              v-model.number="fBon.amount"
-              type="number"
-              min="0"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-          /></AppField>
-          <AppField label="Jatuh tempo"
-            ><input
-              v-model="fBon.due_at"
-              type="date"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-          /></AppField>
-        </div>
-        <AppField label="Catatan"
-          ><input
-            v-model="fBon.note"
-            maxlength="500"
-            class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-        /></AppField>
-        <div class="mt-3 flex justify-end gap-2">
-          <AppButton variant="ghost" type="button" @click="showForm = false">Batal</AppButton>
-          <AppButton type="submit">Simpan</AppButton>
+              placeholder="cth. 12"
+            />
+          </AppField>
+          <AppField label="Nominal" required>
+            <AppMoneyInput v-model="fBon.amount" />
+          </AppField>
+          <AppField label="Jatuh tempo" optional>
+            <AppDateInput v-model="fBon.due_at" />
+          </AppField>
+          <AppField label="Catatan" optional class="sm:col-span-2">
+            <AppInput v-model="fBon.note" maxlength="500" placeholder="Tambahkan konteks bon" />
+          </AppField>
         </div>
       </form>
-    </div>
+      <template #footer>
+        <AppButton variant="ghost" @click="showForm = false">Batal</AppButton>
+        <AppButton
+          type="submit"
+          form="receivable-form"
+          :loading="loadingMutasi"
+          :disabled="!fBon.branch_id || !fBon.amount"
+        >
+          Simpan bon
+        </AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>
