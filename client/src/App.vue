@@ -304,7 +304,7 @@ onBeforeUnmount(() => {
 
   <a
     href="#konten"
-    class="sr-only z-[110] rounded-lg bg-card px-4 py-2 text-sm font-semibold text-primary shadow-lg focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+    class="sr-only z-[110] rounded-xl bg-card px-4 py-2.5 text-sm font-semibold text-primary-ink shadow-float ring-1 ring-outline/60 focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:outline-none focus:ring-2 focus:ring-primary/55"
   >
     Lewati ke konten
   </a>
@@ -313,106 +313,122 @@ onBeforeUnmount(() => {
 
   <div v-else class="app-shell flex min-h-screen">
     <aside
-      class="app-sidebar sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-primary text-white md:flex"
+      class="app-sidebar sticky top-0 hidden h-screen w-[17rem] shrink-0 overflow-hidden bg-primary text-white shadow-sidebar md:flex"
     >
-      <div class="flex items-center gap-3 px-4 pb-3 pt-5">
-        <RouterLink
-          to="/companies"
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 font-display text-lg font-bold tracking-tight text-white ring-1 ring-white/20"
-          aria-label="Ganti perusahaan"
-        >
-          A
-        </RouterLink>
-        <div class="min-w-0">
-          <p class="font-display truncate text-base font-bold leading-tight">Aurevant PKK</p>
-          <p class="truncate text-[11px] text-emerald-50/60">Operasional multi-cabang</p>
+      <div class="ambient-glow pointer-events-none absolute inset-0 opacity-60" aria-hidden="true" />
+      <div class="relative flex h-full min-h-0 w-full flex-col">
+        <div class="flex items-center gap-3 px-5 pb-3 pt-5">
+          <RouterLink
+            to="/companies"
+            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/[0.14] font-display text-lg font-extrabold tracking-tight text-white shadow-card ring-1 ring-white/20 transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            aria-label="Ganti perusahaan"
+          >
+            A
+          </RouterLink>
+          <div class="min-w-0">
+            <p class="font-display truncate text-[15px] font-bold leading-tight tracking-tight text-white">
+              Aurevant PKK
+            </p>
+            <p class="mt-0.5 truncate text-2xs text-white/70">Operasional multi-cabang</p>
+          </div>
         </div>
-      </div>
 
-      <div class="px-3 pb-2">
-        <RouterLink
-          to="/companies"
-          class="flex items-center gap-3 rounded-xl bg-white/10 p-2.5 ring-1 ring-white/10 transition hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-white/50"
-        >
-          <AppAvatar :name="companyLabel" :src="assetUrl(auth.companyLogoUrl)" size="sm" square class="ring-white/20" />
-          <div class="min-w-0 flex-1">
-            <p class="text-[10px] uppercase tracking-wider text-emerald-50/55">Perusahaan aktif</p>
-            <p class="truncate text-sm font-semibold text-white">{{ companyLabel }}</p>
-          </div>
-          <AppIcon name="unfold_more" :size="18" class="text-emerald-50/60" />
-        </RouterLink>
-      </div>
-
-      <nav class="mt-1 flex-1 overflow-y-auto px-3 pb-4" aria-label="Navigasi utama">
-        <template v-for="group in groups" :key="group.title">
-          <button
-            type="button"
-            class="mt-2 flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-50/50 transition hover:bg-white/5 hover:text-emerald-50/80"
-            :aria-expanded="isOpen(group.title)"
-            @click="toggleGroup(group.title)"
+        <div class="px-4 pb-3">
+          <RouterLink
+            to="/companies"
+            :title="companyLabel"
+            class="group flex items-center gap-3 rounded-2xl bg-white/[0.08] p-3 ring-1 ring-white/10 transition hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           >
-            {{ group.title }}
-            <AppIcon
-              name="expand_more"
-              :size="15"
-              class="transition-transform duration-200 motion-reduce:transition-none"
-              :class="isOpen(group.title) ? '' : '-rotate-90'"
+            <AppAvatar
+              :name="companyLabel"
+              :src="assetUrl(auth.companyLogoUrl)"
+              size="sm"
+              square
+              class="!ring-white/20"
             />
-          </button>
-          <div
-            class="grid transition-[grid-template-rows] duration-200 ease-in-out motion-reduce:transition-none"
-            :class="isOpen(group.title) ? '[grid-template-rows:1fr]' : '[grid-template-rows:0fr]'"
-          >
-            <div class="overflow-hidden">
-              <RouterLink
-                v-for="menu in group.items"
-                :key="menu.to"
-                :to="menu.to"
-                class="mb-0.5 flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] text-emerald-50/85 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/40"
-                active-class="bg-white/15! text-white!"
-              >
-                <AppIcon :name="menu.icon" :size="19" />
-                <span class="truncate">{{ menu.label }}</span>
-                <span
-                  v-if="menu.label === 'Notifikasi' && unread"
-                  class="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
-                >
-                  {{ unread > 99 ? '99+' : unread }}
-                </span>
-              </RouterLink>
+            <div class="min-w-0 flex-1">
+              <p class="text-2xs uppercase tracking-[0.1em] text-white/70">Perusahaan aktif</p>
+              <p class="truncate text-[13px] font-semibold text-white">{{ companyLabel }}</p>
             </div>
-          </div>
-        </template>
-      </nav>
+            <AppIcon
+              name="unfold_more"
+              :size="18"
+              class="text-white/70 transition group-hover:text-white"
+            />
+          </RouterLink>
+        </div>
 
-      <div class="border-t border-white/10 p-3">
-        <div class="flex items-center gap-2.5 rounded-xl p-1.5">
-          <AppAvatar :name="auth.user?.name" :src="assetUrl(auth.user?.avatarUrl)" size="sm" />
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-semibold text-white">{{ auth.user?.name }}</p>
-            <p class="truncate text-[11px] text-emerald-50/55">{{ auth.user?.email }}</p>
+        <nav class="mt-1 min-h-0 flex-1 overflow-y-auto px-3 pb-4" aria-label="Navigasi utama">
+          <template v-for="group in groups" :key="group.title">
+            <button
+              type="button"
+              class="mt-3 flex min-h-9 w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-2xs font-semibold uppercase tracking-[0.14em] text-white/70 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45"
+              :aria-expanded="isOpen(group.title)"
+              @click="toggleGroup(group.title)"
+            >
+              {{ group.title }}
+              <AppIcon
+                name="expand_more"
+                :size="15"
+                class="transition-transform duration-200 motion-reduce:transition-none"
+                :class="isOpen(group.title) ? '' : '-rotate-90'"
+              />
+            </button>
+            <div
+              class="grid transition-[grid-template-rows] duration-200 ease-in-out motion-reduce:transition-none"
+              :class="isOpen(group.title) ? '[grid-template-rows:1fr]' : '[grid-template-rows:0fr]'"
+            >
+              <div class="overflow-hidden" :inert="!isOpen(group.title)">
+                <RouterLink
+                  v-for="menu in group.items"
+                  :key="menu.to"
+                  :to="menu.to"
+                  class="app-nav-link mb-0.5 flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium text-white/85 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/55"
+                  active-class="router-link-active bg-white/15! text-white! shadow-sm"
+                >
+                  <AppIcon :name="menu.icon" :size="19" />
+                  <span class="truncate">{{ menu.label }}</span>
+                  <span
+                    v-if="menu.label === 'Notifikasi' && unread"
+                    class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-3xs font-bold leading-none text-white ring-2 ring-primary"
+                  >
+                    {{ unread > 99 ? '99+' : unread }}
+                  </span>
+                </RouterLink>
+              </div>
+            </div>
+          </template>
+        </nav>
+
+        <div class="border-t border-white/10 p-3">
+          <div class="flex items-center gap-2.5 rounded-2xl bg-white/[0.06] p-2.5 ring-1 ring-white/10">
+            <AppAvatar :name="auth.user?.name" :src="assetUrl(auth.user?.avatarUrl)" size="sm" />
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-[13px] font-semibold text-white">{{ auth.user?.name }}</p>
+              <p class="truncate text-2xs text-white/70">{{ auth.user?.email }}</p>
+            </div>
+            <button
+              type="button"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/55"
+              aria-label="Keluar dari akun"
+              title="Keluar"
+              @click="keluar"
+            >
+              <AppIcon name="logout" :size="19" />
+            </button>
           </div>
-          <button
-            type="button"
-            class="rounded-lg p-2 text-emerald-50/70 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-            aria-label="Keluar dari akun"
-            title="Keluar"
-            @click="keluar"
-          >
-            <AppIcon name="logout" :size="19" />
-          </button>
         </div>
       </div>
     </aside>
 
     <div class="flex min-w-0 flex-1 flex-col">
       <header
-        class="app-header sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-outline/60 bg-card/95 px-4 py-2.5 backdrop-blur md:px-7"
+        class="app-header app-glass sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-outline/50 px-4 py-2 md:px-8"
       >
         <div class="flex min-w-0 items-center gap-2.5">
           <button
             type="button"
-            class="rounded-lg p-2 text-ink transition hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 md:hidden"
+            class="flex h-11 w-11 items-center justify-center rounded-xl text-ink transition hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 md:hidden"
             aria-label="Buka menu"
             @click="menuOpen = true"
           >
@@ -420,36 +436,42 @@ onBeforeUnmount(() => {
           </button>
           <RouterLink
             to="/companies"
-            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-sm font-bold text-white sm:hidden"
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-on-primary shadow-card md:hidden"
             aria-label="Ganti perusahaan"
           >
             A
           </RouterLink>
           <div class="min-w-0">
-            <p class="hidden text-[10px] font-semibold uppercase tracking-wider text-secondary sm:block">
+            <p class="hidden text-2xs font-semibold uppercase tracking-[0.1em] text-secondary sm:block">
               {{ auth.user?.isSuperAdmin && !companyId ? 'Administrasi platform' : 'Perusahaan aktif' }}
             </p>
             <RouterLink
               to="/companies"
-              class="block truncate font-display text-sm font-semibold text-ink hover:text-primary sm:text-base"
+              :title="companyLabel"
+              class="block truncate font-display text-[15px] font-semibold text-ink transition hover:text-primary sm:text-base"
             >
               {{ companyLabel }}
             </RouterLink>
           </div>
         </div>
 
-        <div class="flex shrink-0 items-center gap-1.5 sm:gap-3">
-          <span class="hidden text-xs text-secondary lg:block">{{ tanggal }}</span>
+        <div class="flex shrink-0 items-center gap-1 sm:gap-2">
+          <span
+            class="hidden items-center gap-1.5 rounded-full border border-outline/60 bg-surface-raised/80 px-3 py-1.5 text-2xs text-secondary lg:flex"
+          >
+            <AppIcon name="calendar_today" :size="14" />
+            {{ tanggal }}
+          </span>
           <RouterLink
             v-if="companyId"
             :to="`/c/${companyId}/notifications`"
-            class="relative rounded-lg p-2 text-ink transition hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            class="relative flex h-11 w-11 items-center justify-center rounded-xl text-ink transition hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
             :aria-label="unread ? `Notifikasi, ${unread} belum dibaca` : 'Notifikasi'"
           >
             <AppIcon name="notifications" :size="21" />
             <span
               v-if="unread"
-              class="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold leading-none text-white ring-2 ring-card"
+              class="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-3xs font-bold leading-none text-white ring-2 ring-card"
             >
               {{ unread > 99 ? '99+' : unread }}
             </span>
@@ -462,12 +484,20 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
-      <main id="konten" tabindex="-1" class="app-main min-w-0 flex-1 px-4 py-5 md:px-8 md:py-7 max-md:pb-28">
-        <RouterView :key="$route.fullPath" />
+      <main
+        id="konten"
+        tabindex="-1"
+        class="app-main mx-auto w-full max-w-[1560px] min-w-0 flex-1 px-4 py-6 focus-visible:outline-none md:px-8 md:py-8 max-md:pb-32"
+      >
+        <RouterView v-slot="{ Component, route: currentRoute }">
+          <Transition name="page" mode="out-in">
+            <component :is="Component" :key="currentRoute.fullPath" />
+          </Transition>
+        </RouterView>
       </main>
 
       <footer
-        class="app-footer hidden items-center justify-between border-t border-outline/60 bg-card px-7 py-2 text-[11px] text-secondary md:flex"
+        class="app-footer hidden items-center justify-between border-t border-outline/50 bg-surface/60 px-8 py-3 text-2xs text-secondary md:flex"
       >
         <span>Aurevant PKK · operasional multi-cabang</span>
         <span>{{ auth.user?.name }}</span>
@@ -477,38 +507,41 @@ onBeforeUnmount(() => {
 
   <nav
     v-if="auth.loggedIn && mobileQuick.length"
-    class="app-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-outline/70 bg-card/95 backdrop-blur md:hidden"
-    style="padding-bottom: env(safe-area-inset-bottom)"
+    class="app-bottom-nav fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
     aria-label="Navigasi cepat"
   >
-    <div class="mx-auto flex max-w-lg items-stretch px-1">
+    <div
+      class="mx-auto flex max-w-md items-stretch gap-1 rounded-2xl border border-outline/60 bg-card/95 p-1.5 shadow-float backdrop-blur-xl"
+    >
       <RouterLink
         v-for="quick in mobileQuick"
         :key="quick.to"
         :to="quick.to"
-        class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-secondary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-        active-class="text-primary!"
+        class="flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-2xs font-medium text-secondary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+        active-class="bg-primary-soft! text-primary-ink!"
       >
-        <span class="relative">
-          <AppIcon :name="quick.icon" :size="22" />
+        <span class="relative flex">
+          <AppIcon :name="quick.icon" :size="21" />
           <span
             v-if="quick.badge"
-            class="absolute -right-2 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-danger px-0.5 text-[8px] font-bold leading-none text-white"
+            class="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-3xs font-bold leading-none text-white ring-2 ring-card"
           >
             {{ quick.badge > 99 ? '99+' : quick.badge }}
           </span>
         </span>
-        {{ quick.label }}
+        <span class="max-w-full truncate">{{ quick.label }}</span>
       </RouterLink>
       <button
         type="button"
-        class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-secondary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-        :class="menuOpen ? 'text-primary' : ''"
+        class="flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-2xs font-medium text-secondary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+        :class="menuOpen ? 'bg-primary-soft text-primary-ink' : ''"
         aria-label="Buka menu lengkap"
+        aria-haspopup="dialog"
+        :aria-expanded="menuOpen"
         @click="menuOpen = true"
       >
-        <AppIcon name="menu" :size="22" />
-        Menu
+        <AppIcon name="menu" :size="21" />
+        <span>Menu</span>
       </button>
     </div>
   </nav>
@@ -521,28 +554,43 @@ onBeforeUnmount(() => {
     @close="menuOpen = false"
   >
     <div class="space-y-5">
-      <div class="flex items-center gap-3 rounded-xl bg-surface-low p-3">
+      <div class="flex items-center gap-3 rounded-2xl border border-outline/60 bg-surface-low/60 p-3.5">
         <AppAvatar :name="auth.user?.name" :src="assetUrl(auth.user?.avatarUrl)" size="md" />
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
           <p class="truncate text-sm font-semibold text-ink">{{ auth.user?.name }}</p>
           <p class="truncate text-xs text-secondary">{{ auth.user?.email }}</p>
+          <p v-if="companyId" class="mt-0.5 truncate text-2xs text-secondary">
+            {{ companyLabel }}
+          </p>
         </div>
+        <RouterLink
+          to="/companies"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-outline/70 bg-card text-secondary transition hover:border-outline-strong hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+          aria-label="Ganti perusahaan"
+          @click="menuOpen = false"
+        >
+          <AppIcon name="domain" :size="19" />
+        </RouterLink>
       </div>
 
       <div v-for="group in groups" :key="group.title">
-        <p class="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-secondary">
+        <p class="mb-1.5 px-1 text-2xs font-semibold uppercase tracking-[0.1em] text-secondary">
           {{ group.title }}
         </p>
-        <div class="grid gap-0.5">
+        <div class="grid gap-1">
           <RouterLink
             v-for="menu in group.items"
             :key="menu.to"
             :to="menu.to"
-            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-ink transition hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-            active-class="bg-primary-soft! text-primary!"
+            class="app-mobile-link flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-ink transition hover:bg-surface-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+            active-class="router-link-active bg-primary-soft! text-primary-ink!"
             @click="menuOpen = false"
           >
-            <AppIcon :name="menu.icon" :size="20" class="text-secondary" />
+            <span
+              class="app-mobile-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-low text-secondary"
+            >
+              <AppIcon :name="menu.icon" :size="19" />
+            </span>
             <span class="flex-1">{{ menu.label }}</span>
             <AppBadge v-if="menu.label === 'Notifikasi' && unread" tone="red">
               {{ unread > 99 ? '99+' : unread }}
@@ -555,7 +603,7 @@ onBeforeUnmount(() => {
         <AppButton variant="ghost" block @click="gantiPerusahaan">
           <AppIcon name="domain" :size="18" />Ganti perusahaan
         </AppButton>
-        <AppButton variant="danger" block @click="keluar">
+        <AppButton variant="danger" block @click="menuOpen = false; keluar()">
           <AppIcon name="logout" :size="18" />Keluar
         </AppButton>
       </div>

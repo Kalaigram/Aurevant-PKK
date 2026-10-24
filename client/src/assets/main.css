@@ -98,6 +98,32 @@
   font-family: var(--font-display);
 }
 
+.app-nav-link {
+  position: relative;
+}
+
+.app-nav-link::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #a7f3d0;
+  content: '';
+  transform: translateY(-50%) scaleY(0);
+  transition: transform 150ms ease;
+}
+
+.app-nav-link.router-link-active::before {
+  transform: translateY(-50%) scaleY(1);
+}
+
+.app-mobile-link.router-link-active .app-mobile-icon {
+  background: var(--color-card);
+  color: var(--color-primary-ink);
+}
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   user-select: none;

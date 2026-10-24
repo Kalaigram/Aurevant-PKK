@@ -1,6 +1,6 @@
 # UI Polish Plan — Aurevant PKK
 
-Status: **Phase 1 selesai dan terverifikasi, menunggu review/commit**  
+Status: **Phase 2 selesai — siap review dan commit**  
 Branch: `feat/ui-design-system`  
 Design system: [`doc/DESIGN.md`](./DESIGN.md)  
 Arah visual: **calm green premium**  
@@ -43,7 +43,7 @@ Hasil yang ingin dicapai:
 - [ ] Baris/card click-only tidak dapat diakses keyboard.
   - `ApprovalsView`, `NotificationsView`, `AuditView`, `TenantsView`, `SalesView`, `PurchaseView`, `TransfersView`, `OpnamesView`, `ServicesView`.
 - [ ] Kontrol POS terlalu padat dan beberapa ikon tanpa label.
-- [ ] Microcopy sidebar kontrasnya terlalu rendah.
+- [x] Microcopy sidebar kontrasnya terlalu rendah — diperbaiki di Phase 2.
 - [ ] Demo credential tampil permanen di login.
 
 ### Medium
@@ -96,21 +96,21 @@ Tujuan: satu perubahan di komponen bersama otomatis memperbaiki seluruh halaman.
 - tidak ada regresi type-check;
 - build CSS bersih.
 
-**Status:** selesai — `type-check`, `lint`, dan `build` lulus (177 modul, CSS 67.13 kB). Belum di-commit.
+**Status:** selesai dan di-commit — `type-check`, `lint`, dan `build` lulus (177 modul, CSS 67.13 kB).
 
-**Commit:** `feat(ui): foundation tokens and shared components`
+**Commit:** `4bf1cb6 feat(web): foundation design system dan shared components`
 
 ### Phase 2 — App shell dan navigasi
 
 File utama: `client/src/App.vue`.
 
-- [ ] Sidebar: contrast, spacing, active state, company switcher, footer user.
-- [ ] Header: tinggi, glass, tanggal, notifikasi, avatar, mobile trigger.
-- [ ] Main content: max width, page transition, padding.
-- [ ] Footer.
-- [ ] Bottom nav mobile: floating, active state, badge, safe area.
-- [ ] Drawer menu mobile: grouping, touch target, current page.
-- [ ] Skip link dan focus order.
+- [x] Sidebar: contrast, spacing, active state, company switcher, footer user.
+- [x] Header: tinggi, glass, tanggal, notifikasi, avatar, mobile trigger.
+- [x] Main content: max width, page transition, padding.
+- [x] Footer.
+- [x] Bottom nav mobile: floating, active state, badge, safe area.
+- [x] Drawer menu mobile: grouping, touch target, current page.
+- [x] Skip link dan focus order.
 
 **Acceptance:**
 
@@ -119,6 +119,8 @@ File utama: `client/src/App.vue`.
 - mobile bottom nav tidak menutupi konten;
 - semua icon-only button punya label;
 - keyboard traversal masuk akal.
+
+**Status:** selesai — `type-check`, `lint`, dan `build` lulus (CSS 69.74 kB). Visual QA desktop 1440px dan mobile 390px: tidak ada horizontal overflow, bottom nav 5 item terlihat, sheet menu dapat di-scroll sampai tombol aksi. Tombol mengambang Vue DevTools hanya muncul di dev dan tidak masuk build produksi.
 
 **Commit:** `feat(ui): premium app shell and navigation`
 
