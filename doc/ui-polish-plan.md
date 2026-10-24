@@ -1,6 +1,6 @@
 # UI Polish Plan — Aurevant PKK
 
-Status: **Phase 3 selesai — siap review dan commit**  
+Status: **Phase 4 selesai — siap review dan commit**  
 Branch: `feat/ui-design-system`  
 Design system: [`doc/DESIGN.md`](./DESIGN.md)  
 Arah visual: **calm green premium**  
@@ -144,20 +144,22 @@ File:
 
 **Status:** selesai - `type-check`, `lint`, dan `build` lulus (CSS 73.03 kB). Visual QA desktop 1440px dan mobile 390px untuk login, register, forgot/reset token kosong, companies, dan modal: tidak ada horizontal overflow. Demo credential aktif otomatis di development atau lewat `VITE_SHOW_DEMO_CREDENTIALS=true`; build produksi default tidak memuat kredensial demo.
 
-**Commit:** `feat(ui): auth and company selection polish`
+**Commit:** `d5b62cd feat(ui): auth and company selection polish`
 
 ### Phase 4 — Dashboard
 
 File: `client/src/views/DashboardView.vue`.
 
-- [ ] Hero perusahaan + status + periode.
-- [ ] Quick actions sesuai permission.
-- [ ] Finansial memakai `AppStat`.
-- [ ] Penjualan memakai `AppStat` + sparkline.
-- [ ] Perlu perhatian.
-- [ ] Kehadiran, karyawan, payroll.
-- [ ] Loading skeleton.
-- [ ] Format tanggal dan status.
+- [x] Hero perusahaan + status + periode.
+- [x] Quick actions sesuai permission.
+- [x] Finansial memakai `AppStat`.
+- [x] Penjualan memakai `AppStat` + sparkline.
+- [x] Perlu perhatian.
+- [x] Kehadiran, karyawan, payroll.
+- [x] Loading skeleton.
+- [x] Format tanggal dan status.
+
+**Status:** selesai — `type-check`, `lint`, dan `build` lulus (CSS 78.15 kB). Visual QA dengan backend demo: desktop 1440px, tablet 768px/1024px, dan mobile 390px/375px tanpa horizontal overflow. Role owner menampilkan seluruh seksi; role kasir hanya menerima penjualan dan aksi yang diizinkan. Tidak ada console error atau request gagal.
 
 **Commit:** `feat(ui): dashboard hierarchy and data cards`
 
@@ -274,14 +276,14 @@ File:
 | Grup | Halaman | Status |
 |---|---|---|
 | Foundation | `main.css`, shared components | selesai |
-| Auth | Login, Register, Forgot, Reset | belum |
-| Gateway | Companies | belum |
-| Dashboard | Dashboard | belum |
+| Auth | Login, Register, Forgot, Reset | selesai |
+| Gateway | Companies | selesai |
+| Dashboard | Dashboard | selesai |
 | Operasional | POS, Sales, Services, Purchase, Catalog, Prices, Customers, Stock, Transfers, Opnames, Approvals | belum |
 | Keuangan | Expenses, Debts, Receivables, Journal, Reports, Periods | belum |
 | SDM | Attendance, HrAttendance, Leaves, Schedule, Payroll, Slip, Employees, Card | belum |
 | Admin | Notifications, Subscription, CompanyProfile, Profile, Branches, Roles, Tenants, Plans, Audit, Import, NationalHolidays | belum |
-| Shell | App.vue, AuthLayout, CompanyShell | belum |
+| Shell | App.vue, AuthLayout, CompanyShell | selesai |
 
 Status yang dipakai: `belum`, `sedang`, `selesai`, `blocked`.
 
