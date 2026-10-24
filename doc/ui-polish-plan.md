@@ -1,6 +1,6 @@
 # UI Polish Plan — Aurevant PKK
 
-Status: **Phase 2 selesai — siap review dan commit**  
+Status: **Phase 3 selesai — siap review dan commit**  
 Branch: `feat/ui-design-system`  
 Design system: [`doc/DESIGN.md`](./DESIGN.md)  
 Arah visual: **calm green premium**  
@@ -38,13 +38,13 @@ Hasil yang ingin dicapai:
 ### High
 
 - [ ] Modal custom `z-20` berada di bawah header `z-30` dan bottom nav `z-40`.
-  - `ExpensesView`, `ReceivablesView`, `RolesView`, `PlansView`, `TenantsView`, `ProfileView`, `CompaniesView`.
+  - `ExpensesView`, `ReceivablesView`, `RolesView`, `PlansView`, `TenantsView`, `ProfileView`.
 - [x] Focus ring shared components sudah diganti ring 2px dengan kontras cukup; audit per view menyusul di fase halaman.
 - [ ] Baris/card click-only tidak dapat diakses keyboard.
   - `ApprovalsView`, `NotificationsView`, `AuditView`, `TenantsView`, `SalesView`, `PurchaseView`, `TransfersView`, `OpnamesView`, `ServicesView`.
 - [ ] Kontrol POS terlalu padat dan beberapa ikon tanpa label.
 - [x] Microcopy sidebar kontrasnya terlalu rendah — diperbaiki di Phase 2.
-- [ ] Demo credential tampil permanen di login.
+- [x] Demo credential tampil permanen di login - dibatasi ke development atau env demo di Phase 3.
 
 ### Medium
 
@@ -120,9 +120,9 @@ File utama: `client/src/App.vue`.
 - semua icon-only button punya label;
 - keyboard traversal masuk akal.
 
-**Status:** selesai — `type-check`, `lint`, dan `build` lulus (CSS 69.74 kB). Visual QA desktop 1440px dan mobile 390px: tidak ada horizontal overflow, bottom nav 5 item terlihat, sheet menu dapat di-scroll sampai tombol aksi. Tombol mengambang Vue DevTools hanya muncul di dev dan tidak masuk build produksi.
+**Status:** selesai dan di-commit — `type-check`, `lint`, dan `build` lulus (CSS 69.74 kB). Visual QA desktop 1440px dan mobile 390px: tidak ada horizontal overflow, bottom nav 5 item terlihat, sheet menu dapat di-scroll sampai tombol aksi. Tombol mengambang Vue DevTools hanya muncul di dev dan tidak masuk build produksi.
 
-**Commit:** `feat(ui): premium app shell and navigation`
+**Commit:** `06a3187 feat(ui): premium app shell and navigation`
 
 ### Phase 3 — Auth dan pemilihan perusahaan
 
@@ -135,12 +135,14 @@ File:
 - `client/src/views/ResetPasswordView.vue`
 - `client/src/views/CompaniesView.vue`
 
-- [ ] Auth layout: brand panel, form hierarchy, mobile version.
-- [ ] Form fields memakai `AppInput`/`AppField`.
-- [ ] Password visibility dan error state.
-- [ ] Demo credential dipindahkan ke environment demo atau dihapus.
-- [ ] Companies: kartu perusahaan, status, cabang, tagihan, modal shared.
-- [ ] Empty/loading state.
+- [x] Auth layout: brand panel, form hierarchy, mobile version.
+- [x] Form fields memakai `AppInput`/`AppField`.
+- [x] Password visibility dan error state.
+- [x] Demo credential dipindahkan ke environment demo atau dihapus.
+- [x] Companies: kartu perusahaan, status, cabang, tagihan, modal shared.
+- [x] Empty/loading state.
+
+**Status:** selesai - `type-check`, `lint`, dan `build` lulus (CSS 73.03 kB). Visual QA desktop 1440px dan mobile 390px untuk login, register, forgot/reset token kosong, companies, dan modal: tidak ada horizontal overflow. Demo credential aktif otomatis di development atau lewat `VITE_SHOW_DEMO_CREDENTIALS=true`; build produksi default tidak memuat kredensial demo.
 
 **Commit:** `feat(ui): auth and company selection polish`
 
