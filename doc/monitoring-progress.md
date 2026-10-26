@@ -4,7 +4,7 @@ Terakhir diperbarui: 2026-10-26
 
 Branch: `feat/ui-design-system`
 
-Commit terakhir: `5389f2d fix(ui): responsive and accessibility hardening`
+Commit terakhir: `2adaf5f fix(service): snapshot order prices and prevent double stock`
 
 Dokumen ini adalah papan monitoring kerja aktif. Acuan produk tetap `PROGRESS.md`,
 `doc/spek.md`, dan `doc/analisis-fitur-praluncur.md`.
@@ -18,7 +18,7 @@ Dokumen ini adalah papan monitoring kerja aktif. Acuan produk tetap `PROGRESS.md
 - [x] Verifikasi katalog: 141 tes server, `type-check`, `lint`, dan `build` lolos.
 - [x] P0 tenant/branch scope, offboarding, service order, dan PII selesai.
 - [x] Verifikasi P0: 148 tes server lolos, 1328 assertions; Pint targeted lolos.
-- [ ] Perubahan P0 belum di-commit.
+- [x] Perubahan P0 sudah di-commit (`e791673`, `2adaf5f`).
 - [ ] File Android masih dirty dan belum boleh di-build sebelum izin.
 
 ## Selesai — Gambar item katalog
