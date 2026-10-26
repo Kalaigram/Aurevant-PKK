@@ -4,7 +4,7 @@ Terakhir diperbarui: 2026-10-26
 
 Branch: `feat/ui-design-system`
 
-Commit terakhir: `0006259 docs: mark P0 complete`
+Commit fitur terakhir: `081323a feat(stock): add per-branch minimum stock alerts`
 
 Dokumen ini adalah papan monitoring kerja aktif. Acuan produk tetap `PROGRESS.md`,
 `doc/spek.md`, dan `doc/analisis-fitur-praluncur.md`.
