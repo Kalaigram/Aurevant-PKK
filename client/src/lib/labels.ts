@@ -131,6 +131,20 @@ const PAYROLL_COMPONENT_TYPE_LABELS: Record<string, string> = {
   manual: 'Manual',
 }
 
+const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
+  trial: 'Uji coba',
+  aktif: 'Aktif',
+  tenggang: 'Masa tenggang',
+  read_only: 'Hanya baca',
+  ditangguhkan: 'Ditangguhkan',
+}
+
+const TENANT_STATUS_LABELS: Record<string, string> = {
+  aktif: 'Aktif',
+  ditangguhkan: 'Ditangguhkan',
+  diarsipkan: 'Diarsipkan',
+}
+
 const FIELD_LABELS: Record<string, string> = {
   amount: 'Nominal',
   balance: 'Saldo',
@@ -217,6 +231,14 @@ export function labelPayrollStatus(status: string) {
 
 export function labelPayrollComponentType(type: string) {
   return PAYROLL_COMPONENT_TYPE_LABELS[type] ?? humanize(type)
+}
+
+export function labelSubscriptionStatus(status: string) {
+  return SUBSCRIPTION_STATUS_LABELS[status] ?? humanize(status)
+}
+
+export function labelTenantStatus(status: string) {
+  return TENANT_STATUS_LABELS[status] ?? humanize(status)
 }
 
 export function labelEntitas(entity: string | null | undefined) {

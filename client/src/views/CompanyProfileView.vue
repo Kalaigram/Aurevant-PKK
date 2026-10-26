@@ -14,6 +14,7 @@ import AppField from '../components/ui/AppField.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
 import AppInput from '../components/ui/AppInput.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppSkeleton from '../components/ui/AppSkeleton.vue'
 import AppTextarea from '../components/ui/AppTextarea.vue'
 
 interface CompanyProfile {
@@ -141,9 +142,14 @@ async function hapusLogo() {
     />
 
     <AppBanner tone="red" :message="error" />
-    <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
 
-    <template v-if="profil">
+    <div v-if="loading && !profil" class="grid gap-3" aria-busy="true">
+      <AppCard><AppSkeleton :lines="3" /></AppCard>
+      <AppCard><AppSkeleton :lines="6" /></AppCard>
+      <span class="sr-only" role="status">Memuat profil perusahaan…</span>
+    </div>
+
+    <template v-else-if="profil">
       <AppCard title="Logo perusahaan" subtitle="Gunakan gambar persegi agar tampil rapi.">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
           <AppAvatar
@@ -151,7 +157,8 @@ async function hapusLogo() {
             :src="assetUrl(profil.logoUrl)"
             size="xl"
             square
-            class="ring-outline" fallback-icon="storefront"
+            class="ring-outline"
+            fallback-icon="storefront"
           />
           <div class="min-w-0 flex-1">
             <p class="text-sm font-semibold text-ink">{{ profil.name }}</p>

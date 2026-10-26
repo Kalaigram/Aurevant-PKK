@@ -11,8 +11,12 @@ import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
-import AppPager from '../components/ui/AppPager.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPager from '../components/ui/AppPager.vue'
+import AppSkeleton from '../components/ui/AppSkeleton.vue'
+import AppStat from '../components/ui/AppStat.vue'
+import AppTabs from '../components/ui/AppTabs.vue'
 
 interface Notif {
   id: number
@@ -128,12 +132,26 @@ const {
 )
 const error = computed(() => errorList.value || errorMutasi.value)
 const prefs = ref<Prefs[]>([])
+const prefsLoading = ref(true)
 const showPrefs = ref(false)
 const perangkat = ref<{ token: string; platform: string | null }[]>([])
+const perangkatLoading = ref(true)
 let timer: number | undefined
+
+const tabItems = computed(() => [
+  { key: 'semua', label: 'Semua' },
+  { key: 'belum', label: 'Belum dibaca', count: unread.value },
+])
 
 function jenis(t: string) {
   return JENIS[t] ?? { label: 'Pemberitahuan', icon: 'info', hint: '' }
+}
+
+function gantiTab(key: string) {
+  const next = key === 'belum' ? 'belum' : 'semua'
+  if (next === tab.value) return
+  tab.value = next
+  muat(1)
 }
 
 async function muat(page?: number) {
@@ -165,14 +183,24 @@ async function bacaSemua() {
 }
 
 async function muatPrefs() {
-  prefs.value = (await run(() => api.get<Prefs[]>('/notification-preferences', auth.token))) ?? []
+  prefsLoading.value = true
+  try {
+    prefs.value = (await run(() => api.get<Prefs[]>('/notification-preferences', auth.token))) ?? []
+  } finally {
+    prefsLoading.value = false
+  }
 }
 
 async function muatPerangkat() {
-  perangkat.value =
-    (await run(() =>
-      api.get<{ token: string; platform: string | null }[]>('/device-tokens', auth.token),
-    )) ?? []
+  perangkatLoading.value = true
+  try {
+    perangkat.value =
+      (await run(() =>
+        api.get<{ token: string; platform: string | null }[]>('/device-tokens', auth.token),
+      )) ?? []
+  } finally {
+    perangkatLoading.value = false
+  }
 }
 
 async function cabutPerangkat(token: string) {
@@ -202,119 +230,174 @@ onUnmounted(() => window.clearInterval(timer))
 
 <template>
   <div>
-    <p class="text-xs font-semibold uppercase tracking-wider text-secondary">
-      Monitoring kanal pusat
-    </p>
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <h1 class="font-display text-xl font-semibold">Notifikasi & aktivitas bisnis</h1>
-      <div class="flex gap-2">
-        <AppButton variant="ghost" @click="bacaSemua">Tandai semua dibaca</AppButton>
-        <AppButton variant="ghost" @click="showPrefs = !showPrefs"
-          ><AppIcon name="settings" :size="18" />Preferensi</AppButton
+    <AppPageHeader
+      eyebrow="Monitoring kanal pusat"
+      title="Notifikasi & aktivitas bisnis"
+      subtitle="Pantau peristiwa operasional penting dan atur kanal yang ingin Anda terima."
+      icon="notifications"
+    >
+      <template #actions>
+        <AppButton variant="ghost" @click="bacaSemua">
+          <AppIcon name="mark_email_read" :size="18" />Tandai semua dibaca
+        </AppButton>
+        <AppButton
+          variant="secondary"
+          :aria-expanded="showPrefs"
+          aria-controls="preferensi-notifikasi"
+          @click="showPrefs = !showPrefs"
         >
-      </div>
-    </div>
+          <AppIcon name="settings" :size="18" />Preferensi
+        </AppButton>
+      </template>
+    </AppPageHeader>
+
     <AppBanner tone="red" :message="error" />
 
-    <div class="mb-4 grid grid-cols-2 gap-3">
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Belum ditindaklanjuti</p>
-        <p class="font-display mt-1 text-2xl font-bold">{{ unread }}</p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Total periode ini</p>
-        <p class="font-display mt-1 text-2xl font-bold">{{ meta?.total ?? list.length }}</p>
-      </AppCard>
+    <div class="mb-5 grid grid-cols-2 gap-3">
+      <AppStat
+        label="Belum dibaca"
+        :value="unread"
+        icon="mark_email_unread"
+        :tone="unread ? 'warning' : 'default'"
+        hint="Perlu ditinjau"
+      />
+      <AppStat
+        label="Total periode ini"
+        :value="meta?.total ?? list.length"
+        icon="inbox"
+        hint="Sesuai filter aktif"
+      />
     </div>
 
-    <div v-if="showPrefs" class="mb-4">
-      <AppCard title="Preferensi notifikasi">
-        <div v-for="g in GROUPS" :key="g.title" class="mb-3 last:mb-0">
-          <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-secondary">
-            {{ g.title }}
-          </p>
-          <div
-            v-for="t in g.types"
-            :key="t"
-            class="flex items-center justify-between border-b border-surface-low py-2 text-sm last:border-0"
-          >
-            <div>
-              <p class="font-medium">{{ jenis(t).label }}</p>
-              <p class="text-xs text-secondary">{{ jenis(t).hint }}</p>
+    <div v-if="showPrefs" id="preferensi-notifikasi" class="mb-4">
+      <AppCard
+        title="Preferensi notifikasi"
+        subtitle="Pilih jenis peristiwa yang tetap dikirim ke akun Anda."
+      >
+        <AppSkeleton v-if="prefsLoading" :lines="4" />
+        <div v-else>
+          <div v-for="g in GROUPS" :key="g.title" class="mb-4 last:mb-0">
+            <p class="mb-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">
+              {{ g.title }}
+            </p>
+            <div
+              v-for="t in g.types"
+              :key="t"
+              class="flex items-center justify-between gap-3 border-b border-outline/50 py-2.5 text-sm last:border-0"
+            >
+              <div class="min-w-0">
+                <p class="font-medium text-ink">{{ jenis(t).label }}</p>
+                <p class="text-xs text-secondary">{{ jenis(t).hint }}</p>
+              </div>
+              <AppButton
+                v-if="prefOf(t)"
+                size="sm"
+                variant="ghost"
+                :aria-label="`${prefOf(t)!.enabled ? 'Matikan' : 'Nyalakan'} notifikasi ${jenis(t).label}`"
+                @click="togglePref(prefOf(t)!)"
+              >
+                {{ prefOf(t)!.enabled ? 'Matikan' : 'Nyalakan' }}
+              </AppButton>
             </div>
-            <AppButton v-if="prefOf(t)" variant="ghost" @click="togglePref(prefOf(t)!)">{{
-              prefOf(t)!.enabled ? 'Matikan' : 'Nyalakan'
-            }}</AppButton>
           </div>
         </div>
       </AppCard>
     </div>
 
-    <div class="mb-3 flex gap-2">
-      <AppButton
-        :variant="tab === 'semua' ? 'primary' : 'ghost'"
-        @click="
-          tab = 'semua';
-          muat(1)
-        "
-        >Semua</AppButton
-      >
-      <AppButton
-        :variant="tab === 'belum' ? 'primary' : 'ghost'"
-        @click="
-          tab = 'belum';
-          muat(1)
-        "
-        >Belum dibaca</AppButton
-      >
+    <div class="mb-4">
+      <AppTabs
+        :items="tabItems"
+        :model-value="tab"
+        label="Filter notifikasi"
+        @update:model-value="gantiTab"
+      />
     </div>
-    <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
-    <AppEmpty v-else-if="!list.length" message="Tidak ada notifikasi." />
-    <AppCard
-      v-for="n in list"
-      :key="n.id"
-      class="cursor-pointer transition hover:shadow"
-      @click="buka(n)"
-    >
-      <div class="flex items-start gap-3">
-        <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-low text-primary"
-        >
-          <AppIcon :name="jenis(n.type).icon" :size="20" />
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center justify-between gap-2">
-            <p class="font-semibold">{{ n.title }}</p>
-            <AppBadge :tone="n.read_at ? 'gray' : 'red'">{{
-              n.read_at ? 'Dibaca' : 'Baru'
-            }}</AppBadge>
+
+    <div v-if="loading" class="space-y-3" aria-busy="true">
+      <AppCard v-for="i in 3" :key="i">
+        <AppSkeleton :lines="3" />
+      </AppCard>
+      <span class="sr-only" role="status">Memuat notifikasi…</span>
+    </div>
+    <AppEmpty
+      v-else-if="!list.length"
+      icon="notifications_off"
+      title="Tidak ada notifikasi"
+      :message="
+        tab === 'belum'
+          ? 'Semua notifikasi sudah dibaca.'
+          : 'Notifikasi baru akan muncul di sini saat ada aktivitas.'
+      "
+    />
+    <div v-else class="space-y-3">
+      <AppCard
+        v-for="n in list"
+        :key="n.id"
+        role="button"
+        tabindex="0"
+        class="cursor-pointer transition hover:shadow-lifted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-2"
+        :aria-label="`${n.title} — ${n.read_at ? 'sudah dibaca' : 'belum dibaca'}`"
+        @click="buka(n)"
+        @keydown.enter.prevent="buka(n)"
+        @keydown.space.prevent="buka(n)"
+      >
+        <div class="flex items-start gap-3">
+          <div
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-ink"
+          >
+            <AppIcon :name="jenis(n.type).icon" :size="20" />
           </div>
-          <p class="mt-0.5 text-sm text-secondary">{{ n.body }}</p>
-          <p class="mt-1 text-xs text-secondary">
-            {{ jenis(n.type).label }} · {{ waktuRelatif(n.created_at) }}
-          </p>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <p class="font-semibold text-ink">{{ n.title }}</p>
+              <AppBadge :tone="n.read_at ? 'gray' : 'red'" :dot="!n.read_at">
+                {{ n.read_at ? 'Dibaca' : 'Baru' }}
+              </AppBadge>
+            </div>
+            <p v-if="n.body" class="mt-1 text-sm leading-relaxed text-secondary">{{ n.body }}</p>
+            <p class="mt-1.5 text-xs text-secondary">
+              {{ jenis(n.type).label }} · {{ waktuRelatif(n.created_at) }}
+            </p>
+          </div>
         </div>
-      </div>
-    </AppCard>
+      </AppCard>
+    </div>
     <AppPager :meta="meta" @page="muat" @update:per-page="setPerPage" />
 
-    <AppCard title="Perangkat terdaftar" class="mt-4">
-      <p class="text-xs text-secondary">
-        Perangkat didaftarkan otomatis dari aplikasi Android saat login. Cabut akses bila HP hilang
-        atau berganti.
+    <AppCard
+      title="Perangkat terdaftar"
+      subtitle="Didaftarkan otomatis dari aplikasi Android saat login."
+      class="mt-5"
+    >
+      <p class="mb-2 text-xs leading-relaxed text-secondary">
+        Cabut akses bila ponsel hilang atau berganti agar sesi lama tidak tetap aktif.
       </p>
-      <AppEmpty v-if="!perangkat.length" message="Belum ada perangkat terdaftar." />
-      <ul v-else class="mt-2 divide-y divide-outline/60">
+      <AppSkeleton v-if="perangkatLoading" :lines="2" />
+      <AppEmpty
+        v-else-if="!perangkat.length"
+        icon="phonelink_erase"
+        title="Belum ada perangkat"
+        message="Perangkat akan tercatat setelah Anda masuk lewat aplikasi Android."
+        compact
+      />
+      <ul v-else class="divide-y divide-outline/60">
         <li
           v-for="d in perangkat"
           :key="d.token"
-          class="flex items-center justify-between gap-2 py-2 text-sm"
+          class="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"
         >
-          <span class="min-w-0">
-            <span class="font-mono">{{ d.platform ?? 'perangkat' }}</span>
+          <span class="min-w-0 flex-1">
+            <span class="font-mono font-medium text-ink">{{ d.platform ?? 'Perangkat' }}</span>
             <span class="block truncate font-mono text-xs text-secondary">{{ d.token }}</span>
           </span>
-          <AppButton variant="ghost" @click="cabutPerangkat(d.token)">Cabut</AppButton>
+          <AppButton
+            size="sm"
+            variant="ghost"
+            :aria-label="`Cabut akses perangkat ${d.platform ?? d.token}`"
+            @click="cabutPerangkat(d.token)"
+          >
+            Cabut
+          </AppButton>
         </li>
       </ul>
     </AppCard>

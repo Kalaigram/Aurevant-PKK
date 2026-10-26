@@ -4,11 +4,17 @@ import { api } from '../lib/api'
 import { rupiah } from '../lib/format'
 import { useAuthStore } from '../stores/auth'
 import { useAsync } from '../composables/useAsync'
-import AppCard from '../components/ui/AppCard.vue'
+import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
-import AppField from '../components/ui/AppField.vue'
+import AppCard from '../components/ui/AppCard.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppField from '../components/ui/AppField.vue'
+import AppInput from '../components/ui/AppInput.vue'
+import AppModal from '../components/ui/AppModal.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppSkeleton from '../components/ui/AppSkeleton.vue'
+import AppTextarea from '../components/ui/AppTextarea.vue'
 
 interface Paket {
   id: number
@@ -29,13 +35,14 @@ const form = ref({ name: '', max_branches: 1, max_employees: 5, features: '', pr
 const tanyaHapus = ref<Paket | null>(null)
 
 async function muat() {
-  okMsg.value = ''
   const res = await run(() => api.get<Paket[]>('/plans', auth.token))
   if (res)
     list.value = (
       Array.isArray(res) ? res : ((res as unknown as { data: Paket[] }).data ?? [])
     ) as Paket[]
 }
+
+const priceLabel = (price: string) => (Number(price) === 0 ? 'Gratis' : rupiah(price))
 
 function bukaTambah() {
   sunting.value = null
@@ -93,111 +100,137 @@ onMounted(muat)
 </script>
 
 <template>
-  <div class="mx-auto max-w-3xl">
-    <p class="text-xs font-semibold uppercase tracking-wider text-secondary">
-      Platform · khusus admin layanan
-    </p>
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <h1 class="font-display text-xl font-semibold">Paket langganan</h1>
-      <AppButton @click="bukaTambah">Buat paket</AppButton>
-    </div>
+  <div class="mx-auto max-w-4xl">
+    <AppPageHeader
+      eyebrow="Platform · khusus admin layanan"
+      title="Paket langganan"
+      subtitle="Atur harga, kuota, dan fitur yang tersedia untuk setiap tingkat layanan."
+      icon="sell"
+    >
+      <template #meta>
+        <div class="mt-2">
+          <AppBadge tone="blue">{{ list.length }} paket tersedia</AppBadge>
+        </div>
+      </template>
+      <template #actions>
+        <AppButton @click="bukaTambah">Buat paket</AppButton>
+      </template>
+    </AppPageHeader>
+
     <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="error" />
 
-    <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
+    <div v-if="loading && !list.length" class="grid gap-3 md:grid-cols-2" aria-busy="true">
+      <AppCard v-for="i in 4" :key="i"><AppSkeleton :lines="5" /></AppCard>
+      <span class="sr-only" role="status">Memuat paket…</span>
+    </div>
     <AppEmpty
       v-else-if="!list.length"
-      message="Belum ada paket. Buat paket Gratis / Dasar / Pro."
-    />
-    <div class="grid gap-3 md:grid-cols-2">
+      icon="sell"
+      title="Belum ada paket"
+      message="Buat paket Gratis, Dasar, atau Pro untuk mulai menawarkan langganan."
+    >
+      <AppButton @click="bukaTambah">Buat paket pertama</AppButton>
+    </AppEmpty>
+    <div v-else class="grid gap-3 md:grid-cols-2">
       <AppCard v-for="p in list" :key="p.id">
-        <div class="flex items-center justify-between gap-2">
-          <h2 class="font-display font-semibold">{{ p.name }}</h2>
-          <strong>{{ rupiah(p.price) }}</strong>
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="font-display text-lg font-semibold text-ink">{{ p.name }}</h2>
+            <p class="mt-0.5 text-xs text-secondary">
+              Maks {{ p.maxBranches }} cabang · {{ p.maxEmployees }} karyawan
+            </p>
+          </div>
+          <p class="whitespace-nowrap font-display text-lg font-bold text-ink">
+            {{ priceLabel(p.price) }}
+          </p>
         </div>
-        <p class="mt-1 text-xs text-secondary">
-          Maks {{ p.maxBranches }} cabang · {{ p.maxEmployees }} karyawan · 0 = gratis
-        </p>
-        <div v-if="p.features?.length" class="mt-2 flex flex-wrap gap-1.5">
+        <div v-if="p.features?.length" class="mt-3 flex flex-wrap gap-1.5">
           <span
             v-for="f in p.features"
             :key="f"
-            class="rounded-full bg-surface-low px-2.5 py-0.5 text-xs"
+            class="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-medium text-primary-ink"
             >{{ f }}</span
           >
         </div>
-        <div class="mt-3 flex gap-2">
-          <AppButton variant="ghost" @click="bukaUbah(p)">Ubah</AppButton>
-          <AppButton variant="ghost" @click="tanyaHapus = p">Hapus</AppButton>
+        <p v-else class="mt-3 text-xs text-secondary">Belum ada fitur tambahan.</p>
+        <div class="mt-4 flex gap-2 border-t border-outline/50 pt-3">
+          <AppButton size="sm" variant="ghost" :aria-label="`Ubah paket ${p.name}`" @click="bukaUbah(p)">
+            Ubah
+          </AppButton>
+          <AppButton
+            size="sm"
+            variant="ghost"
+            class="text-danger"
+            :aria-label="`Hapus paket ${p.name}`"
+            @click="tanyaHapus = p"
+          >
+            Hapus
+          </AppButton>
         </div>
       </AppCard>
     </div>
 
-    <div
-      v-if="showForm"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="showForm = false"
+    <AppModal
+      :open="showForm"
+      :title="sunting ? 'Ubah paket' : 'Buat paket'"
+      description="Nama paket harus unik. Harga 0 ditampilkan sebagai Gratis."
+      @close="showForm = false"
     >
-      <form class="w-full max-w-md rounded-xl bg-card p-5 shadow-xl" @submit.prevent="simpan">
-        <h3 class="font-display font-semibold">{{ sunting ? 'Ubah paket' : 'Buat paket' }}</h3>
-        <AppField label="Nama (wajib, unik)"
-          ><input
+      <AppBanner tone="red" :message="error" />
+      <form id="plan-form" class="space-y-3" @submit.prevent="simpan">
+        <AppField label="Nama paket" required>
+          <AppInput
             v-model="form.name"
             maxlength="255"
-            class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
             placeholder="cth. Pro"
-        /></AppField>
-        <div class="grid grid-cols-2 gap-2">
-          <AppField label="Maks cabang (≥1)"
-            ><input
-              v-model.number="form.max_branches"
-              type="number"
-              min="1"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-          /></AppField>
-          <AppField label="Maks karyawan (≥1)"
-            ><input
-              v-model.number="form.max_employees"
-              type="number"
-              min="1"
-              class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-          /></AppField>
+            data-autofocus
+          />
+        </AppField>
+        <div class="grid grid-cols-2 gap-3">
+          <AppField label="Maks cabang" required>
+            <AppInput v-model="form.max_branches" type="number" min="1" />
+          </AppField>
+          <AppField label="Maks karyawan" required>
+            <AppInput v-model="form.max_employees" type="number" min="1" />
+          </AppField>
         </div>
-        <AppField label="Fitur (satu baris satu fitur)">
-          <textarea
+        <AppField label="Fitur" optional hint="Satu baris untuk satu fitur.">
+          <AppTextarea
             v-model="form.features"
-            rows="3"
-            class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+            :rows="3"
             placeholder="penggajian&#10;po supplier"
           />
         </AppField>
-        <AppField label="Harga (Rp, 0 = gratis)"
-          ><input
-            v-model.number="form.price"
-            type="number"
-            min="0"
-            class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-        /></AppField>
-        <div class="mt-3 flex justify-end gap-2">
-          <AppButton variant="ghost" type="button" @click="showForm = false">Batal</AppButton>
-          <AppButton type="submit">Simpan</AppButton>
-        </div>
+        <AppField label="Harga (Rp)" required hint="Isi 0 untuk paket gratis.">
+          <AppInput v-model="form.price" type="number" min="0" />
+        </AppField>
       </form>
-    </div>
+      <template #footer>
+        <AppButton variant="ghost" @click="showForm = false">Batal</AppButton>
+        <AppButton
+          type="submit"
+          form="plan-form"
+          :loading="loading"
+          :disabled="!form.name.trim() || form.max_branches < 1 || form.max_employees < 1"
+        >
+          Simpan paket
+        </AppButton>
+      </template>
+    </AppModal>
 
-    <div
-      v-if="tanyaHapus"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4"
-      @click.self="tanyaHapus = null"
+    <AppModal
+      :open="!!tanyaHapus"
+      :title="`Hapus paket ${tanyaHapus?.name ?? ''}?`"
+      description="Paket yang masih dipakai langganan aktif tidak dapat dihapus."
+      size="sm"
+      @close="tanyaHapus = null"
     >
-      <div class="w-full max-w-sm rounded-xl bg-card p-5 shadow-xl">
-        <h3 class="font-display font-semibold">Hapus paket {{ tanyaHapus.name }}?</h3>
-        <p class="text-sm text-secondary">Gagal bila masih dipakai langganan aktif.</p>
-        <div class="mt-3 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="tanyaHapus = null">Batal</AppButton>
-          <AppButton @click="hapus">Hapus</AppButton>
-        </div>
-      </div>
-    </div>
+      <AppBanner tone="red" :message="error" />
+      <template #footer>
+        <AppButton variant="ghost" @click="tanyaHapus = null">Batal</AppButton>
+        <AppButton variant="danger" :loading="loading" @click="hapus">Hapus paket</AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

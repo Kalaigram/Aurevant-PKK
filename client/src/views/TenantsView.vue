@@ -2,16 +2,20 @@
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../lib/api'
 import { tanggal } from '../lib/format'
+import { labelSubscriptionStatus, labelTenantStatus } from '../lib/labels'
 import { useAuthStore } from '../stores/auth'
 import { useAsync } from '../composables/useAsync'
 import { usePagedList } from '../composables/usePagedList'
-import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
-import AppEmpty from '../components/ui/AppEmpty.vue'
+import AppCard from '../components/ui/AppCard.vue'
+import AppModal from '../components/ui/AppModal.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
-import AppIcon from '../components/ui/AppIcon.vue'
+import AppSearch from '../components/ui/AppSearch.vue'
+import AppSelect from '../components/ui/AppSelect.vue'
+import AppTable from '../components/ui/AppTable.vue'
 
 interface Tenant {
   id: number
@@ -25,6 +29,12 @@ interface Tenant {
   endsAt: string | null
   createdAt: string
 }
+
+const OPSI_STATUS = [
+  { value: 'aktif', label: 'Aktif' },
+  { value: 'ditangguhkan', label: 'Ditangguhkan' },
+  { value: 'diarsipkan', label: 'Diarsipkan' },
+]
 
 const auth = useAuthStore()
 const { loading: loadingMutasi, error: errorMutasi, run } = useAsync()
@@ -51,7 +61,6 @@ const {
   },
   { perPage: 15 },
 )
-const loading = computed(() => loadingList.value || loadingMutasi.value)
 const error = computed(() => errorList.value || errorMutasi.value)
 
 function tone(s: string) {
@@ -82,87 +91,161 @@ onMounted(() => muat())
 </script>
 
 <template>
-  <div class="mx-auto max-w-5xl p-4 md:p-6">
-    <div class="mb-4 flex items-center gap-3">
-      <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary">
-        <AppIcon name="domain" :size="28" />
-      </div>
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Administrasi platform</p>
-        <h1 class="font-display text-xl font-semibold">Perusahaan terdaftar ({{ totalUnit }})</h1>
-      </div>
-    </div>
+  <div>
+    <AppPageHeader
+      eyebrow="Administrasi platform"
+      title="Perusahaan terdaftar"
+      :subtitle="`Kelola ${totalUnit} tenant, status layanan, dan akses platform.`"
+      icon="domain"
+    />
+
     <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="error" />
 
-    <div class="mb-3 flex flex-wrap gap-2">
-      <div class="relative min-w-52 flex-1">
-        <AppIcon name="search" :size="18" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
-        <input v-model="cari" class="w-full rounded-lg border border-outline bg-card py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none" placeholder="Cari nama atau slug…" @keyup.enter="muat(1)" />
-      </div>
-      <select v-model="status" class="rounded-lg border border-outline bg-card px-3 py-2 text-sm focus:border-primary focus:outline-none" @change="muat(1)">
-        <option value="">Semua status</option>
-        <option value="aktif">Aktif</option>
-        <option value="ditangguhkan">Ditangguhkan</option>
-        <option value="diarsipkan">Diarsipkan</option>
-      </select>
-      <AppButton @click="muat(1)">Cari</AppButton>
+    <div class="mb-4 flex flex-wrap items-end gap-2">
+      <AppSearch
+        v-model="cari"
+        class="min-w-56 flex-1"
+        placeholder="Cari nama atau slug perusahaan..."
+        @search="muat(1)"
+      />
+      <AppSelect
+        v-model="status"
+        class="w-44"
+        aria-label="Filter status perusahaan"
+        placeholder="Semua status"
+        :options="OPSI_STATUS"
+        @update:model-value="muat(1)"
+      />
+      <AppButton variant="ghost" :loading="loadingList" @click="muat(1)">Muat ulang</AppButton>
     </div>
 
-    <AppEmpty v-if="!loading && !list.length" message="Tidak ada perusahaan cocok." />
-    <div class="overflow-x-auto rounded-xl bg-card shadow-sm">
-      <table class="w-full min-w-[720px] text-sm">
-        <thead>
-          <tr class="text-left text-xs uppercase text-secondary">
-            <th class="px-4 py-2">Perusahaan</th><th class="px-4 py-2 text-center">Cabang</th>
-            <th class="px-4 py-2 text-center">User</th><th class="px-4 py-2">Paket</th>
-            <th class="px-4 py-2">Berlaku s/d</th><th class="px-4 py-2">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="t in list" :key="t.id" class="cursor-pointer border-t border-surface-low hover:bg-surface-low/60" @click="lihat(t.id)">
-            <td class="px-4 py-2">
-              <p class="font-semibold">{{ t.name }}</p>
-              <p class="font-mono text-xs text-secondary">{{ t.slug }}</p>
-            </td>
-            <td class="px-4 py-2 text-center">{{ t.branchesCount }}</td>
-            <td class="px-4 py-2 text-center">{{ t.usersCount }}</td>
-            <td class="px-4 py-2">{{ t.planName ?? '–' }}<span v-if="t.subscriptionStatus" class="text-secondary"> ({{ t.subscriptionStatus }})</span></td>
-            <td class="px-4 py-2">{{ tanggal(t.endsAt) }}</td>
-            <td class="px-4 py-2"><AppBadge :tone="tone(t.status)">{{ t.status }}</AppBadge></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <AppTable
+      :loading="loadingList"
+      :empty="!list.length"
+      :colspan="7"
+      empty-title="Tidak ada perusahaan"
+      empty-message="Ubah kata kunci atau filter status untuk menemukan tenant lain."
+    >
+      <template #head>
+        <tr>
+          <th>Perusahaan</th>
+          <th class="text-center">Cabang</th>
+          <th class="text-center">Pengguna</th>
+          <th>Paket</th>
+          <th>Berlaku s/d</th>
+          <th>Status</th>
+          <th class="text-right">Aksi</th>
+        </tr>
+      </template>
+      <tr v-for="t in list" :key="t.id" class="transition hover:bg-surface-low/60">
+        <td>
+          <p class="font-semibold text-ink">{{ t.name }}</p>
+          <p class="font-mono text-xs text-secondary">{{ t.slug }}</p>
+        </td>
+        <td class="text-center tabular-nums">{{ t.branchesCount }}</td>
+        <td class="text-center tabular-nums">{{ t.usersCount }}</td>
+        <td>
+          <p>{{ t.planName ?? '—' }}</p>
+          <p v-if="t.subscriptionStatus" class="text-xs text-secondary">
+            {{ labelSubscriptionStatus(t.subscriptionStatus) }}
+          </p>
+        </td>
+        <td class="whitespace-nowrap text-secondary">{{ tanggal(t.endsAt) }}</td>
+        <td>
+          <AppBadge :tone="tone(t.status)" :dot="t.status === 'aktif'">
+            {{ labelTenantStatus(t.status) }}
+          </AppBadge>
+        </td>
+        <td class="text-right">
+          <AppButton
+            size="sm"
+            variant="ghost"
+            :aria-label="`Lihat detail ${t.name}`"
+            @click="lihat(t.id)"
+          >
+            Detail
+          </AppButton>
+        </td>
+      </tr>
+    </AppTable>
     <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
 
-    <AppCard v-if="detail" title="Detail perusahaan" class="mt-4">
-      <div class="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p class="font-display font-semibold">{{ detail.name }}</p>
-          <p class="text-sm text-secondary">Terdaftar {{ tanggal(detail.createdAt) }} · {{ detail.branchesCount }} cabang · {{ detail.usersCount }} user</p>
+    <AppCard v-if="detail" class="mt-4">
+      <template #header>
+        <div class="min-w-0">
+          <p class="font-display font-semibold text-ink">Detail perusahaan</p>
+          <p class="mt-0.5 text-xs text-secondary">
+            Terdaftar {{ tanggal(detail.createdAt) }} · {{ detail.branchesCount }} cabang ·
+            {{ detail.usersCount }} pengguna
+          </p>
         </div>
-        <AppBadge :tone="tone(detail.status)">{{ detail.status }}</AppBadge>
+      </template>
+      <template #actions>
+        <AppButton size="sm" variant="ghost" aria-label="Tutup detail" @click="detail = null">
+          Tutup
+        </AppButton>
+      </template>
+
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p class="font-display text-lg font-semibold text-ink">{{ detail.name }}</p>
+          <p class="mt-0.5 font-mono text-xs text-secondary">{{ detail.slug }}</p>
+        </div>
+        <AppBadge :tone="tone(detail.status)" dot>{{ labelTenantStatus(detail.status) }}</AppBadge>
       </div>
-      <div class="mt-3 flex flex-wrap gap-2">
+
+      <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">Paket</dt>
+          <dd class="mt-0.5 font-semibold text-ink">{{ detail.planName ?? 'Tanpa paket' }}</dd>
+        </div>
+        <div>
+          <dt class="text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">Status langganan</dt>
+          <dd class="mt-0.5 font-semibold text-ink">
+            {{ detail.subscriptionStatus ? labelSubscriptionStatus(detail.subscriptionStatus) : '—' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">Berlaku sampai</dt>
+          <dd class="mt-0.5 font-semibold text-ink">{{ tanggal(detail.endsAt) }}</dd>
+        </div>
+        <div>
+          <dt class="text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">Kapasitas</dt>
+          <dd class="mt-0.5 font-semibold text-ink">
+            {{ detail.branchesCount }} cabang · {{ detail.usersCount }} pengguna
+          </dd>
+        </div>
+      </dl>
+
+      <div class="mt-4 flex flex-wrap gap-2 border-t border-outline/50 pt-4">
         <AppButton
-          v-for="s in ['aktif', 'ditangguhkan', 'diarsipkan'].filter((x) => x !== detail?.status)" :key="s"
+          v-for="s in ['aktif', 'ditangguhkan', 'diarsipkan'].filter((x) => x !== detail?.status)"
+          :key="s"
+          size="sm"
           :variant="s === 'aktif' ? 'primary' : s === 'ditangguhkan' ? 'danger' : 'ghost'"
           @click="tanya = { t: detail, ke: s }"
-        >{{ s === 'aktif' ? 'Aktifkan' : s === 'ditangguhkan' ? 'Tangguhkan' : 'Arsipkan' }}</AppButton>
+        >
+          {{ s === 'aktif' ? 'Aktifkan' : s === 'ditangguhkan' ? 'Tangguhkan' : 'Arsipkan' }}
+        </AppButton>
       </div>
-      <p class="mt-2 text-xs text-secondary">Menangguhkan memblokir penulisan di perusahaan itu; baca tetap boleh.</p>
+      <p class="mt-2 text-xs leading-relaxed text-secondary">
+        Menangguhkan memblokir penulisan di perusahaan tersebut; akses baca tetap tersedia.
+      </p>
     </AppCard>
 
-    <div v-if="tanya" class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4" @click.self="tanya = null">
-      <div class="w-full max-w-sm rounded-xl bg-card p-5 shadow-xl">
-        <h3 class="font-display font-semibold">Ubah status {{ tanya.t.name }}?</h3>
-        <p class="mt-1 text-sm text-secondary">Status baru: <strong class="text-ink">{{ tanya.ke }}</strong>.</p>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="tanya = null">Batal</AppButton>
-          <AppButton :loading="loading" @click="ubahStatus">Ya, ubah</AppButton>
-        </div>
-      </div>
-    </div>
+    <AppModal
+      :open="!!tanya"
+      :title="`Ubah status ${tanya?.t.name ?? ''}?`"
+      :description="`Status baru: ${labelTenantStatus(tanya?.ke ?? '')}. Pastikan perubahan ini sudah dikonfirmasi.`"
+      size="sm"
+      @close="tanya = null"
+    >
+      <AppBanner tone="red" :message="errorMutasi" />
+      <template #footer>
+        <AppButton variant="ghost" @click="tanya = null">Batal</AppButton>
+        <AppButton :loading="loadingMutasi" @click="ubahStatus">Ya, ubah</AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

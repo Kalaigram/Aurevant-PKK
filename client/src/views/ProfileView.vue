@@ -7,12 +7,16 @@ import { useAsync } from '../composables/useAsync'
 import { useConfirm } from '../composables/useConfirm'
 import { useToast } from '../composables/useToast'
 import AppAvatar from '../components/ui/AppAvatar.vue'
-import AppCard from '../components/ui/AppCard.vue'
+import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
+import AppCard from '../components/ui/AppCard.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
 import AppInput from '../components/ui/AppInput.vue'
+import AppModal from '../components/ui/AppModal.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppSkeleton from '../components/ui/AppSkeleton.vue'
 
 interface Card {
   name: string
@@ -124,10 +128,14 @@ async function keluar() {
 
 <template>
   <div class="mx-auto max-w-2xl">
-    <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Identitas & sesi resmi</p>
-    <h1 class="font-display mb-4 text-xl font-semibold">Profil pengguna & keamanan akun</h1>
+    <AppPageHeader
+      eyebrow="Identitas & sesi resmi"
+      title="Profil pengguna & keamanan akun"
+      subtitle="Kelola data diri, foto profil, dan sesi perangkat Anda."
+      icon="account_circle"
+    />
+
     <AppBanner tone="red" :message="error" />
-    <p v-if="loading" class="text-sm text-secondary">Memuat…</p>
 
     <AppCard>
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -145,9 +153,7 @@ async function keluar() {
                 <span v-if="card?.branch"> · {{ card.branch }}</span>
               </p>
             </div>
-            <div v-if="card?.role" class="rounded bg-primary-container/15 px-2 py-0.5 text-xs font-semibold text-primary">
-              {{ card.role }}
-            </div>
+            <AppBadge v-if="card?.role" tone="blue">{{ card.role }}</AppBadge>
           </div>
           <div class="mt-3 flex flex-wrap gap-2">
             <input
@@ -174,22 +180,29 @@ async function keluar() {
         </div>
       </div>
       <AppBanner tone="red" :message="fotoError" />
-      <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+      <dl v-if="loading" class="mt-5 grid gap-3 text-sm sm:grid-cols-2" aria-busy="true">
+        <div v-for="i in 4" :key="i">
+          <AppSkeleton width="45%" height="0.6rem" />
+          <AppSkeleton class="mt-2" width="75%" />
+        </div>
+        <span class="sr-only" role="status">Memuat data keanggotaan…</span>
+      </dl>
+      <dl v-else class="mt-5 grid gap-3 text-sm sm:grid-cols-2">
         <div>
-          <dt class="text-xs uppercase tracking-wider text-secondary">Email resmi</dt>
-          <dd class="font-semibold">{{ auth.user?.email }}</dd>
+          <dt class="text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">Email resmi</dt>
+          <dd class="mt-0.5 font-semibold text-ink">{{ auth.user?.email }}</dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-wider text-secondary">Nomor HP</dt>
-          <dd class="font-semibold">{{ auth.user?.phone ?? '–' }}</dd>
+          <dt class="text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">Nomor HP</dt>
+          <dd class="mt-0.5 font-semibold text-ink">{{ auth.user?.phone ?? '–' }}</dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-wider text-secondary">ID karyawan</dt>
-          <dd class="font-mono text-xs font-semibold">{{ auth.user?.employeeUuid ?? '–' }}</dd>
+          <dt class="text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">ID karyawan</dt>
+          <dd class="mt-0.5 font-mono text-xs font-semibold text-ink">{{ auth.user?.employeeUuid ?? '–' }}</dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-wider text-secondary">Status PTKP</dt>
-          <dd class="font-semibold">{{ auth.user?.ptkpStatus ?? '–' }}</dd>
+          <dt class="text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">Status PTKP</dt>
+          <dd class="mt-0.5 font-semibold text-ink">{{ auth.user?.ptkpStatus ?? '–' }}</dd>
         </div>
       </dl>
     </AppCard>
@@ -239,18 +252,36 @@ async function keluar() {
       </p>
       <AppBanner tone="green" :message="okPw" />
       <AppBanner tone="red" :message="pwError" />
-      <div class="grid gap-2 md:grid-cols-3">
+      <div class="grid gap-3 md:grid-cols-3">
         <AppField label="Kata sandi saat ini">
-          <input v-model="ganti.current_password" type="password" autocomplete="current-password" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none" />
+          <AppInput
+            v-model="ganti.current_password"
+            type="password"
+            autocomplete="current-password"
+          />
         </AppField>
-        <AppField label="Kata sandi baru">
-          <input v-model="ganti.password" type="password" autocomplete="new-password" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none" placeholder="Min. 8 karakter" />
+        <AppField label="Kata sandi baru" hint="Minimal 8 karakter.">
+          <AppInput
+            v-model="ganti.password"
+            type="password"
+            autocomplete="new-password"
+            placeholder="Min. 8 karakter"
+          />
         </AppField>
         <AppField label="Ulangi kata sandi baru">
-          <input v-model="ganti.password_confirmation" type="password" autocomplete="new-password" class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none" />
+          <AppInput
+            v-model="ganti.password_confirmation"
+            type="password"
+            autocomplete="new-password"
+          />
         </AppField>
       </div>
-      <AppButton :loading="pwLoading" class="mt-3" @click="gantiSandi">
+      <AppButton
+        :loading="pwLoading"
+        :disabled="!ganti.current_password || !ganti.password || !ganti.password_confirmation"
+        class="mt-3"
+        @click="gantiSandi"
+      >
         <AppIcon name="lock_reset" :size="18" />Simpan kata sandi
       </AppButton>
     </AppCard>
@@ -262,15 +293,19 @@ async function keluar() {
       </dl>
     </AppCard>
 
-    <div v-if="tanyaKeluar" class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4" @click.self="tanyaKeluar = false">
-      <div class="w-full max-w-sm rounded-xl bg-card p-5 shadow-xl">
-        <h3 class="font-display font-semibold">Keluar dari aplikasi?</h3>
-        <p class="mt-1 text-sm text-secondary">Sesi di perangkat ini akan diakhiri. Anda perlu masuk lagi.</p>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="tanyaKeluar = false">Batal</AppButton>
-          <AppButton variant="danger" @click="keluar">Ya, keluar</AppButton>
-        </div>
-      </div>
-    </div>
+    <AppModal
+      :open="tanyaKeluar"
+      title="Keluar dari aplikasi?"
+      description="Sesi di perangkat ini akan diakhiri. Anda perlu masuk lagi untuk melanjutkan."
+      size="sm"
+      @close="tanyaKeluar = false"
+    >
+      <template #footer>
+        <AppButton variant="ghost" @click="tanyaKeluar = false">Batal</AppButton>
+        <AppButton variant="danger" @click="keluar">
+          <AppIcon name="logout" :size="18" />Ya, keluar
+        </AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

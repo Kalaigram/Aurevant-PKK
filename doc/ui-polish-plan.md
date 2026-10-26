@@ -1,6 +1,6 @@
 # UI Polish Plan — Aurevant PKK
 
-Status: **Phase 7 selesai — siap review dan commit**
+Status: **Phase 8 selesai — siap review dan commit**
 Branch: `feat/ui-design-system`  
 Design system: [`doc/DESIGN.md`](./DESIGN.md)  
 Arah visual: **calm green premium**  
@@ -21,7 +21,7 @@ Hasil yang ingin dicapai:
 
 ## 2. Guardrail
 
-- Jangan mengubah API, permission, atau alur data.
+- Jangan mengubah API, permission, atau alur data. Pengecualian hanya untuk bug endpoint yang sudah menjadi kontrak UI/dokumen dan disetujui saat review.
 - Jangan menyentuh file Android.
 - Jangan menambah dependency UI baru.
 - Jangan menambah dark mode.
@@ -37,12 +37,13 @@ Hasil yang ingin dicapai:
 
 ### High
 
-- [ ] Modal custom `z-20` berada di bawah header `z-30` dan bottom nav `z-40`.
-  - `ExpensesView`, `ReceivablesView`, `RolesView`, `PlansView`, `TenantsView`, `ProfileView`.
+- [x] Modal custom `z-20` berada di bawah header `z-30` dan bottom nav `z-40`.
+  - `ExpensesView`, `ReceivablesView`, `RolesView`, `PlansView`, `TenantsView`, `ProfileView` sudah memakai `AppModal`.
 - [x] Focus ring shared components sudah diganti ring 2px dengan kontras cukup; audit per view menyusul di fase halaman.
 - [x] Baris/card click-only di halaman operasional sudah punya aksi keyboard.
   - `ApprovalsView`, `SalesView`, `PurchaseView`, `TransfersView`, `OpnamesView`, `ServicesView`.
-- [ ] Baris/card click-only tersisa: `NotificationsView`, `AuditView`, `TenantsView` (Phase 8).
+- [x] Baris/card click-only di halaman admin sudah diganti aksi eksplisit atau dilengkapi keyboard.
+  - `NotificationsView` card `role="button"` + Enter/Space, `AuditView` tombol Inspeksi, `TenantsView` tombol Detail (Phase 8).
 - [x] Kontrol POS sudah diberi label, touch target, dan layout mobile.
 - [x] Microcopy sidebar kontrasnya terlalu rendah — diperbaiki di Phase 2.
 - [x] Demo credential tampil permanen di login - dibatasi ke development atau env demo di Phase 3.
@@ -234,7 +235,7 @@ File:
 - [x] Employee card/avatar dengan foto profil dan fallback ikon.
 - [x] Format tanggal dan status.
 
-**Status:** selesai dan siap review - `type-check`, `lint`, dan `build` lulus (CSS 77.38 kB). Visual QA dengan backend demo: desktop 1440px untuk 8 halaman, mobile 390px untuk layout utama, Card depan/belakang, tab cuti, tab jadwal/shift/pola/libur, serta tab payroll. Foto profil tampil di kartu, profil, header, sidebar, dan daftar karyawan; akun tanpa foto memakai ikon profil default, bukan inisial. Horizontal overflow mobile `LeavesView` sudah diperbaiki lewat `min-w-0` pada kolom grid. Tidak ada console error atau request gagal.
+**Status:** selesai dan sudah di-commit (`7f16605`) - `type-check`, `lint`, dan `build` lulus (CSS 77.38 kB). Visual QA dengan backend demo: desktop 1440px untuk 8 halaman, mobile 390px untuk layout utama, Card depan/belakang, tab cuti, tab jadwal/shift/pola/libur, serta tab payroll. Foto profil tampil di kartu, profil, header, sidebar, dan daftar karyawan; akun tanpa foto memakai ikon profil default, bukan inisial. Horizontal overflow mobile `LeavesView` sudah diperbaiki lewat `min-w-0` pada kolom grid. Tidak ada console error atau request gagal.
 
 **Commit:** `feat(ui): HR page polish`
 
@@ -254,14 +255,18 @@ File:
 - `ImportView`
 - `NationalHolidaysView`
 
-- [ ] Page header.
-- [ ] Modal shared.
-- [ ] Form dan tabel.
-- [ ] Status langganan.
-- [ ] Empty/loading state.
-- [ ] Akses keyboard.
+- [x] Page header.
+- [x] Modal shared.
+- [x] Form dan tabel.
+- [x] Status langganan.
+- [x] Empty/loading state.
+- [x] Akses keyboard.
+
+**Status:** selesai dan siap review - `type-check`, `lint`, dan `build` lulus (CSS 75.85 kB). QA CDP dengan backend demo mencakup 11 halaman pada desktop 1440px dan mobile 390px. Tidak ditemukan horizontal overflow dokumen, kontrol tanpa label, tombol tanpa focus ring, console error, atau request gagal. Dialog Buat cabang, Buat role, Buat paket, dan logout diuji di desktop/mobile; fokus masuk ke panel dan panel tidak overflow. Detail tenant dan detail audit juga diperiksa. QA menemukan `GET /api/v1/holidays` belum terdaftar sehingga halaman Libur Nasional mendapat 405 meski endpoint sudah dirujuk UI dan dokumen; ditambahkan route baca super-admin dan test `ScheduleTest` (2 test, 27 assertion). Tidak ada perubahan kontrak POST/DELETE. Setelah perbaikan, seluruh halaman lulus tanpa error.
 
 **Commit:** `feat(ui): admin settings and accessibility polish`
+
+**Commit API:** `fix(api): add national holiday list endpoint`
 
 ### Phase 9 — QA dan hardening
 
@@ -289,7 +294,7 @@ File:
 | Operasional | POS, Sales, Services, Purchase, Catalog, Prices, Customers, Stock, Transfers, Opnames, Approvals | selesai |
 | Keuangan | Expenses, Debts, Receivables, Journal, Reports, Periods | selesai |
 | SDM | Attendance, HrAttendance, Leaves, Schedule, Payroll, Slip, Employees, Card | selesai |
-| Admin | Notifications, Subscription, CompanyProfile, Profile, Branches, Roles, Tenants, Plans, Audit, Import, NationalHolidays | belum |
+| Admin | Notifications, Subscription, CompanyProfile, Profile, Branches, Roles, Tenants, Plans, Audit, Import, NationalHolidays | selesai |
 | Shell | App.vue, AuthLayout, CompanyShell | selesai |
 
 Status yang dipakai: `belum`, `sedang`, `selesai`, `blocked`.

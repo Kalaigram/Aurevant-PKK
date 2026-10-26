@@ -149,8 +149,9 @@ onMounted(() => muat())
           class="mt-3"
           :loading="loading"
           :empty="!tersaring.length"
-          :colspan="5"
-          empty-message="Tidak ada baris cocok. Ubah filter."
+          :colspan="6"
+          empty-title="Tidak ada baris cocok"
+          empty-message="Ubah kata kunci atau reset filter untuk melihat aktivitas lain."
         >
           <template #head>
             <tr>
@@ -159,28 +160,38 @@ onMounted(() => muat())
               <th>Aksi</th>
               <th>Entitas</th>
               <th class="text-right">ID</th>
+              <th class="text-right">Aksi</th>
             </tr>
           </template>
           <tr
             v-for="r in tersaring"
             :key="r.id"
-            class="cursor-pointer transition hover:bg-surface-low/70"
+            class="transition hover:bg-surface-low/70"
             :class="detail?.id === r.id ? 'bg-surface-low' : ''"
-            @click="pilih(r)"
           >
             <td class="whitespace-nowrap">{{ waktu(r.createdAt) }}</td>
             <td>{{ r.userName ?? (r.userId ? `ID ${r.userId}` : 'Sistem') }}</td>
             <td>
               <p class="text-sm font-medium">{{ labelAksi(r.action) }}</p>
-              <p class="font-mono text-[10px] text-secondary">{{ r.action }}</p>
+              <p class="font-mono text-2xs text-secondary">{{ r.action }}</p>
             </td>
             <td>
               <p class="text-sm">{{ labelEntitas(r.entityType) }}</p>
-              <p class="font-mono text-[10px] text-secondary">
+              <p class="font-mono text-2xs text-secondary">
                 {{ r.entityType }}{{ r.entityId !== null ? ` #${r.entityId}` : '' }}
               </p>
             </td>
             <td class="text-right font-mono text-xs">#{{ r.id }}</td>
+            <td class="text-right">
+              <AppButton
+                size="sm"
+                variant="ghost"
+                :aria-label="`Inspeksi audit ${r.action} #${r.id}`"
+                @click="pilih(r)"
+              >
+                Inspeksi
+              </AppButton>
+            </td>
           </tr>
         </AppTable>
         <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
@@ -225,7 +236,12 @@ onMounted(() => muat())
 
           <div class="mt-4 flex items-center justify-between">
             <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Perubahan data</p>
-            <button class="text-xs font-semibold text-primary" @click="tampilMentah = !tampilMentah">
+            <button
+              type="button"
+              class="rounded px-1 text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+              :aria-pressed="tampilMentah"
+              @click="tampilMentah = !tampilMentah"
+            >
               {{ tampilMentah ? 'Ringkas' : 'Mentah' }}
             </button>
           </div>
@@ -233,17 +249,31 @@ onMounted(() => muat())
           <div v-if="tampilMentah" class="mt-2 grid gap-2 sm:grid-cols-2">
             <div>
               <div class="mb-1 flex items-center justify-between">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-secondary">Sebelum</p>
-                <button class="text-[11px] font-semibold text-primary" @click="salin(detail.before)">Salin</button>
+                <p class="text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">Sebelum</p>
+                <button
+                  type="button"
+                  class="rounded px-1 text-2xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+                  aria-label="Salin data sebelum perubahan"
+                  @click="salin(detail.before)"
+                >
+                  Salin
+                </button>
               </div>
-              <pre class="max-h-64 overflow-auto rounded-lg bg-ink p-3 font-mono text-[11px] leading-relaxed text-emerald-50">{{ JSON.stringify(detail.before, null, 2) }}</pre>
+              <pre class="max-h-64 overflow-auto rounded-xl bg-ink p-3 font-mono text-2xs leading-relaxed text-primary-soft">{{ JSON.stringify(detail.before, null, 2) }}</pre>
             </div>
             <div>
               <div class="mb-1 flex items-center justify-between">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-secondary">Sesudah</p>
-                <button class="text-[11px] font-semibold text-primary" @click="salin(detail.after)">Salin</button>
+                <p class="text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">Sesudah</p>
+                <button
+                  type="button"
+                  class="rounded px-1 text-2xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+                  aria-label="Salin data sesudah perubahan"
+                  @click="salin(detail.after)"
+                >
+                  Salin
+                </button>
               </div>
-              <pre class="max-h-64 overflow-auto rounded-lg bg-ink p-3 font-mono text-[11px] leading-relaxed text-emerald-50">{{ JSON.stringify(detail.after, null, 2) }}</pre>
+              <pre class="max-h-64 overflow-auto rounded-xl bg-ink p-3 font-mono text-2xs leading-relaxed text-primary-soft">{{ JSON.stringify(detail.after, null, 2) }}</pre>
             </div>
           </div>
 

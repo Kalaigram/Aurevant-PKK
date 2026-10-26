@@ -9,10 +9,15 @@ import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
-import AppField from '../components/ui/AppField.vue'
 import AppEmpty from '../components/ui/AppEmpty.vue'
-import AppPager from '../components/ui/AppPager.vue'
+import AppField from '../components/ui/AppField.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
+import AppInput from '../components/ui/AppInput.vue'
+import AppModal from '../components/ui/AppModal.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPager from '../components/ui/AppPager.vue'
+import AppSelect from '../components/ui/AppSelect.vue'
+import AppSkeleton from '../components/ui/AppSkeleton.vue'
 
 interface Role { id: number; name: string; permissions: string[] }
 
@@ -50,7 +55,6 @@ const {
     ),
   { perPage: 15 },
 )
-const loading = computed(() => loadingList.value || loadingMutasi.value)
 const error = computed(() => errorList.value || errorMutasi.value)
 const katalog = ref<string[]>([])
 const templates = ref<string[]>([])
@@ -64,6 +68,7 @@ const dipilih = ref<string[]>([])
 const tanyaHapus = ref<Role | null>(null)
 
 const bolehKelola = computed(() => access.can('pengaturan.kelola'))
+const opsiTemplate = computed(() => templates.value.map((t) => ({ value: t, label: t })))
 
 function grupUntuk(perm: string): string {
   return GRUP.find((g) => g.prefix.some((p) => perm.startsWith(p)))?.judul ?? 'Lainnya'
@@ -135,34 +140,72 @@ onMounted(async () => {
 
 <template>
   <div>
-    <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Kontrol akses berbasis peran</p>
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <h1 class="font-display text-xl font-semibold">Role & hak akses</h1>
-      <div class="flex gap-2">
-        <AppBadge tone="blue">{{ meta?.total ?? roles.length }} role</AppBadge>
-        <AppBadge tone="blue">{{ katalog.length }} izin</AppBadge>
-        <AppButton v-if="bolehKelola" @click="bukaTambah"><AppIcon name="add" :size="18" />Buat role</AppButton>
-      </div>
-    </div>
+    <AppPageHeader
+      eyebrow="Kontrol akses berbasis peran"
+      title="Role & hak akses"
+      subtitle="Atur kumpulan izin yang menentukan batas akses tiap pengguna."
+      icon="admin_panel_settings"
+    >
+      <template #meta>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <AppBadge tone="blue">{{ meta?.total ?? roles.length }} role</AppBadge>
+          <AppBadge tone="gray">{{ katalog.length }} izin tersedia</AppBadge>
+        </div>
+      </template>
+      <template #actions>
+        <AppButton v-if="bolehKelola" @click="bukaTambah">
+          <AppIcon name="add" :size="18" />Buat role
+        </AppButton>
+      </template>
+    </AppPageHeader>
+
     <AppBanner tone="green" :message="okMsg" />
     <AppBanner tone="red" :message="error" />
 
-    <AppEmpty v-if="!loading && !roles.length" message="Belum ada role." />
-    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <div v-if="loadingList" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+      <AppCard v-for="i in 3" :key="i"><AppSkeleton :lines="4" /></AppCard>
+      <span class="sr-only" role="status">Memuat role…</span>
+    </div>
+    <AppEmpty
+      v-else-if="!roles.length"
+      icon="shield_person"
+      title="Belum ada role"
+      message="Buat role pertama atau gunakan template izin yang tersedia."
+    >
+      <AppButton v-if="bolehKelola" @click="bukaTambah">Buat role</AppButton>
+    </AppEmpty>
+    <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       <AppCard v-for="r in roles" :key="r.id">
         <div class="flex items-start justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-low text-primary">
+          <div class="flex min-w-0 items-center gap-2.5">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-ink">
               <AppIcon name="manage_accounts" :size="20" />
             </span>
-            <h2 class="font-display font-semibold">{{ r.name }}</h2>
+            <h2 class="truncate font-display font-semibold text-ink">{{ r.name }}</h2>
           </div>
           <AppBadge tone="gray">{{ r.permissions.length }} izin</AppBadge>
         </div>
-        <p class="mt-2 line-clamp-2 font-mono text-[11px] leading-relaxed text-secondary">{{ r.permissions.join(', ') || 'Tanpa izin.' }}</p>
-        <div v-if="bolehKelola" class="mt-3 flex gap-2">
-          <AppButton variant="ghost" @click="bukaUbah(r)">Ubah</AppButton>
-          <AppButton variant="ghost" @click="tanyaHapus = r"><span class="text-danger">Hapus</span></AppButton>
+        <p class="mt-3 line-clamp-2 font-mono text-2xs leading-relaxed text-secondary">
+          {{ r.permissions.join(', ') || 'Tanpa izin.' }}
+        </p>
+        <div v-if="bolehKelola" class="mt-3 flex gap-2 border-t border-outline/50 pt-3">
+          <AppButton
+            size="sm"
+            variant="ghost"
+            :aria-label="`Ubah role ${r.name}`"
+            @click="bukaUbah(r)"
+          >
+            Ubah
+          </AppButton>
+          <AppButton
+            size="sm"
+            variant="ghost"
+            class="text-danger"
+            :aria-label="`Hapus role ${r.name}`"
+            @click="tanyaHapus = r"
+          >
+            Hapus
+          </AppButton>
         </div>
       </AppCard>
     </div>
@@ -181,50 +224,87 @@ onMounted(async () => {
       <p class="mt-3 text-xs text-secondary">Template hanya mengisi nilai awal; yang berlaku izin milik role itu.</p>
     </AppCard>
 
-    <div v-if="showForm" class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4" @click.self="showForm = false">
-      <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-card p-5 shadow-xl">
-        <h3 class="font-display font-semibold">{{ sunting ? 'Ubah role' : 'Buat role baru' }}</h3>
-        <div class="mt-3">
-          <AppField label="Nama role (wajib, unik)">
-            <input v-model="nama" maxlength="255" class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" placeholder="cth. Supervisor Shift" />
-          </AppField>
-        </div>
-        <div v-if="!sunting" class="mt-3">
-          <AppField label="Template awal (opsional — izin mengikuti template)">
-            <select v-model="template" class="w-full rounded-lg bg-surface-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary">
-              <option value="">Tanpa template (pilih manual)</option>
-              <option v-for="t in templates" :key="t" :value="t">{{ t }}</option>
-            </select>
-          </AppField>
-        </div>
-        <div v-if="sunting || !template" class="mt-3">
-          <p class="mb-1 text-sm font-medium">Izin ({{ dipilih.length }} dipilih)</p>
-          <div class="max-h-56 space-y-3 overflow-y-auto rounded-lg bg-surface-low p-3">
+    <AppModal
+      :open="showForm"
+      :title="sunting ? 'Ubah role' : 'Buat role baru'"
+      description="Nama role harus unik. Izin yang dicentang berlaku untuk semua pengguna dengan role ini."
+      size="lg"
+      @close="showForm = false"
+    >
+      <AppBanner tone="red" :message="errorMutasi" />
+      <div class="space-y-3">
+        <AppField label="Nama role" required>
+          <AppInput
+            v-model="nama"
+            maxlength="255"
+            placeholder="cth. Supervisor Shift"
+            data-autofocus
+          />
+        </AppField>
+        <AppField
+          v-if="!sunting"
+          label="Template awal"
+          optional
+          hint="Template hanya mengisi izin awal; Anda tetap bisa menyesuaikannya."
+        >
+          <AppSelect
+            v-model="template"
+            placeholder="Tanpa template (pilih manual)"
+            :options="opsiTemplate"
+          />
+        </AppField>
+        <div v-if="sunting || !template">
+          <p class="mb-1.5 text-[13px] font-semibold text-ink">
+            Izin <span class="font-normal text-secondary">({{ dipilih.length }} dipilih)</span>
+          </p>
+          <div class="max-h-64 space-y-3 overflow-y-auto rounded-xl border border-outline/70 bg-surface-low/50 p-3">
             <div v-for="g in GRUP" :key="g.judul">
-              <p class="mb-1 text-[11px] font-semibold uppercase tracking-wider text-secondary">{{ g.judul }}</p>
-              <label v-for="p in katalog.filter((x) => grupUntuk(x) === g.judul)" :key="p" class="flex cursor-pointer items-center gap-2 py-0.5 text-sm">
-                <input type="checkbox" :checked="dipilih.includes(p)" class="h-4 w-4 accent-primary" @change="toggleIzin(p)" />
-                <span class="font-mono text-xs">{{ p }}</span>
+              <p class="mb-1 text-2xs font-semibold uppercase tracking-[0.08em] text-secondary">
+                {{ g.judul }}
+              </p>
+              <label
+                v-for="p in katalog.filter((x) => grupUntuk(x) === g.judul)"
+                :key="p"
+                class="flex cursor-pointer items-center gap-2 rounded-lg px-1 py-1 text-sm hover:bg-card"
+              >
+                <input
+                  type="checkbox"
+                  :checked="dipilih.includes(p)"
+                  class="h-4 w-4 rounded border-outline accent-primary focus:ring-2 focus:ring-primary/30"
+                  @change="toggleIzin(p)"
+                />
+                <span class="font-mono text-xs text-ink">{{ p }}</span>
               </label>
             </div>
           </div>
         </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="showForm = false">Batal</AppButton>
-          <AppButton :loading="loading" @click="simpan">{{ sunting ? 'Simpan' : 'Buat role' }}</AppButton>
-        </div>
       </div>
-    </div>
+      <template #footer>
+        <AppButton variant="ghost" @click="showForm = false">Batal</AppButton>
+        <AppButton
+          :loading="loadingMutasi"
+          :disabled="!nama.trim() || (!sunting && !template && !dipilih.length)"
+          @click="simpan"
+        >
+          {{ sunting ? 'Simpan perubahan' : 'Buat role' }}
+        </AppButton>
+      </template>
+    </AppModal>
 
-    <div v-if="tanyaHapus" class="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4" @click.self="tanyaHapus = null">
-      <div class="w-full max-w-sm rounded-xl bg-card p-5 shadow-xl">
-        <h3 class="font-display font-semibold">Hapus role {{ tanyaHapus.name }}?</h3>
-        <p class="mt-1 text-sm text-secondary">Pengguna yang memakai role ini kehilangan izinnya. Tindakan ini tidak bisa dibatalkan.</p>
-        <div class="mt-4 flex justify-end gap-2">
-          <AppButton variant="ghost" @click="tanyaHapus = null">Batal</AppButton>
-          <AppButton variant="danger" :loading="loading" @click="hapus">Ya, hapus</AppButton>
-        </div>
-      </div>
-    </div>
+    <AppModal
+      :open="!!tanyaHapus"
+      :title="`Hapus role ${tanyaHapus?.name ?? ''}?`"
+      description="Pengguna yang memakai role ini kehilangan izinnya. Tindakan ini tidak bisa dibatalkan."
+      size="sm"
+      @close="tanyaHapus = null"
+    >
+      <AppBanner tone="red" :message="errorMutasi" />
+      <template #footer>
+        <AppButton variant="ghost" @click="tanyaHapus = null">Batal</AppButton>
+        <AppButton variant="danger" :loading="loadingMutasi" @click="hapus">
+          Ya, hapus
+        </AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

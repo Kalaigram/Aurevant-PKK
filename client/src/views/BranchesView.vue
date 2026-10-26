@@ -8,17 +8,19 @@ import { useAsync } from '../composables/useAsync'
 import { usePagedList } from '../composables/usePagedList'
 import { useConfirm } from '../composables/useConfirm'
 import { useToast } from '../composables/useToast'
-import AppCard from '../components/ui/AppCard.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppField from '../components/ui/AppField.vue'
+import AppInput from '../components/ui/AppInput.vue'
 import AppModal from '../components/ui/AppModal.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
 import AppSearch from '../components/ui/AppSearch.vue'
 import AppSelect from '../components/ui/AppSelect.vue'
+import AppStat from '../components/ui/AppStat.vue'
 import AppTable from '../components/ui/AppTable.vue'
+import AppTextarea from '../components/ui/AppTextarea.vue'
 
 interface Cabang {
   id: number
@@ -42,12 +44,12 @@ const ZONA: Record<string, string> = {
   'Asia/Jayapura': 'WIT',
 }
 const WARNA_TILE = [
-  'bg-primary-container',
-  'bg-tertiary',
-  'bg-secondary',
-  'bg-amber-600',
-  'bg-blue-700',
-  'bg-teal-700',
+  'bg-primary-container text-on-primary',
+  'bg-primary-soft text-primary-ink',
+  'bg-info-bg text-info-ink',
+  'bg-warn-bg text-warn-ink',
+  'bg-ok-bg text-ok-ink',
+  'bg-surface-low text-secondary',
 ]
 
 const router = useRouter()
@@ -88,8 +90,10 @@ const opsiStatus = [
   { value: 'aktif', label: 'Aktif' },
   { value: 'nonaktif', label: 'Nonaktif' },
 ]
+const totalUnit = computed(() => statistik.value.aktif + statistik.value.nonaktif)
 
 const labelTipe = (type: string) => TIPE.find((item) => item.value === type)?.label ?? type
+const labelStatus = (status: string) => (status === 'aktif' ? 'Aktif' : 'Nonaktif')
 const toneTipe = (type: string) =>
   (TIPE.find((item) => item.value === type)?.tone ?? 'gray') as
     'green' | 'red' | 'amber' | 'blue' | 'gray'
@@ -209,29 +213,27 @@ onMounted(async () => {
 
     <AppBanner tone="red" :message="error" />
 
-    <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Total unit</p>
-        <p class="font-display text-2xl font-bold">
-          {{ meta?.total ?? 0 }}
-          <span class="text-sm font-normal text-secondary">entitas</span>
-        </p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Status aktif</p>
-        <p class="font-display text-2xl font-bold">
-          {{ statistik.aktif }}
-          <span class="text-sm font-normal text-secondary">cabang</span>
-        </p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Nonaktif</p>
-        <p class="font-display text-2xl font-bold">{{ statistik.nonaktif }}</p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Cabang dipilih</p>
-        <p class="font-display truncate text-2xl font-bold">{{ auth.branchCode ?? '—' }}</p>
-      </AppCard>
+    <div class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <AppStat label="Total unit" :value="totalUnit" icon="domain" hint="Semua status" />
+      <AppStat
+        label="Status aktif"
+        :value="statistik.aktif"
+        icon="check_circle"
+        tone="positive"
+        hint="Siap dipakai bertransaksi"
+      />
+      <AppStat
+        label="Nonaktif"
+        :value="statistik.nonaktif"
+        icon="pause_circle"
+        hint="Tidak muncul di pilihan operasional"
+      />
+      <AppStat
+        label="Cabang dipilih"
+        :value="auth.branchCode ?? '—'"
+        icon="pin_drop"
+        hint="Konteks sesi saat ini"
+      />
     </div>
 
     <div class="mb-3 flex flex-wrap items-end gap-2">
@@ -244,6 +246,7 @@ onMounted(async () => {
       <AppSelect
         v-model="filterTipe"
         class="w-44"
+        aria-label="Filter tipe cabang"
         placeholder="Semua tipe"
         :options="opsiTipe"
         @update:model-value="muat"
@@ -251,6 +254,7 @@ onMounted(async () => {
       <AppSelect
         v-model="filterStatus"
         class="w-36"
+        aria-label="Filter status cabang"
         placeholder="Semua status"
         :options="opsiStatus"
         @update:model-value="muat"
@@ -279,7 +283,7 @@ onMounted(async () => {
         <td>
           <div class="flex items-center gap-3">
             <span
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-display text-xs font-bold text-white"
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-display text-xs font-bold"
               :class="WARNA_TILE[index % WARNA_TILE.length]"
             >
               {{ cabang.code.slice(0, 3).toUpperCase() }}
@@ -302,8 +306,8 @@ onMounted(async () => {
           <p v-if="cabang.phone" class="font-mono text-xs text-secondary">{{ cabang.phone }}</p>
         </td>
         <td>
-          <AppBadge :tone="cabang.status === 'aktif' ? 'green' : 'gray'">
-            {{ cabang.status }}
+          <AppBadge :tone="cabang.status === 'aktif' ? 'green' : 'gray'" :dot="cabang.status === 'aktif'">
+            {{ labelStatus(cabang.status) }}
           </AppBadge>
         </td>
         <td v-if="bolehKelola" class="text-right">
@@ -312,12 +316,26 @@ onMounted(async () => {
               size="sm"
               variant="subtle"
               :disabled="cabang.status !== 'aktif'"
+              :aria-label="`Pilih cabang ${cabang.name}`"
               @click="pilih(cabang)"
             >
               Pilih
             </AppButton>
-            <AppButton size="sm" variant="ghost" @click="bukaUbah(cabang)">Ubah</AppButton>
-            <AppButton size="sm" variant="ghost" class="text-danger" @click="hapus(cabang)">
+            <AppButton
+              size="sm"
+              variant="ghost"
+              :aria-label="`Ubah cabang ${cabang.name}`"
+              @click="bukaUbah(cabang)"
+            >
+              Ubah
+            </AppButton>
+            <AppButton
+              size="sm"
+              variant="ghost"
+              class="text-danger"
+              :aria-label="`Hapus cabang ${cabang.name}`"
+              @click="hapus(cabang)"
+            >
               Hapus
             </AppButton>
           </div>
@@ -337,14 +355,16 @@ onMounted(async () => {
       description="Konfigurasi unit operasional perusahaan."
       @close="formOpen = false"
     >
+      <AppBanner tone="red" :message="simpanError" />
       <form id="branch-form" class="space-y-3" @submit.prevent="simpan">
         <div class="grid gap-3 sm:grid-cols-2">
           <AppField label="Kode" required>
-            <input
+            <AppInput
               v-model="form.code"
               maxlength="20"
-              class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 font-mono text-sm uppercase text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+              class="font-mono uppercase"
               placeholder="cth. PST"
+              data-autofocus
             />
           </AppField>
           <AppField label="Status">
@@ -352,10 +372,9 @@ onMounted(async () => {
           </AppField>
         </div>
         <AppField label="Nama cabang" required>
-          <input
+          <AppInput
             v-model="form.name"
             maxlength="255"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
             placeholder="cth. Pusat Ciledug"
           />
         </AppField>
@@ -375,18 +394,13 @@ onMounted(async () => {
           </AppField>
         </div>
         <AppField label="Alamat" optional>
-          <textarea
-            v-model="form.address"
-            rows="2"
-            maxlength="500"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-          />
+          <AppTextarea v-model="form.address" :rows="2" :maxlength="500" />
         </AppField>
         <AppField label="Telepon" optional>
-          <input
+          <AppInput
             v-model="form.phone"
             maxlength="30"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 font-mono text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+            class="font-mono"
             placeholder="08xx..."
           />
         </AppField>
@@ -394,7 +408,12 @@ onMounted(async () => {
 
       <template #footer>
         <AppButton variant="ghost" @click="formOpen = false">Batal</AppButton>
-        <AppButton type="submit" form="branch-form" :loading="simpanLoading">
+        <AppButton
+          type="submit"
+          form="branch-form"
+          :loading="simpanLoading"
+          :disabled="!form.code.trim() || !form.name.trim()"
+        >
           Simpan cabang
         </AppButton>
       </template>
