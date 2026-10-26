@@ -19,7 +19,7 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] RBAC custom: `roles` + `permissions` + scope (sendiri/cabang/perusahaan), template subrole
 - [x] Cabang: CRUD + zona waktu (WIB/WITA/WIT), tipe gudang
 - [x] Katalog: kategori, item barang/jasa, harga per cabang (pajak/diskon per dokumen ditunda)
-- [x] Stok: `stock_movements` append-only, saldo turunan, moving average (alert stok minimum ditunda)
+- [x] Stok: `stock_movements` append-only, saldo turunan, moving average, alert stok minimum per item per cabang
 - [x] Transfer antar cabang (draft → diajukan → disetujui → dikirim → diterima + in transit)
 - [x] Stok opname (hitung → selisih → penyesuaian + approval)
 - [x] PO supplier: draft → diajukan → disetujui → dipesan → diterima → selesai, approval nominal ditunda

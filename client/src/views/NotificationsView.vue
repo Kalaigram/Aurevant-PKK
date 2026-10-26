@@ -80,6 +80,11 @@ const JENIS: Record<string, { label: string; icon: string; hint: string }> = {
     icon: 'fact_check',
     hint: 'Selisih stok disetujui',
   },
+  'stok.menipis': {
+    label: 'Stok menipis',
+    icon: 'inventory_2',
+    hint: 'Saldo mencapai batas minimum',
+  },
   'shift.selisih': {
     label: 'Selisih kas shift',
     icon: 'warning',
@@ -100,7 +105,13 @@ const JENIS: Record<string, { label: string; icon: string; hint: string }> = {
 const GROUPS: { title: string; types: string[] }[] = [
   {
     title: 'Logistik & perpindahan stok',
-    types: ['transfer.diajukan', 'transfer.disetujui', 'transfer.dikirim', 'transfer.diterima'],
+    types: [
+      'transfer.diajukan',
+      'transfer.disetujui',
+      'transfer.dikirim',
+      'transfer.diterima',
+      'stok.menipis',
+    ],
   },
   { title: 'Pengadaan barang (PO)', types: ['po.diajukan', 'po.disetujui', 'po.diterima'] },
   {
@@ -170,6 +181,10 @@ async function buka(n: Notif) {
   }
   if (n.link === '/subscription') {
     router.push(`/c/${companyId.value}/subscription`)
+    return
+  }
+  if (n.link === '/stock') {
+    router.push(`/c/${companyId.value}/stock`)
     return
   }
   muat()

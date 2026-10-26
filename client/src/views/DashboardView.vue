@@ -28,9 +28,21 @@ interface Penjualan {
   transaksi_hari_ini: number
   shift_terbuka: number
 }
+interface StokMenipisItem {
+  item_id: number
+  item_code: string | null
+  item_name: string | null
+  unit: string | null
+  branch_id: number
+  branch_name: string | null
+  qty: string
+  min_stock: string
+}
 interface Operasional {
   transfer_diajukan: number
   opname_diajukan: number
+  stok_menipis?: number
+  stok_menipis_items?: StokMenipisItem[]
 }
 interface Sdm {
   hadir: number
@@ -122,6 +134,7 @@ const base = computed(() => `/c/${companyId.value}`)
 const keuangan = computed(() => data.value?.keuangan ?? null)
 const penjualan = computed(() => data.value?.penjualan ?? null)
 const operasional = computed(() => data.value?.operasional ?? null)
+const stokMenipisItems = computed(() => operasional.value?.stok_menipis_items ?? [])
 const sdm = computed(() => data.value?.sdm ?? null)
 const karyawan = computed(() => data.value?.karyawan ?? null)
 
@@ -232,6 +245,10 @@ const sparkline = computed(() => {
   const area = `${line} L100,38 L0,38 Z`
   return { line, area, last: points[points.length - 1] ?? { x: 100, y: 22 } }
 })
+
+function angka(value: string | number) {
+  return Number(value).toLocaleString('id-ID', { maximumFractionDigits: 3 })
+}
 
 async function muatTren() {
   const d = data.value
@@ -593,6 +610,56 @@ onMounted(() => {
               class="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
             >
               Buka kotak persetujuan
+              <AppIcon name="arrow_forward" :size="15" />
+            </RouterLink>
+          </AppCard>
+
+          <AppCard
+            v-if="operasional && operasional.stok_menipis !== undefined"
+            title="Stok menipis"
+            subtitle="Item yang mencapai atau melewati batas minimum"
+          >
+            <div
+              v-if="!stokMenipisItems.length"
+              class="flex items-center gap-2 rounded-xl bg-ok-bg/70 p-3 text-sm text-ok-ink"
+            >
+              <AppIcon name="check_circle" :size="18" />
+              Semua stok di atas batas minimum.
+            </div>
+            <div v-else class="space-y-2">
+              <RouterLink
+                v-for="item in stokMenipisItems"
+                :key="`${item.branch_id}-${item.item_id}`"
+                :to="`${base}/stock`"
+                class="group flex items-center gap-3 rounded-xl border border-outline/60 bg-surface-raised/60 p-3 transition hover:border-primary/30 hover:bg-primary-soft/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+              >
+                <span
+                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-danger-bg text-danger"
+                >
+                  <AppIcon name="inventory_2" :size="18" />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold text-ink">
+                    {{ item.item_name ?? item.item_code }}
+                  </span>
+                  <span class="block truncate text-xs text-secondary">
+                    {{ item.branch_name }} &middot; minimum {{ angka(item.min_stock) }}
+                    {{ item.unit ?? 'pcs' }}
+                  </span>
+                </span>
+                <span class="shrink-0 text-sm font-bold tabular-nums text-danger">
+                  {{ angka(item.qty) }}
+                </span>
+              </RouterLink>
+              <p v-if="(operasional.stok_menipis ?? 0) > stokMenipisItems.length" class="text-xs text-secondary">
+                +{{ (operasional.stok_menipis ?? 0) - stokMenipisItems.length }} item lainnya.
+              </p>
+            </div>
+            <RouterLink
+              :to="`${base}/stock`"
+              class="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+            >
+              Buka stok
               <AppIcon name="arrow_forward" :size="15" />
             </RouterLink>
           </AppCard>

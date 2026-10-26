@@ -11,6 +11,7 @@ import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
+import AppCheckbox from '../components/ui/AppCheckbox.vue'
 import AppField from '../components/ui/AppField.vue'
 import AppInput from '../components/ui/AppInput.vue'
 import AppModal from '../components/ui/AppModal.vue'
@@ -32,6 +33,8 @@ interface Saldo {
   unit: string | null
   qty: string
   avgCost: string
+  minStock: string | null
+  lowStock: boolean
 }
 
 interface Gerak {
@@ -74,6 +77,7 @@ const items = ref<KatalogItem[]>([])
 const branchId = ref<number | null>(null)
 const tab = ref('saldo')
 const cari = ref('')
+const hanyaMenipis = ref(false)
 
 const saldoList = usePagedList<Saldo>((page, perPage) => {
   if (!branchId.value) return Promise.resolve({ data: [], meta: null })
@@ -82,6 +86,7 @@ const saldoList = usePagedList<Saldo>((page, perPage) => {
     page: String(page),
   })
   if (cari.value.trim()) params.set('q', cari.value.trim())
+  if (hanyaMenipis.value) params.set('low_stock', '1')
   return api.getPage<Saldo>(
     `/companies/${companyId.value}/branches/${branchId.value}/stock?${params}`,
     auth.token,
@@ -107,6 +112,10 @@ const fTipe = ref('pembelian')
 const fQty = ref<number | null>(null)
 const fCost = ref<number | null>(null)
 const fNote = ref('')
+
+const showMinimum = ref(false)
+const fMinItem = ref<Saldo | null>(null)
+const fMinValue = ref<number | null>(null)
 
 const bolehSesuaikan = computed(() => access.can('stok.opname'))
 const error = computed(
@@ -218,6 +227,7 @@ function gantiCabang(value: string | number | null) {
 
 function resetFilter() {
   cari.value = ''
+  hanyaMenipis.value = false
   muatAktif(1)
 }
 
@@ -250,6 +260,31 @@ async function simpanSesuai() {
     showSesuaikan.value = false
     toast.success('Mutasi stok dicatat.')
     await Promise.all([saldoList.load(1), mutasiList.load(1)])
+  } else if (aksi.error.value) {
+    toast.error(aksi.error.value)
+  }
+}
+
+function bukaMinimum(row: Saldo) {
+  fMinItem.value = row
+  fMinValue.value = row.minStock === null ? null : Number(row.minStock)
+  aksi.error.value = ''
+  showMinimum.value = true
+}
+
+async function simpanMinimum() {
+  if (!branchId.value || !fMinItem.value) return
+  const res = await aksi.run(() =>
+    api.put(
+      `/companies/${companyId.value}/branches/${branchId.value}/stock/${fMinItem.value?.itemId}/minimum`,
+      { min_stock: fMinValue.value },
+      auth.token,
+    ),
+  )
+  if (res) {
+    showMinimum.value = false
+    toast.success('Stok minimum disimpan.')
+    await saldoList.reload()
   } else if (aksi.error.value) {
     toast.error(aksi.error.value)
   }
@@ -309,6 +344,13 @@ onMounted(async () => {
             @search="cariSekarang"
           />
         </AppField>
+        <AppCheckbox
+          v-if="tab === 'saldo'"
+          v-model="hanyaMenipis"
+          label="Hanya menipis"
+          class="pb-2.5"
+          @update:model-value="muatAktif(1)"
+        />
         <AppButton variant="ghost" @click="resetFilter">Reset</AppButton>
       </div>
 
@@ -318,7 +360,7 @@ onMounted(async () => {
         <AppTable
           :loading="saldoList.loading.value"
           :empty="!saldoList.rows.value.length"
-          :colspan="5"
+          :colspan="6"
           empty-title="Belum ada saldo stok"
           empty-message="Stok terbentuk dari pembelian, transfer, atau penyesuaian."
         >
@@ -326,6 +368,7 @@ onMounted(async () => {
             <tr>
               <th>Item</th>
               <th class="text-right">Qty</th>
+              <th class="hidden text-right md:table-cell">Minimum</th>
               <th class="text-right">Rata-rata modal</th>
               <th class="text-right">Nilai persediaan</th>
               <th class="hidden sm:table-cell">Satuan</th>
@@ -335,8 +378,25 @@ onMounted(async () => {
             <td>
               <p class="font-medium">{{ row.itemName }}</p>
               <p class="font-mono text-xs text-secondary">{{ row.itemCode }}</p>
+              <AppButton
+                v-if="bolehSesuaikan"
+                variant="ghost"
+                size="sm"
+                class="mt-1.5"
+                @click="bukaMinimum(row)"
+              >
+                Atur minimum
+              </AppButton>
             </td>
-            <td class="text-right font-medium tabular-nums">{{ qty(row.qty) }}</td>
+            <td class="text-right font-medium tabular-nums">
+              <div class="flex items-center justify-end gap-2">
+                <AppBadge v-if="row.lowStock" tone="red">Menipis</AppBadge>
+                <span>{{ qty(row.qty) }}</span>
+              </div>
+            </td>
+            <td class="hidden text-right tabular-nums md:table-cell">
+              {{ row.minStock === null ? 'Belum diatur' : qty(row.minStock) }}
+            </td>
             <td class="text-right tabular-nums">{{ rupiah(row.avgCost) }}</td>
             <td class="text-right font-medium tabular-nums">
               {{ rupiah(Number(row.qty) * Number(row.avgCost ?? 0)) }}
@@ -427,6 +487,29 @@ onMounted(async () => {
         <AppButton :loading="aksi.loading.value" :disabled="!sesuaikanSah" @click="simpanSesuai">
           Catat mutasi
         </AppButton>
+      </template>
+    </AppModal>
+
+    <AppModal
+      :open="showMinimum"
+      title="Stok minimum"
+      :description="fMinItem ? `${fMinItem.itemCode} - ${fMinItem.itemName}` : ''"
+      size="sm"
+      @close="showMinimum = false"
+    >
+      <AppBanner tone="red" :message="aksi.error.value" />
+      <AppField
+        label="Batas minimum"
+        hint="Kosongkan untuk menonaktifkan peringatan stok menipis."
+      >
+        <AppInput v-model="fMinValue" type="number" step="any" min="0" placeholder="0" />
+      </AppField>
+      <p class="mt-2 text-xs text-secondary">
+        Peringatan dikirim saat stok turun melewati batas ini, bukan setiap ada mutasi.
+      </p>
+      <template #footer>
+        <AppButton variant="ghost" @click="showMinimum = false">Batal</AppButton>
+        <AppButton :loading="aksi.loading.value" @click="simpanMinimum">Simpan</AppButton>
       </template>
     </AppModal>
   </div>

@@ -4,7 +4,7 @@ Terakhir diperbarui: 2026-10-26
 
 Branch: `feat/ui-design-system`
 
-Commit terakhir: `2adaf5f fix(service): snapshot order prices and prevent double stock`
+Commit terakhir: `0006259 docs: mark P0 complete`
 
 Dokumen ini adalah papan monitoring kerja aktif. Acuan produk tetap `PROGRESS.md`,
 `doc/spek.md`, dan `doc/analisis-fitur-praluncur.md`.
@@ -19,6 +19,8 @@ Dokumen ini adalah papan monitoring kerja aktif. Acuan produk tetap `PROGRESS.md
 - [x] P0 tenant/branch scope, offboarding, service order, dan PII selesai.
 - [x] Verifikasi P0: 148 tes server lolos, 1328 assertions; Pint targeted lolos.
 - [x] Perubahan P0 sudah di-commit (`e791673`, `2adaf5f`).
+- [x] S04 stok minimum dan alert selesai (backend, web, dashboard, notifikasi).
+- [x] Verifikasi S04: 150 tes server lolos, 1369 assertions; type-check, lint, build lolos.
 - [ ] File Android masih dirty dan belum boleh di-build sebelum izin.
 
 ## Selesai — Gambar item katalog
@@ -74,11 +76,40 @@ Catatan desain:
   keanggotaan aktif di `SetCompanyTeam`.
 - Superadmin sengaja bypass pengecekan assignment dan daftar perusahaan.
 
+## Selesai — S04 stok minimum dan alert
+
+Backend:
+
+- [x] Migrasi `stock_balances.min_stock` nullable, presisi `decimal(15,3)`.
+- [x] `StockBalanceDTO` mengekspos `minStock` dan `lowStock`.
+- [x] Endpoint `PUT /companies/{company}/branches/{branch}/stock/{item}/minimum`.
+- [x] Seting minimum memakai permission `stok.opname` dan mencatat audit `stock.minimum.update`.
+- [x] Filter daftar saldo `low_stock=1` (qty <= minimum).
+- [x] `LowStockAlert` mengirim notifikasi `stok.menipis` hanya saat saldo turun melewati batas.
+- [x] Alert dipanggil dari mutasi stok dan pengiriman transfer keluar.
+- [x] Dashboard menambahkan `operasional.stok_menipis` dan `stok_menipis_items` sesuai scope cabang.
+- [x] Tipe notifikasi `stok.menipis` terdaftar untuk preferensi pengguna.
+
+Frontend:
+
+- [x] Tabel stok menampilkan kolom minimum dan badge `Menipis`.
+- [x] Filter "Hanya menipis" pada tab saldo.
+- [x] Modal "Atur minimum" per item; kosongkan nilai untuk menonaktifkan alert.
+- [x] Widget "Stok menipis" di dashboard dengan tautan ke halaman stok.
+- [x] Notifikasi `stok.menipis` punya label, grup preferensi, dan tautan `/stock`.
+
+Verifikasi:
+
+- [x] `StockTest` mencakup permission, validasi, filter, dashboard, crossing alert, dan scope item.
+- [x] `TransferTest` mencakup alert saat transfer keluar melewati minimum.
+- [x] Migrasi dijalankan di database dev.
+- [x] QA browser: filter, tombol + modal minimum, dan widget dashboard tampil tanpa error.
+
 ## Setelah P0
 
 ### Gap web
 
-- [ ] Stok minimum dan alert.
+- [x] Stok minimum dan alert.
 - [ ] Retur supplier.
 - [ ] Ekspor laporan.
 - [ ] Top produk dan perbandingan cabang.
@@ -111,13 +142,14 @@ Catatan desain:
 ## Verifikasi terakhir
 
 ```text
-php artisan test                         148 passed, 1328 assertions  (P0)
-php artisan test --filter=ItemTest       4 passed, 68 assertions      (katalog)
+php artisan test                         150 passed, 1369 assertions  (P0 + S04)
+php artisan test --filter=StockTest      4 passed, 70 assertions      (S04)
+php artisan test --filter=TransferTest   4 passed, 66 assertions      (S04)
 pint targeted                            lolos
 npm run type-check                       lolos
 npm run lint                             lolos
 npm run build                            lolos
-php artisan migrate --force              migrasi image_path berjalan
+php artisan migrate --force              migrasi min_stock berjalan
 ```
 
 QA katalog:
