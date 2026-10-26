@@ -378,7 +378,7 @@ onMounted(async () => {
       class="mt-4"
     >
       <div class="no-print mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center gap-1">
+        <div class="flex flex-wrap items-center gap-1">
           <AppButton
             variant="ghost"
             aria-label="Minggu sebelumnya"

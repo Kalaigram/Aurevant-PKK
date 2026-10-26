@@ -116,7 +116,7 @@ onMounted(() => muat())
     <AppBanner tone="red" :message="error" />
 
     <div class="grid gap-4 xl:grid-cols-5">
-      <div class="xl:col-span-3">
+      <div class="min-w-0 xl:col-span-3">
         <AppCard>
           <div class="grid gap-2 md:grid-cols-4">
             <AppField label="Aksi (cth. sale.void)">
@@ -197,7 +197,7 @@ onMounted(() => muat())
         <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
       </div>
 
-      <div class="xl:col-span-2">
+      <div class="min-w-0 xl:col-span-2">
         <AppCard v-if="detail" title="Inspeksi rinci">
           <div class="flex items-start justify-between gap-2">
             <div>

@@ -264,7 +264,7 @@ onBeforeUnmount(() => {
     <AppBanner tone="red" :message="formMsg || page.error.value || errorRiwayat" />
 
     <div class="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-      <div class="no-print space-y-4">
+      <div class="no-print min-w-0 space-y-4">
         <AppCard title="Status hari ini">
           <div class="flex flex-wrap gap-2">
             <AppButton :loading="page.loading.value" @click="clock('clock-in')">
@@ -359,7 +359,7 @@ onBeforeUnmount(() => {
         </AppCard>
       </div>
 
-      <div class="print-area space-y-4">
+      <div class="print-area min-w-0 space-y-4">
         <div>
           <p class="mb-2 text-xs text-secondary">
             Ringkasan {{ rows.length }} catatan pada halaman ini.

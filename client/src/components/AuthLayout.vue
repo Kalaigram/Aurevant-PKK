@@ -101,7 +101,7 @@ const keunggulan = [
                 </span>
                 <div>
                   <p class="text-[13px] font-semibold text-white">{{ item.title }}</p>
-                  <p class="mt-0.5 text-xs leading-relaxed text-white/70">{{ item.desc }}</p>
+                  <p class="mt-0.5 text-xs leading-relaxed text-white/80">{{ item.desc }}</p>
                 </div>
               </div>
             </div>

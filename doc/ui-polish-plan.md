@@ -1,6 +1,6 @@
 # UI Polish Plan — Aurevant PKK
 
-Status: **Phase 8 selesai — siap review dan commit**
+Status: **Phase 9 selesai — siap review dan commit**
 Branch: `feat/ui-design-system`  
 Design system: [`doc/DESIGN.md`](./DESIGN.md)  
 Arah visual: **calm green premium**  
@@ -262,7 +262,7 @@ File:
 - [x] Empty/loading state.
 - [x] Akses keyboard.
 
-**Status:** selesai dan siap review - `type-check`, `lint`, dan `build` lulus (CSS 75.85 kB). QA CDP dengan backend demo mencakup 11 halaman pada desktop 1440px dan mobile 390px. Tidak ditemukan horizontal overflow dokumen, kontrol tanpa label, tombol tanpa focus ring, console error, atau request gagal. Dialog Buat cabang, Buat role, Buat paket, dan logout diuji di desktop/mobile; fokus masuk ke panel dan panel tidak overflow. Detail tenant dan detail audit juga diperiksa. QA menemukan `GET /api/v1/holidays` belum terdaftar sehingga halaman Libur Nasional mendapat 405 meski endpoint sudah dirujuk UI dan dokumen; ditambahkan route baca super-admin dan test `ScheduleTest` (2 test, 27 assertion). Tidak ada perubahan kontrak POST/DELETE. Setelah perbaikan, seluruh halaman lulus tanpa error.
+**Status:** selesai dan sudah di-commit - `type-check`, `lint`, dan `build` lulus (CSS 75.85 kB). QA CDP dengan backend demo mencakup 11 halaman pada desktop 1440px dan mobile 390px. Tidak ditemukan horizontal overflow dokumen, kontrol tanpa label, tombol tanpa focus ring, console error, atau request gagal. Dialog Buat cabang, Buat role, Buat paket, dan logout diuji di desktop/mobile; fokus masuk ke panel dan panel tidak overflow. Detail tenant dan detail audit juga diperiksa. QA menemukan `GET /api/v1/holidays` belum terdaftar sehingga halaman Libur Nasional mendapat 405 meski endpoint sudah dirujuk UI dan dokumen; ditambahkan route baca super-admin dan test `ScheduleTest` (2 test, 27 assertion). Tidak ada perubahan kontrak POST/DELETE. Setelah perbaikan, seluruh halaman lulus tanpa error.
 
 **Commit:** `feat(ui): admin settings and accessibility polish`
 
@@ -270,16 +270,18 @@ File:
 
 ### Phase 9 — QA dan hardening
 
-- [ ] Cek 375px, 390px, 768px, 1024px, 1440px, 1600px.
-- [ ] Cek keyboard: tab order, focus, Escape, modal trap.
-- [ ] Cek kontras teks kecil dan badge.
-- [ ] Cek `prefers-reduced-motion`.
-- [ ] Cek tabel overflow dan bottom nav overlap.
-- [ ] Smoke test per role demo.
-- [ ] `npm run type-check`.
-- [ ] `npm run lint`.
-- [ ] `npm run build`.
-- [ ] Review diff; pastikan file Android tidak ikut.
+- [x] Cek 375px, 390px, 768px, 1024px, 1440px, 1600px.
+- [x] Cek keyboard: tab order, focus, Escape, modal trap.
+- [x] Cek kontras teks kecil dan badge.
+- [x] Cek `prefers-reduced-motion`.
+- [x] Cek tabel overflow dan bottom nav overlap.
+- [x] Smoke test per role demo.
+- [x] `npm run type-check`.
+- [x] `npm run lint`.
+- [x] `npm run build`.
+- [x] Review diff; pastikan file Android tidak ikut.
+
+**Status:** selesai dan siap review - matrix responsif 35 route owner, 3 route super-admin, dan 4 route auth pada 6 viewport lulus tanpa overflow dokumen/tabel, bottom nav overlap, kontrol tanpa nama, field tanpa label, console error, atau request gagal. Tiga overflow grid diperbaiki di `AttendanceView`, `AuditView`, dan `ScheduleView`. Audit kontras 43 route (owner, super-admin, auth, dan kartu karyawan) lulus; label muted di shell, dashboard, auth, dan kartu dinaikkan ke opasitas aman. 23 pemeriksaan keyboard lulus untuk skip link, tab order, focus ring, dropdown, focus trap, Escape, pemulihan fokus, scroll lock, dan reduced-motion. Smoke test 9 akun demo lulus login UI dan 3-6 route utama per role tanpa console error atau HTTP >=400. `AppDropdown` kini mengembalikan fokus ke trigger sebelum membuka aksi seperti konfirmasi logout. `type-check`, `lint`, dan `build` lulus (177 modul, CSS 75.54 kB). Diff hanya menyentuh 8 file `client/`; file Android, `postman/`, `android/.kotlin/`, dan `PermissionCatalog.php` tidak di-stage.
 
 **Commit:** `fix(ui): responsive and accessibility hardening`
 

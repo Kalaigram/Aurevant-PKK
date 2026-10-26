@@ -324,7 +324,7 @@ onMounted(() => {
                   />
                 </span>
                 <div class="min-w-0">
-                  <p class="text-2xs font-semibold uppercase tracking-[0.14em] text-white/65">
+                  <p class="text-2xs font-semibold uppercase tracking-[0.14em] text-white/80">
                     Ruang kerja perusahaan
                   </p>
                   <h1
@@ -334,14 +334,14 @@ onMounted(() => {
                   </h1>
                   <div class="mt-2.5 flex flex-wrap items-center gap-2">
                     <AppBadge :tone="subInfo.tone" dot>{{ subInfo.label }}</AppBadge>
-                    <span class="text-xs text-white/65">Data per {{ tanggal(data.today) }}</span>
+                    <span class="text-xs text-white/80">Data per {{ tanggal(data.today) }}</span>
                   </div>
                 </div>
               </div>
             </div>
             <dl class="grid grid-cols-2 gap-2.5 sm:gap-3">
               <div class="min-w-0 rounded-2xl bg-white/[0.08] px-3.5 py-3 ring-1 ring-white/10">
-                <dt class="text-2xs font-semibold uppercase tracking-[0.1em] text-white/60">
+                <dt class="text-2xs font-semibold uppercase tracking-[0.1em] text-white/80">
                   Masa aktif
                 </dt>
                 <dd class="mt-1 truncate text-xs font-semibold text-white sm:text-sm">
@@ -349,7 +349,7 @@ onMounted(() => {
                 </dd>
               </div>
               <div class="min-w-0 rounded-2xl bg-white/[0.08] px-3.5 py-3 ring-1 ring-white/10">
-                <dt class="text-2xs font-semibold uppercase tracking-[0.1em] text-white/60">
+                <dt class="text-2xs font-semibold uppercase tracking-[0.1em] text-white/80">
                   Periode ringkasan
                 </dt>
                 <dd class="mt-1 text-xs font-semibold leading-snug text-white sm:text-sm">

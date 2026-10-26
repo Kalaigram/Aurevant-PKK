@@ -143,9 +143,9 @@ function cetak() {
 
           <div class="mt-5 flex items-end justify-between gap-4 border-t border-white/15 pt-4">
             <div class="min-w-0">
-              <p class="text-2xs uppercase tracking-[0.12em] text-white/60">ID karyawan</p>
+              <p class="text-2xs uppercase tracking-[0.12em] text-white/80">ID karyawan</p>
               <p class="mt-1 break-all font-mono text-xs text-white/85">{{ card.employeeUuid }}</p>
-              <p class="mt-2 max-w-52 text-2xs leading-relaxed text-white/65">
+              <p class="mt-2 max-w-52 text-2xs leading-relaxed text-white/80">
                 QR ini untuk validasi kehadiran, bukan data pribadi.
               </p>
             </div>
@@ -177,7 +177,7 @@ function cetak() {
           <div class="mt-4 space-y-1 rounded-xl bg-white/10 p-3 text-sm">
             <p class="break-all">{{ card.email }}</p>
             <p v-if="card.phone">{{ card.phone }}</p>
-            <p v-if="card.companyEmail || card.companyPhone" class="pt-2 text-xs text-white/75">
+            <p v-if="card.companyEmail || card.companyPhone" class="pt-2 text-xs text-white/80">
               {{ [card.companyEmail, card.companyPhone].filter(Boolean).join(' · ') }}
             </p>
           </div>
@@ -190,7 +190,7 @@ function cetak() {
               class="h-36 w-36 rounded-lg bg-white p-2"
             />
           </div>
-          <p class="mt-2 text-center text-2xs text-white/65">
+          <p class="mt-2 text-center text-2xs text-white/80">
             Tunjukkan QR ini saat diminta HR atau perangkat cabang.
           </p>
         </div>

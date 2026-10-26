@@ -347,7 +347,7 @@ onBeforeUnmount(() => {
               class="!ring-white/20" fallback-icon="storefront"
             />
             <div class="min-w-0 flex-1">
-              <p class="text-2xs uppercase tracking-[0.1em] text-white/70">Perusahaan aktif</p>
+              <p class="text-2xs uppercase tracking-[0.1em] text-white/80">Perusahaan aktif</p>
               <p class="truncate text-[13px] font-semibold text-white">{{ companyLabel }}</p>
             </div>
             <AppIcon
@@ -405,7 +405,7 @@ onBeforeUnmount(() => {
             <AppAvatar :name="auth.user?.name" :src="assetUrl(auth.user?.avatarUrl)" size="sm" />
             <div class="min-w-0 flex-1">
               <p class="truncate text-[13px] font-semibold text-white">{{ auth.user?.name }}</p>
-              <p class="truncate text-2xs text-white/70">{{ auth.user?.email }}</p>
+              <p class="truncate text-2xs text-white/80">{{ auth.user?.email }}</p>
             </div>
             <button
               type="button"

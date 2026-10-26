@@ -69,6 +69,7 @@ function toggle() {
 function choose(item: DropdownItem) {
   if (item.disabled) return
   close()
+  trigger.value?.focus()
   item.onSelect?.()
 }
 
