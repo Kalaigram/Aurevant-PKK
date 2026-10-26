@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../lib/api'
 import { rupiah, tanggal, terbilang } from '../lib/format'
+import { labelPayrollStatus } from '../lib/labels'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
@@ -14,6 +15,7 @@ import AppField from '../components/ui/AppField.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppSelect from '../components/ui/AppSelect.vue'
+import AppSkeleton from '../components/ui/AppSkeleton.vue'
 import AppTable from '../components/ui/AppTable.vue'
 
 interface SlipLine {
@@ -55,6 +57,16 @@ const terima = computed(() => (slip.value?.lines ?? []).filter((l) => Number(l.a
 const potong = computed(() => (slip.value?.lines ?? []).filter((l) => Number(l.amount) < 0))
 const bruto = computed(() => terima.value.reduce((s, l) => s + Number(l.amount), 0))
 const totalPotong = computed(() => potong.value.reduce((s, l) => s + Number(l.amount), 0))
+const statusTone = computed<'green' | 'amber' | 'blue' | 'gray'>(() => {
+  const status = slip.value?.period.status
+  return status === 'dibayar' || status === 'disetujui'
+    ? 'green'
+    : status === 'review'
+      ? 'blue'
+      : status === 'draft'
+        ? 'amber'
+        : 'gray'
+})
 
 function normalisasi(p: Periode & { date_from?: string; date_to?: string }): Periode {
   return {
@@ -162,8 +174,15 @@ onMounted(async () => {
       </p>
     </AppCard>
 
+    <div v-if="loading && !slip" class="mt-4 space-y-3" aria-hidden="true">
+      <AppSkeleton height="7rem" rounded="xl" />
+      <AppSkeleton :lines="4" height="0.85rem" rounded="lg" />
+    </div>
+
     <AppEmpty
-      v-if="!slip && !loading && !error"
+      v-else-if="!slip && !error"
+      title="Slip belum ditampilkan"
+      icon="receipt_long"
       message="Pilih periode untuk menampilkan slip gaji."
     />
 
@@ -177,8 +196,8 @@ onMounted(async () => {
             </p>
           </div>
           <div class="no-print flex items-center gap-2">
-            <AppBadge :tone="slip.period.status === 'dibayar' ? 'green' : 'amber'">
-              {{ slip.period.status }}
+            <AppBadge :tone="statusTone" dot>
+              {{ labelPayrollStatus(slip.period.status) }}
             </AppBadge>
           </div>
         </div>
@@ -214,7 +233,13 @@ onMounted(async () => {
       <div class="grid gap-5 p-5 md:grid-cols-2">
         <div>
           <h3 class="font-display text-sm font-semibold text-ink">Penghasilan</h3>
-          <AppTable class="mt-2" :empty="!terima.length" :colspan="2" empty-message="Belum ada komponen penghasilan.">
+          <AppTable
+            class="mt-2"
+            caption="Komponen penghasilan"
+            :empty="!terima.length"
+            :colspan="2"
+            empty-message="Belum ada komponen penghasilan."
+          >
             <template #head>
               <tr>
                 <th>Komponen</th>
@@ -236,7 +261,13 @@ onMounted(async () => {
 
         <div>
           <h3 class="font-display text-sm font-semibold text-ink">Potongan</h3>
-          <AppTable class="mt-2" :empty="!potong.length" :colspan="2" empty-message="Tidak ada potongan periode ini.">
+          <AppTable
+            class="mt-2"
+            caption="Komponen potongan"
+            :empty="!potong.length"
+            :colspan="2"
+            empty-message="Tidak ada potongan periode ini."
+          >
             <template #head>
               <tr>
                 <th>Komponen</th>
@@ -258,9 +289,9 @@ onMounted(async () => {
       </div>
 
       <div class="mx-5 mb-5 rounded-xl bg-primary p-4 text-white">
-        <p class="text-xs uppercase tracking-wider text-emerald-50/80">Gaji bersih diterima</p>
+        <p class="text-xs uppercase tracking-wider text-white/75">Gaji bersih diterima</p>
         <p class="font-display mt-1 text-2xl font-bold">{{ rupiah(slip.net) }}</p>
-        <p class="mt-1 text-sm italic text-emerald-50/90">Terbilang: {{ terbilang(slip.net) }}</p>
+        <p class="mt-1 text-sm italic text-white/85">Terbilang: {{ terbilang(slip.net) }}</p>
       </div>
 
       <p class="px-5 pb-5 text-xs text-secondary">

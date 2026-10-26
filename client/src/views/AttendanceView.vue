@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { api, ApiError } from '../lib/api'
 import { tanggal } from '../lib/format'
+import { labelAttendanceStatus } from '../lib/labels'
 import { useCompany } from '../composables/useCompany'
 import { useAsync } from '../composables/useAsync'
 import { usePagedList } from '../composables/usePagedList'
@@ -82,15 +83,6 @@ const opsiCabang = computed(() =>
 )
 const tone = (s: string) =>
   s === 'hadir' ? 'green' : s === 'terlambat' ? 'amber' : s === 'alpa' ? 'red' : 'blue'
-const statusLabel = (s: string) =>
-  ({
-    hadir: 'Hadir',
-    terlambat: 'Terlambat',
-    alpa: 'Alpa',
-    izin: 'Izin',
-    sakit: 'Sakit',
-    cuti: 'Cuti',
-  })[s] ?? s
 const ringkas = computed(() => {
   const hitung = (s: string) => rows.value.filter((r) => r.status === s).length
   return {
@@ -328,15 +320,10 @@ onBeforeUnmount(() => {
               </template>
               <template v-else>Pilih cabang untuk memuat QR.</template>
             </p>
-            <button
-              v-if="qr"
-              type="button"
-              class="mt-1 text-xs font-semibold text-primary"
-              @click="muatQr"
-            >
+            <AppButton v-if="qr" class="mt-2" size="sm" variant="subtle" @click="muatQr">
               Minta QR baru
-            </button>
-            <p v-if="qr" class="mt-2 break-all font-mono text-[10px] text-secondary">
+            </AppButton>
+            <p v-if="qr" class="mt-2 break-all font-mono text-3xs text-secondary">
               {{ qr.token }}
             </p>
           </div>
@@ -373,11 +360,16 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="print-area space-y-4">
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <AppStat label="Hadir" :value="ringkas.hadir" icon="check_circle" tone="positive" />
-          <AppStat label="Terlambat" :value="ringkas.terlambat" icon="schedule" tone="warning" />
-          <AppStat label="Alpa" :value="ringkas.alpa" icon="cancel" tone="negative" />
-          <AppStat label="Cuti / izin" :value="ringkas.cuti" icon="event_busy" />
+        <div>
+          <p class="mb-2 text-xs text-secondary">
+            Ringkasan {{ rows.length }} catatan pada halaman ini.
+          </p>
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <AppStat label="Hadir" :value="ringkas.hadir" icon="check_circle" tone="positive" />
+            <AppStat label="Terlambat" :value="ringkas.terlambat" icon="schedule" tone="warning" />
+            <AppStat label="Alpa" :value="ringkas.alpa" icon="cancel" tone="negative" />
+            <AppStat label="Cuti / izin" :value="ringkas.cuti" icon="event_busy" />
+          </div>
         </div>
 
         <AppCard title="Riwayat presensi">
@@ -390,10 +382,12 @@ onBeforeUnmount(() => {
             </AppField>
           </div>
           <AppTable
+            caption="Riwayat presensi"
             :loading="loadingRiwayat"
             :empty="!rows.length"
             :colspan="5"
-            empty-message="Belum ada presensi pada rentang ini."
+            empty-title="Belum ada presensi"
+            empty-message="Belum ada presensi pada rentang tanggal ini."
           >
             <template #head>
               <tr>
@@ -412,7 +406,7 @@ onBeforeUnmount(() => {
                 {{ r.lateMinutes ? `${r.lateMinutes} mnt` : '—' }}
               </td>
               <td class="text-right">
-                <AppBadge :tone="tone(r.status)">{{ statusLabel(r.status) }}</AppBadge>
+                <AppBadge :tone="tone(r.status)">{{ labelAttendanceStatus(r.status) }}</AppBadge>
               </td>
             </tr>
           </AppTable>
@@ -422,7 +416,11 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <AppEmpty v-if="!branches.length && !page.loading.value" message="Belum ada cabang aktif." />
+    <AppEmpty
+      v-if="!branches.length && !page.loading.value"
+      title="Belum ada cabang aktif"
+      message="Hubungi pemilik atau admin untuk menambahkan cabang sebelum absensi."
+    />
   </div>
 </template>
 

@@ -344,7 +344,7 @@ onBeforeUnmount(() => {
               :src="assetUrl(auth.companyLogoUrl)"
               size="sm"
               square
-              class="!ring-white/20"
+              class="!ring-white/20" fallback-icon="storefront"
             />
             <div class="min-w-0 flex-1">
               <p class="text-2xs uppercase tracking-[0.1em] text-white/70">Perusahaan aktif</p>

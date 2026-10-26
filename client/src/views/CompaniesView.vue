@@ -296,7 +296,7 @@ onMounted(muat)
               :src="assetUrl(c.logoUrl)"
               size="lg"
               square
-              class="bg-primary-container text-on-primary ring-primary/20"
+              class="bg-primary-container text-on-primary ring-primary/20" fallback-icon="storefront"
             />
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-start justify-between gap-2">

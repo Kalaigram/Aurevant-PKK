@@ -96,6 +96,41 @@ const AGING_BUCKET_LABELS: Record<string, string> = {
   lebih_90: 'Telat > 90 hari',
 }
 
+const ATTENDANCE_STATUS_LABELS: Record<string, string> = {
+  hadir: 'Hadir',
+  terlambat: 'Terlambat',
+  alpa: 'Alpa',
+  izin: 'Izin',
+  sakit: 'Sakit',
+  cuti: 'Cuti',
+}
+
+const LEAVE_STATUS_LABELS: Record<string, string> = {
+  diajukan: 'Diajukan',
+  disetujui: 'Disetujui',
+  ditolak: 'Ditolak',
+}
+
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  izin: 'Izin',
+  sakit: 'Sakit',
+  cuti: 'Cuti',
+}
+
+const PAYROLL_STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  review: 'Review',
+  disetujui: 'Disetujui',
+  dibayar: 'Dibayar',
+}
+
+const PAYROLL_COMPONENT_TYPE_LABELS: Record<string, string> = {
+  monthly_fixed: 'Tetap bulanan',
+  daily_rate: 'Harian',
+  commission: 'Komisi jasa',
+  manual: 'Manual',
+}
+
 const FIELD_LABELS: Record<string, string> = {
   amount: 'Nominal',
   balance: 'Saldo',
@@ -162,6 +197,26 @@ export function labelAksi(action: string, fallback?: string | null) {
 
 export function labelAgingBucket(bucket: string) {
   return AGING_BUCKET_LABELS[bucket] ?? humanize(bucket)
+}
+
+export function labelAttendanceStatus(status: string) {
+  return ATTENDANCE_STATUS_LABELS[status] ?? humanize(status)
+}
+
+export function labelLeaveStatus(status: string) {
+  return LEAVE_STATUS_LABELS[status] ?? humanize(status)
+}
+
+export function labelLeaveType(type: string) {
+  return LEAVE_TYPE_LABELS[type] ?? humanize(type)
+}
+
+export function labelPayrollStatus(status: string) {
+  return PAYROLL_STATUS_LABELS[status] ?? humanize(status)
+}
+
+export function labelPayrollComponentType(type: string) {
+  return PAYROLL_COMPONENT_TYPE_LABELS[type] ?? humanize(type)
 }
 
 export function labelEntitas(entity: string | null | undefined) {

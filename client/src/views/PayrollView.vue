@@ -2,7 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api } from '../lib/api'
-import { rupiah, tanggal } from '../lib/format'
+import { rupiah, rupiahRingkas, tanggal } from '../lib/format'
+import { labelPayrollComponentType, labelPayrollStatus } from '../lib/labels'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
@@ -13,13 +14,18 @@ import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
+import AppCheckbox from '../components/ui/AppCheckbox.vue'
+import AppDateInput from '../components/ui/AppDateInput.vue'
+import AppEmpty from '../components/ui/AppEmpty.vue'
 import AppField from '../components/ui/AppField.vue'
+import AppInput from '../components/ui/AppInput.vue'
 import AppModal from '../components/ui/AppModal.vue'
 import AppMoneyInput from '../components/ui/AppMoneyInput.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
 import AppSearch from '../components/ui/AppSearch.vue'
 import AppSelect from '../components/ui/AppSelect.vue'
+import AppStat from '../components/ui/AppStat.vue'
 import AppTable from '../components/ui/AppTable.vue'
 import AppTabs from '../components/ui/AppTabs.vue'
 
@@ -63,29 +69,14 @@ interface DetailPeriode {
   employees: KaryawanGaji[]
 }
 
-const JENIS: Record<string, string> = {
-  monthly_fixed: 'Tetap bulanan',
-  daily_rate: 'Harian',
-  commission: 'Komisi jasa',
-  manual: 'Manual',
-}
-const STATUS_PERIODE = ['draft', 'review', 'disetujui', 'dibayar']
+const STATUS_PERIODE = ['draft', 'review', 'disetujui', 'dibayar'] as const
+const JENIS = ['monthly_fixed', 'daily_rate', 'commission', 'manual'] as const
 const statusTone = (status: string) =>
   (status === 'dibayar' || status === 'disetujui'
     ? 'green'
     : status === 'review'
       ? 'blue'
       : 'gray') as 'green' | 'blue' | 'gray'
-const statusLabel = (status: string) =>
-  status === 'draft'
-    ? 'Draft'
-    : status === 'review'
-      ? 'Review'
-      : status === 'disetujui'
-        ? 'Disetujui'
-        : status === 'dibayar'
-          ? 'Dibayar'
-          : status
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
@@ -182,8 +173,12 @@ const opsiKomponen = computed(() =>
   })),
 )
 const opsiStatus = computed(() =>
-  STATUS_PERIODE.map((status) => ({ value: status, label: statusLabel(status) })),
+  STATUS_PERIODE.map((status) => ({ value: status, label: labelPayrollStatus(status) })),
 )
+const opsiJenis = JENIS.map((value) => ({
+  value,
+  label: labelPayrollComponentType(value),
+}))
 const opsiKaryawan = computed(() => {
   const seen = new Map<number, string>()
   for (const item of referensi.value) {
@@ -200,6 +195,25 @@ const bisaBayar = computed(() => detailPeriode.value?.status === 'disetujui')
 const bisaSesuaikan = computed(() =>
   ['draft', 'review'].includes(detailPeriode.value?.status ?? ''),
 )
+const totalNet = computed(() =>
+  karyawanGaji.value.reduce((total, item) => total + Number(item.net), 0),
+)
+const rataNet = computed(() =>
+  karyawanGaji.value.length ? totalNet.value / karyawanGaji.value.length : 0,
+)
+const rentangDetail = computed(() =>
+  detailPeriode.value
+    ? `${tanggal(detailPeriode.value.from)} - ${tanggal(detailPeriode.value.to)}`
+    : 'Pilih periode untuk melihat ringkasan.',
+)
+const periodeRingkas = computed(() => {
+  const from = detailPeriode.value?.from
+  if (!from) return '-'
+  const date = new Date(`${from}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return '-'
+  const bulan = date.toLocaleDateString('id-ID', { month: 'short' })
+  return `${bulan} ${String(date.getFullYear()).slice(2)}`
+})
 
 function formKomponenKosong() {
   return {
@@ -497,30 +511,38 @@ onMounted(async () => {
 
     <AppBanner tone="red" :message="error" />
 
-    <AppCard v-if="!bolehKelola">
-      <p class="text-sm text-secondary">Halaman ini hanya untuk pengelola gaji.</p>
-    </AppCard>
+    <AppEmpty
+      v-if="!bolehKelola"
+      title="Akses terbatas"
+      message="Halaman ini hanya untuk pengelola gaji."
+    />
 
     <template v-else>
       <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <AppCard>
-          <p class="text-xs uppercase tracking-wider text-secondary">Komponen</p>
-          <p class="font-display text-2xl font-bold">{{ metaKomponen?.total ?? 0 }}</p>
-        </AppCard>
-        <AppCard>
-          <p class="text-xs uppercase tracking-wider text-secondary">Periode</p>
-          <p class="font-display text-2xl font-bold">{{ metaPeriode?.total ?? 0 }}</p>
-        </AppCard>
-        <AppCard>
-          <p class="text-xs uppercase tracking-wider text-secondary">Karyawan aktif</p>
-          <p class="font-display text-2xl font-bold">{{ opsiKaryawan.length }}</p>
-        </AppCard>
-        <AppCard>
-          <p class="text-xs uppercase tracking-wider text-secondary">Periode dipilih</p>
-          <p class="font-display truncate text-lg font-bold">
-            {{ detailPeriode?.name ?? '—' }}
-          </p>
-        </AppCard>
+        <AppStat
+          label="Komponen"
+          :value="metaKomponen?.total ?? 0"
+          icon="payments"
+          :loading="loadingKomponen"
+        />
+        <AppStat
+          label="Periode"
+          :value="metaPeriode?.total ?? 0"
+          icon="calendar_month"
+          :loading="loadingPeriode"
+        />
+        <AppStat
+          label="Karyawan aktif"
+          :value="opsiKaryawan.length"
+          icon="groups"
+          :loading="referensiLoading"
+        />
+        <AppStat
+          label="Periode dipilih"
+          :value="periodeRingkas"
+          icon="event_available"
+          :hint="rentangDetail"
+        />
       </div>
 
       <AppCard>
@@ -537,6 +559,7 @@ onMounted(async () => {
             <AppSelect
               v-model="filterKomponen"
               class="w-40"
+              aria-label="Filter status komponen"
               placeholder="Semua status"
               :options="[
                 { value: 'aktif', label: 'Aktif' },
@@ -547,6 +570,7 @@ onMounted(async () => {
           </div>
 
           <AppTable
+            caption="Komponen gaji"
             :loading="loadingKomponen || referensiLoading"
             :empty="!komponen.length"
             :colspan="6"
@@ -566,7 +590,7 @@ onMounted(async () => {
 
             <tr v-for="item in komponen" :key="item.id">
               <td class="font-semibold text-ink">{{ item.name }}</td>
-              <td class="text-sm">{{ JENIS[item.calcType] ?? item.calcType }}</td>
+              <td class="text-sm">{{ labelPayrollComponentType(item.calcType) }}</td>
               <td>
                 <AppBadge :tone="item.deductible ? 'amber' : 'gray'">
                   {{ item.deductible ? 'Ya' : 'Tidak' }}
@@ -607,6 +631,7 @@ onMounted(async () => {
             <AppSelect
               v-model="filterStatusPeriode"
               class="w-40"
+              aria-label="Filter status periode"
               placeholder="Semua status"
               :options="opsiStatus"
               @update:model-value="terapkanFilterPeriode"
@@ -615,6 +640,7 @@ onMounted(async () => {
           </div>
 
           <AppTable
+            caption="Periode penggajian"
             :loading="loadingPeriode"
             :empty="!periode.length"
             :colspan="5"
@@ -641,7 +667,7 @@ onMounted(async () => {
               </td>
               <td class="text-sm">{{ item.divisor }} hari</td>
               <td>
-                <AppBadge :tone="statusTone(item.status)">{{ statusLabel(item.status) }}</AppBadge>
+                <AppBadge :tone="statusTone(item.status)">{{ labelPayrollStatus(item.status) }}</AppBadge>
               </td>
               <td class="text-right">
                 <AppButton
@@ -679,7 +705,7 @@ onMounted(async () => {
                 </p>
               </div>
               <AppBadge v-if="detailPeriode" :tone="statusTone(detailPeriode.status)">
-                {{ statusLabel(detailPeriode.status) }}
+                {{ labelPayrollStatus(detailPeriode.status) }}
               </AppBadge>
             </div>
 
@@ -723,8 +749,33 @@ onMounted(async () => {
               Setujui hanya jika perhitungan sudah sesuai.
             </div>
 
+            <div class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
+              <AppStat
+                label="Karyawan dihitung"
+                :value="karyawanGaji.length"
+                icon="groups"
+                :loading="detailLoading"
+              />
+              <AppStat
+                label="Total gaji bersih"
+                :value="rupiahRingkas(totalNet)"
+                :hint="rupiah(totalNet)"
+                icon="account_balance_wallet"
+                tone="positive"
+                :loading="detailLoading"
+              />
+              <AppStat
+                label="Rata-rata bersih"
+                :value="rupiahRingkas(rataNet)"
+                :hint="rupiah(rataNet)"
+                icon="trending_up"
+                :loading="detailLoading"
+              />
+            </div>
+
             <div class="mt-4">
               <AppTable
+                caption="Rincian gaji karyawan periode terpilih"
                 :loading="detailLoading"
                 :empty="!karyawanGaji.length"
                 :colspan="3"
@@ -772,36 +823,16 @@ onMounted(async () => {
     >
       <form id="salary-component-form" class="space-y-3" @submit.prevent="simpanKomponen">
         <AppField label="Nama komponen" required>
-          <input
-            v-model="fKom.name"
-            maxlength="255"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-            placeholder="cth. Tunjangan jabatan"
-          />
+          <AppInput v-model="fKom.name" maxlength="255" placeholder="cth. Tunjangan jabatan" />
         </AppField>
         <AppField label="Cara hitung">
-          <AppSelect
-            v-model="fKom.calc_type"
-            :options="Object.entries(JENIS).map(([value, label]) => ({ value, label }))"
-          />
+          <AppSelect v-model="fKom.calc_type" :options="opsiJenis" />
         </AppField>
-        <div class="grid grid-cols-2 gap-2 text-sm">
-          <label class="flex items-center gap-2">
-            <input v-model="fKom.deductible" type="checkbox" class="h-4 w-4 accent-primary" />
-            Terpotong alpa
-          </label>
-          <label class="flex items-center gap-2">
-            <input v-model="fKom.taxable" type="checkbox" class="h-4 w-4 accent-primary" />
-            Kena pajak
-          </label>
-          <label class="flex items-center gap-2">
-            <input v-model="fKom.bpjs_base" type="checkbox" class="h-4 w-4 accent-primary" />
-            Basis BPJS
-          </label>
-          <label class="flex items-center gap-2">
-            <input v-model="fKom.active" type="checkbox" class="h-4 w-4 accent-primary" />
-            Aktif
-          </label>
+        <div class="grid gap-2 text-sm sm:grid-cols-2">
+          <AppCheckbox v-model="fKom.deductible" label="Terpotong alpa" />
+          <AppCheckbox v-model="fKom.taxable" label="Kena pajak" />
+          <AppCheckbox v-model="fKom.bpjs_base" label="Basis BPJS" />
+          <AppCheckbox v-model="fKom.active" label="Aktif" />
         </div>
       </form>
       <template #footer>
@@ -855,37 +886,18 @@ onMounted(async () => {
     >
       <form id="payroll-period-form" class="space-y-3" @submit.prevent="buatPeriode">
         <AppField label="Nama periode" required>
-          <input
-            v-model="fPer.name"
-            maxlength="255"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-            placeholder="cth. Gaji Oktober 2026"
-          />
+          <AppInput v-model="fPer.name" maxlength="255" placeholder="cth. Gaji Oktober 2026" />
         </AppField>
         <div class="grid gap-3 sm:grid-cols-2">
           <AppField label="Dari tanggal" required>
-            <input
-              v-model="fPer.date_from"
-              type="date"
-              class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-            />
+            <AppDateInput v-model="fPer.date_from" />
           </AppField>
           <AppField label="Sampai tanggal" required>
-            <input
-              v-model="fPer.date_to"
-              type="date"
-              class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-            />
+            <AppDateInput v-model="fPer.date_to" />
           </AppField>
         </div>
         <AppField label="Pembagi hari" hint="Umumnya 30 hari untuk potongan alpa.">
-          <input
-            v-model.number="fPer.divisor"
-            type="number"
-            min="1"
-            max="31"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-          />
+          <AppInput v-model="fPer.divisor" type="number" min="1" max="31" />
         </AppField>
       </form>
       <template #footer>
@@ -912,19 +924,14 @@ onMounted(async () => {
           <AppSelect v-model="idSesuai" placeholder="Pilih karyawan" :options="opsiKaryawan" />
         </AppField>
         <AppField label="Keterangan" required>
-          <input
+          <AppInput
             v-model="labelSesuai"
             maxlength="255"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
             placeholder="cth. Lembur malam"
           />
         </AppField>
         <AppField label="Nominal" hint="Contoh: -50000 untuk potongan.">
-          <input
-            v-model.number="nominalSesuai"
-            type="number"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-          />
+          <AppInput v-model="nominalSesuai" type="number" />
         </AppField>
       </form>
       <template #footer>
@@ -946,7 +953,7 @@ onMounted(async () => {
       size="lg"
       @close="rincianOpen = false"
     >
-      <AppTable :empty="!rincian?.lines?.length" :colspan="2" dense>
+      <AppTable caption="Rincian gaji karyawan" :empty="!rincian?.lines?.length" :colspan="2" dense>
         <template #head>
           <tr>
             <th>Komponen</th>

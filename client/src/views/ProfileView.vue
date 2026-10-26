@@ -89,7 +89,7 @@ async function pilihFoto(event: Event) {
 async function hapusFoto() {
   const setuju = await confirm({
     title: 'Hapus foto profil?',
-    message: 'Foto akan diganti dengan inisial nama Anda.',
+    message: 'Foto akan diganti dengan ikon profil default.',
     confirmLabel: 'Hapus foto',
     tone: 'danger',
   })

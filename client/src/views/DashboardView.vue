@@ -320,7 +320,7 @@ onMounted(() => {
                     :src="assetUrl(auth.companyLogoUrl)"
                     size="lg"
                     square
-                    class="!ring-0"
+                    class="!ring-0" fallback-icon="storefront"
                   />
                 </span>
                 <div class="min-w-0">

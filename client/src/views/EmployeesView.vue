@@ -12,12 +12,16 @@ import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
+import AppCheckbox from '../components/ui/AppCheckbox.vue'
+import AppDateInput from '../components/ui/AppDateInput.vue'
 import AppField from '../components/ui/AppField.vue'
+import AppInput from '../components/ui/AppInput.vue'
 import AppModal from '../components/ui/AppModal.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPager from '../components/ui/AppPager.vue'
 import AppSearch from '../components/ui/AppSearch.vue'
 import AppSelect from '../components/ui/AppSelect.vue'
+import AppStat from '../components/ui/AppStat.vue'
 import AppTable from '../components/ui/AppTable.vue'
 import AppTabs from '../components/ui/AppTabs.vue'
 
@@ -350,28 +354,33 @@ onMounted(async () => {
     <AppBanner tone="red" :message="error" />
 
     <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Total penempatan</p>
-        <p class="font-display text-2xl font-bold">{{ meta?.total ?? 0 }}</p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Aktif</p>
-        <p class="font-display text-2xl font-bold">{{ statistik.aktif }}</p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Selesai / arsip</p>
-        <p class="font-display text-2xl font-bold">{{ statistik.arsip }}</p>
-      </AppCard>
-      <AppCard>
-        <p class="text-xs uppercase tracking-wider text-secondary">Cabang terdaftar</p>
-        <p class="font-display text-2xl font-bold">{{ cabang.length }}</p>
-      </AppCard>
+      <AppStat
+        label="Total penempatan"
+        :value="meta?.total ?? 0"
+        icon="assignment_ind"
+        :loading="loading"
+      />
+      <AppStat label="Aktif" :value="statistik.aktif" icon="groups" tone="positive" />
+      <AppStat label="Selesai / arsip" :value="statistik.arsip" icon="archive" />
+      <AppStat label="Cabang terdaftar" :value="cabang.length" icon="storefront" />
     </div>
 
     <AppCard>
-      <AppTabs v-model="tab" :items="tabs" label="Bagian karyawan" />
+      <AppTabs
+        v-model="tab"
+        :items="tabs"
+        label="Bagian karyawan"
+        id-prefix="employee-tab"
+        panel-prefix="employee-panel"
+      />
 
-      <div v-if="tab === 'tempat'" class="mt-4">
+      <div
+        v-if="tab === 'tempat'"
+        id="employee-panel-tempat"
+        role="tabpanel"
+        aria-labelledby="employee-tab-tempat"
+        class="mt-4"
+      >
         <div class="mb-3 flex flex-wrap items-end gap-2">
           <AppSearch
             v-model="cari"
@@ -382,6 +391,7 @@ onMounted(async () => {
           <AppSelect
             v-model="filterCabang"
             class="w-52"
+            aria-label="Filter cabang"
             placeholder="Semua cabang"
             :options="opsiCabang"
             @update:model-value="muat"
@@ -389,22 +399,22 @@ onMounted(async () => {
           <AppSelect
             v-model="filterRole"
             class="w-44"
+            aria-label="Filter role"
             placeholder="Semua role"
             :options="opsiRoleId"
             @update:model-value="muat"
           />
-          <label class="flex cursor-pointer items-center gap-2 pb-2.5 text-sm text-secondary">
-            <input
+          <div class="pb-2.5">
+            <AppCheckbox
               v-model="hanyaAktif"
-              type="checkbox"
-              class="h-4 w-4 accent-primary"
-              @change="muat"
+              label="Hanya aktif"
+              @update:model-value="muat"
             />
-            Hanya aktif
-          </label>
+          </div>
         </div>
 
         <AppTable
+          caption="Penempatan karyawan"
           :loading="loadingHalaman"
           :empty="!list.length"
           :colspan="bolehKelola ? 7 : 6"
@@ -471,7 +481,13 @@ onMounted(async () => {
         <AppPager :meta="meta" @page="setPage" @update:per-page="setPerPage" />
       </div>
 
-      <div v-else class="mt-4">
+      <div
+        v-else
+        id="employee-panel-role"
+        role="tabpanel"
+        aria-labelledby="employee-tab-role"
+        class="mt-4"
+      >
         <div class="grid gap-4 lg:grid-cols-2">
           <div class="rounded-xl border border-outline/70 p-4">
             <h2 class="font-display font-semibold">Beri role</h2>
@@ -542,26 +558,13 @@ onMounted(async () => {
       <form id="employee-form" class="space-y-3" @submit.prevent="tambahKaryawan">
         <div class="grid gap-3 sm:grid-cols-2">
           <AppField label="Nama lengkap" required>
-            <input
-              v-model="karyawanBaru.name"
-              class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-              placeholder="Nama karyawan"
-            />
+            <AppInput v-model="karyawanBaru.name" placeholder="Nama karyawan" />
           </AppField>
           <AppField label="Email" required>
-            <input
-              v-model="karyawanBaru.email"
-              type="email"
-              class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-              placeholder="nama@email.com"
-            />
+            <AppInput v-model="karyawanBaru.email" type="email" placeholder="nama@email.com" />
           </AppField>
           <AppField label="Nomor HP" optional>
-            <input
-              v-model="karyawanBaru.phone"
-              class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-              placeholder="08xx..."
-            />
+            <AppInput v-model="karyawanBaru.phone" type="tel" placeholder="08xx..." />
           </AppField>
           <AppField label="Status pajak (PTKP)">
             <AppSelect
@@ -589,11 +592,10 @@ onMounted(async () => {
           optional
           hint="Minimal 8 karakter; kosong berarti sandi acak."
         >
-          <input
+          <AppInput
             v-model="karyawanBaru.password"
             type="password"
             autocomplete="new-password"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
             placeholder="Min. 8 karakter"
           />
         </AppField>
@@ -642,11 +644,7 @@ onMounted(async () => {
             />
           </AppField>
           <AppField label="Tanggal mulai" required>
-            <input
-              v-model="formTempat.started_at"
-              type="date"
-              class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-            />
+            <AppDateInput v-model="formTempat.started_at" />
           </AppField>
         </div>
       </form>
@@ -694,11 +692,11 @@ onMounted(async () => {
       @close="resetTarget = null"
     >
       <AppField label="Kata sandi baru" optional hint="Kosongkan untuk membuat sandi acak.">
-        <input
+        <AppInput
           v-model="resetPw"
           type="password"
           autocomplete="new-password"
-          class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+          placeholder="Kata sandi baru"
         />
       </AppField>
       <template v-if="resetHasil">
@@ -723,11 +721,7 @@ onMounted(async () => {
     >
       <form id="end-placement-form" @submit.prevent="tutupPenempatan">
         <AppField label="Tanggal selesai" required>
-          <input
-            v-model="akhirTanggal"
-            type="date"
-            class="w-full rounded-lg border border-outline bg-card px-3 py-2.5 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-          />
+          <AppDateInput v-model="akhirTanggal" />
         </AppField>
       </form>
       <template #footer>

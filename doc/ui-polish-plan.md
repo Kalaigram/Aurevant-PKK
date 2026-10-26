@@ -1,6 +1,6 @@
 # UI Polish Plan — Aurevant PKK
 
-Status: **Phase 5 selesai — siap review dan commit**  
+Status: **Phase 7 selesai — siap review dan commit**
 Branch: `feat/ui-design-system`  
 Design system: [`doc/DESIGN.md`](./DESIGN.md)  
 Arah visual: **calm green premium**  
@@ -227,12 +227,14 @@ File:
 - `EmployeesView`
 - `CardView`
 
-- [ ] Tabel/filter shared.
-- [ ] Ringkasan kehadiran.
-- [ ] Schedule grid dan navigasi.
-- [ ] Payroll summary dan aksi.
-- [ ] Employee card/avatar.
-- [ ] Format tanggal dan status.
+- [x] Tabel/filter shared.
+- [x] Ringkasan kehadiran.
+- [x] Schedule grid dan navigasi.
+- [x] Payroll summary dan aksi.
+- [x] Employee card/avatar dengan foto profil dan fallback ikon.
+- [x] Format tanggal dan status.
+
+**Status:** selesai dan siap review - `type-check`, `lint`, dan `build` lulus (CSS 77.38 kB). Visual QA dengan backend demo: desktop 1440px untuk 8 halaman, mobile 390px untuk layout utama, Card depan/belakang, tab cuti, tab jadwal/shift/pola/libur, serta tab payroll. Foto profil tampil di kartu, profil, header, sidebar, dan daftar karyawan; akun tanpa foto memakai ikon profil default, bukan inisial. Horizontal overflow mobile `LeavesView` sudah diperbaiki lewat `min-w-0` pada kolom grid. Tidak ada console error atau request gagal.
 
 **Commit:** `feat(ui): HR page polish`
 
@@ -286,7 +288,7 @@ File:
 | Dashboard | Dashboard | selesai |
 | Operasional | POS, Sales, Services, Purchase, Catalog, Prices, Customers, Stock, Transfers, Opnames, Approvals | selesai |
 | Keuangan | Expenses, Debts, Receivables, Journal, Reports, Periods | selesai |
-| SDM | Attendance, HrAttendance, Leaves, Schedule, Payroll, Slip, Employees, Card | belum |
+| SDM | Attendance, HrAttendance, Leaves, Schedule, Payroll, Slip, Employees, Card | selesai |
 | Admin | Notifications, Subscription, CompanyProfile, Profile, Branches, Roles, Tenants, Plans, Audit, Import, NationalHolidays | belum |
 | Shell | App.vue, AuthLayout, CompanyShell | selesai |
 

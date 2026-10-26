@@ -116,7 +116,7 @@ async function pilihLogo(event: Event) {
 async function hapusLogo() {
   const setuju = await confirm({
     title: 'Hapus logo perusahaan?',
-    message: 'Logo akan diganti dengan inisial nama perusahaan.',
+    message: 'Logo akan diganti dengan ikon perusahaan default.',
     confirmLabel: 'Hapus logo',
     tone: 'danger',
   })
@@ -151,7 +151,7 @@ async function hapusLogo() {
             :src="assetUrl(profil.logoUrl)"
             size="xl"
             square
-            class="ring-outline"
+            class="ring-outline" fallback-icon="storefront"
           />
           <div class="min-w-0 flex-1">
             <p class="text-sm font-semibold text-ink">{{ profil.name }}</p>

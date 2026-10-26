@@ -7,6 +7,7 @@ import { useAsync } from '../composables/useAsync'
 import { usePagedList } from '../composables/usePagedList'
 import { useConfirm } from '../composables/useConfirm'
 import { useToast } from '../composables/useToast'
+import AppAvatar from '../components/ui/AppAvatar.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
@@ -196,11 +197,7 @@ onMounted(async () => {
         <tr v-for="p in list" :key="p.id">
           <td>
             <div class="flex items-center gap-2.5">
-              <span
-                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary"
-              >
-                {{ p.name.charAt(0).toUpperCase() }}
-              </span>
+              <AppAvatar :name="p.name" size="sm" />
               <span class="font-medium text-ink">{{ p.name }}</span>
             </div>
           </td>

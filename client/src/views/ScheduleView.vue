@@ -17,6 +17,7 @@ import AppInput from '../components/ui/AppInput.vue'
 import AppModal from '../components/ui/AppModal.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppSelect from '../components/ui/AppSelect.vue'
+import AppSkeleton from '../components/ui/AppSkeleton.vue'
 import AppTable from '../components/ui/AppTable.vue'
 import AppTabs from '../components/ui/AppTabs.vue'
 
@@ -365,14 +366,34 @@ onMounted(async () => {
         { key: 'libur', label: 'Hari libur' },
       ]"
       label="Jadwal dan shift"
+      id-prefix="schedule-tab"
+      panel-prefix="schedule-panel"
     />
 
-    <div v-if="tab === 'jadwal'" class="mt-4">
+    <div
+      v-if="tab === 'jadwal'"
+      id="schedule-panel-jadwal"
+      role="tabpanel"
+      aria-labelledby="schedule-tab-jadwal"
+      class="mt-4"
+    >
       <div class="no-print mb-3 flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-1">
-          <AppButton variant="ghost" @click="geserMinggu(-1)">‹</AppButton>
+          <AppButton
+            variant="ghost"
+            aria-label="Minggu sebelumnya"
+            @click="geserMinggu(-1)"
+          >
+            <AppIcon name="chevron_left" :size="18" />
+          </AppButton>
           <p class="min-w-[190px] text-center text-sm font-semibold text-ink">{{ labelMinggu }}</p>
-          <AppButton variant="ghost" @click="geserMinggu(1)">›</AppButton>
+          <AppButton
+            variant="ghost"
+            aria-label="Minggu berikutnya"
+            @click="geserMinggu(1)"
+          >
+            <AppIcon name="chevron_right" :size="18" />
+          </AppButton>
           <AppButton variant="ghost" @click="geserMinggu(0)">Minggu ini</AppButton>
         </div>
         <p class="text-xs text-secondary">Minggu dimulai Senin.</p>
@@ -390,7 +411,14 @@ onMounted(async () => {
       <template v-else>
         <AppCard>
           <h2 class="font-display font-semibold">Jadwal saya</h2>
-          <p v-if="memuatJadwal" class="mt-2 text-sm text-secondary">Memuat jadwal…</p>
+          <div v-if="memuatJadwal" class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+            <AppSkeleton
+              v-for="hari in 7"
+              :key="`skeleton-jadwal-${hari}`"
+              height="5.5rem"
+              rounded="lg"
+            />
+          </div>
           <div v-else class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
             <div
               v-for="d in jadwalSaya"
@@ -423,12 +451,13 @@ onMounted(async () => {
             <h2 class="font-display font-semibold">Jadwal tim</h2>
             <p class="text-xs text-secondary">{{ tim.length }} karyawan aktif</p>
           </div>
-          <p v-if="memuatJadwal" class="mt-2 text-sm text-secondary">Memuat jadwal tim…</p>
           <AppTable
-            v-else
             class="mt-3"
+            caption="Jadwal tim minggu ini"
+            :loading="memuatJadwal"
             :empty="!tim.length"
             :colspan="8"
+            empty-title="Belum ada jadwal tim"
             empty-message="Belum ada karyawan aktif dengan penempatan."
           >
             <template #head>
@@ -463,14 +492,31 @@ onMounted(async () => {
       </template>
     </div>
 
-    <div v-if="tab === 'shift'" class="mt-4">
-      <div class="mb-3 flex items-center justify-between">
+    <div
+      v-if="tab === 'shift'"
+      id="schedule-panel-shift"
+      role="tabpanel"
+      aria-labelledby="schedule-tab-shift"
+      class="mt-4"
+    >
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p class="text-sm text-secondary">{{ shifts.length }} jenis shift. Jam format 24 jam.</p>
         <AppButton v-if="bolehKelolaShift" @click="bukaTambah">
           <AppIcon name="add" :size="18" />Tambah shift
         </AppButton>
       </div>
-      <div class="grid gap-3 md:grid-cols-2">
+      <div
+        v-if="loading && !shifts.length"
+        class="grid gap-3 md:grid-cols-2"
+      >
+        <AppSkeleton
+          v-for="item in 2"
+          :key="`skeleton-shift-${item}`"
+          height="6.5rem"
+          rounded="xl"
+        />
+      </div>
+      <div v-else class="grid gap-3 md:grid-cols-2">
         <AppCard v-for="s in shifts" :key="s.id">
           <div class="flex items-center justify-between gap-2">
             <h2 class="font-display font-semibold">{{ s.name }}</h2>
@@ -487,11 +533,18 @@ onMounted(async () => {
       </div>
       <AppEmpty
         v-if="!loading && !shifts.length"
-        message="Belum ada shift. Buat shift pagi/sore/malam dulu."
+        title="Belum ada shift"
+        message="Buat shift pagi, sore, atau malam sebelum menyusun pola kerja."
       />
     </div>
 
-    <div v-if="tab === 'pola'" class="mt-4 grid gap-3 lg:grid-cols-2">
+    <div
+      v-if="tab === 'pola'"
+      id="schedule-panel-pola"
+      role="tabpanel"
+      aria-labelledby="schedule-tab-pola"
+      class="mt-4 grid gap-3 lg:grid-cols-2"
+    >
       <AppCard>
         <h2 class="font-display font-semibold">Pola mingguan karyawan</h2>
         <p class="text-xs text-secondary">Atur sekali untuk yang jamnya tetap tiap minggu.</p>
@@ -501,19 +554,27 @@ onMounted(async () => {
             <AppButton variant="ghost" @click="muatPola">Muat</AppButton>
           </div>
         </AppField>
-        <div v-if="polaAda" class="mt-3 grid grid-cols-7 gap-1">
-          <div v-for="(h, i) in HARI" :key="h" class="rounded-lg bg-surface-low p-1.5 text-center">
-            <p class="text-xs font-semibold">{{ h }}</p>
+        <div v-if="polaAda" class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+          <label
+            v-for="(h, i) in HARI"
+            :key="h"
+            class="rounded-xl border border-outline/60 bg-surface-low p-2"
+          >
+            <span class="text-xs font-semibold text-ink">{{ h }}</span>
             <select
               v-model="pola[i]"
               :disabled="!bolehKelolaShift"
-              class="mt-1 w-full rounded bg-card px-1 py-1 text-xs"
+              :aria-label="`Shift hari ${h}`"
+              class="mt-1 min-h-9 w-full rounded-lg border border-outline bg-card px-2 py-1 text-xs text-ink transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 disabled:cursor-not-allowed disabled:text-secondary"
             >
               <option :value="null">Libur</option>
               <option v-for="s in shifts" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
-          </div>
+          </label>
         </div>
+        <p v-else class="mt-3 text-sm text-secondary">
+          Pilih karyawan lalu klik Muat untuk menampilkan pola mingguan.
+        </p>
         <AppButton v-if="polaAda && bolehKelolaShift" class="mt-3" @click="simpanPola">
           Simpan pola
         </AppButton>
@@ -522,7 +583,7 @@ onMounted(async () => {
       <AppCard>
         <h2 class="font-display font-semibold">Ubah jadwal tanggal tertentu</h2>
         <p class="text-xs text-secondary">Untuk lembur, tukar hari, atau liburkan sehari.</p>
-        <div class="mt-2 grid grid-cols-2 gap-2">
+        <div class="mt-2 grid gap-2 sm:grid-cols-2">
           <AppField label="Tanggal">
             <AppDateInput v-model="ovTanggal" />
           </AppField>
@@ -543,24 +604,55 @@ onMounted(async () => {
       </AppCard>
     </div>
 
-    <div v-if="tab === 'libur'" class="mt-4">
+    <div
+      v-if="tab === 'libur'"
+      id="schedule-panel-libur"
+      role="tabpanel"
+      aria-labelledby="schedule-tab-libur"
+      class="mt-4"
+    >
       <AppCard>
-        <div class="flex items-center justify-between">
-          <h2 class="font-display font-semibold">Hari libur perusahaan</h2>
-          <span class="text-xs text-secondary">{{ libur.length }} hari</span>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-display font-semibold">Hari libur perusahaan</h2>
+            <p class="mt-1 text-xs text-secondary">{{ libur.length }} hari terdaftar.</p>
+          </div>
         </div>
-        <div v-if="bolehLibur" class="mt-2 grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
-          <AppDateInput v-model="fLiburTanggal" />
-          <AppInput v-model="fLiburNama" maxlength="255" placeholder="cth. Libur tahun baru" />
-          <AppButton @click="tambahLibur">Tambah</AppButton>
+        <div v-if="bolehLibur" class="mt-3 grid gap-2 sm:grid-cols-[1fr_2fr_auto] sm:items-end">
+          <AppField label="Tanggal">
+            <AppDateInput v-model="fLiburTanggal" />
+          </AppField>
+          <AppField label="Nama hari libur">
+            <AppInput v-model="fLiburNama" maxlength="255" placeholder="cth. Libur tahun baru" />
+          </AppField>
+          <AppButton :disabled="!fLiburTanggal || !fLiburNama.trim()" @click="tambahLibur">
+            Tambah
+          </AppButton>
         </div>
-        <ul class="mt-3 divide-y divide-outline/60">
-          <li v-for="l in libur" :key="l.id" class="flex items-center justify-between py-2 text-sm">
-            <span><strong>{{ tanggal(l.date) }}</strong> — {{ l.name }}</span>
-            <AppButton v-if="bolehLibur" variant="ghost" @click="hapusLibur(l)">Hapus</AppButton>
-          </li>
-        </ul>
-        <AppEmpty v-if="!libur.length" message="Belum ada hari libur perusahaan." />
+        <div class="mt-4">
+          <AppTable
+            caption="Hari libur perusahaan"
+            :empty="!libur.length"
+            :colspan="bolehLibur ? 3 : 2"
+            empty-title="Belum ada hari libur"
+            empty-message="Tambahkan hari libur perusahaan agar jadwal dan gaji tidak salah hitung."
+          >
+            <template #head>
+              <tr>
+                <th>Tanggal</th>
+                <th>Nama</th>
+                <th v-if="bolehLibur" class="text-right">Aksi</th>
+              </tr>
+            </template>
+            <tr v-for="l in libur" :key="l.id">
+              <td class="whitespace-nowrap font-semibold text-ink">{{ tanggal(l.date) }}</td>
+              <td>{{ l.name }}</td>
+              <td v-if="bolehLibur" class="text-right">
+                <AppButton size="sm" variant="ghost" @click="hapusLibur(l)">Hapus</AppButton>
+              </td>
+            </tr>
+          </AppTable>
+        </div>
       </AppCard>
     </div>
 
