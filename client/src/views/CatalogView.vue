@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '../lib/api'
+import { api, assetUrl } from '../lib/api'
 import { rupiah } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
@@ -9,12 +9,14 @@ import { useAsync } from '../composables/useAsync'
 import { usePagedList } from '../composables/usePagedList'
 import { useConfirm } from '../composables/useConfirm'
 import { useToast } from '../composables/useToast'
+import AppAvatar from '../components/ui/AppAvatar.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppBanner from '../components/ui/AppBanner.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
 import AppCheckbox from '../components/ui/AppCheckbox.vue'
 import AppField from '../components/ui/AppField.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
 import AppInput from '../components/ui/AppInput.vue'
 import AppModal from '../components/ui/AppModal.vue'
 import AppMoneyInput from '../components/ui/AppMoneyInput.vue'
@@ -44,6 +46,8 @@ interface Item {
   name: string
   type: string
   unit: string | null
+  imagePath: string | null
+  imageUrl: string | null
   trackStock: boolean
   durationMinutes: number | null
   commissionType: string | null
@@ -127,6 +131,10 @@ const kategoriNama = ref('')
 const itemOpen = ref(false)
 const itemEdit = ref<Item | null>(null)
 const itemForm = ref<ItemForm>(formItemKosong())
+const berkasItem = ref<HTMLInputElement | null>(null)
+const itemGambar = ref<File | null>(null)
+const itemGambarHapus = ref(false)
+const itemGambarPratinjau = ref('')
 
 const supplierOpen = ref(false)
 const supplierEdit = ref<Supplier | null>(null)
@@ -151,6 +159,12 @@ const opsiKategori = computed(() =>
   kategori.value.map((k) => ({ value: String(k.id), label: k.name })),
 )
 
+const gambarItem = computed(() => {
+  if (itemGambarPratinjau.value) return itemGambarPratinjau.value
+  if (!itemGambarHapus.value) return assetUrl(itemEdit.value?.imageUrl)
+  return ''
+})
+
 const opsiTipe = [
   { value: 'barang', label: 'Barang' },
   { value: 'jasa', label: 'Jasa' },
@@ -168,6 +182,60 @@ function formItemKosong(): ItemForm {
     commissionType: '',
     commissionValue: null,
     status: 'aktif',
+  }
+}
+
+function bersihkanPratinjauGambar() {
+  if (itemGambarPratinjau.value.startsWith('blob:')) {
+    URL.revokeObjectURL(itemGambarPratinjau.value)
+  }
+  itemGambarPratinjau.value = ''
+}
+
+function tutupItem() {
+  itemOpen.value = false
+  bersihkanPratinjauGambar()
+  itemGambar.value = null
+  itemGambarHapus.value = false
+  if (berkasItem.value) berkasItem.value.value = ''
+}
+
+function pilihGambar(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    toast.error('Pilih gambar JPG, PNG, atau WEBP.')
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    toast.error('Ukuran gambar maksimal 2 MB.')
+    return
+  }
+
+  bersihkanPratinjauGambar()
+  itemGambar.value = file
+  itemGambarHapus.value = false
+  itemGambarPratinjau.value = URL.createObjectURL(file)
+}
+
+function hapusGambar() {
+  if (itemGambar.value) {
+    itemGambar.value = null
+    bersihkanPratinjauGambar()
+    if (berkasItem.value) berkasItem.value.value = ''
+    return
+  }
+
+  if (itemGambarHapus.value) {
+    itemGambarHapus.value = false
+    return
+  }
+
+  if (itemEdit.value?.imageUrl) {
+    itemGambarHapus.value = true
+    bersihkanPratinjauGambar()
   }
 }
 
@@ -232,6 +300,10 @@ async function hapusKategori(k: Kategori) {
 
 function bukaItem(it?: Item) {
   mutasi.error.value = ''
+  bersihkanPratinjauGambar()
+  itemGambar.value = null
+  itemGambarHapus.value = false
+  if (berkasItem.value) berkasItem.value.value = ''
   itemEdit.value = it ?? null
   itemForm.value = it
     ? {
@@ -270,14 +342,25 @@ async function simpanItem() {
 
   const base = `/companies/${companyId.value}/items`
   const sukses = await jalankan(
-    () =>
-      itemEdit.value
-        ? api.put(base + `/${itemEdit.value.id}`, body, auth.token)
-        : api.post(base, body, auth.token),
+    async () => {
+      const item = itemEdit.value
+        ? await api.put<Item>(base + `/${itemEdit.value.id}`, body, auth.token)
+        : await api.post<Item>(base, body, auth.token)
+
+      if (itemGambar.value) {
+        const form = new FormData()
+        form.append('image', itemGambar.value)
+        await api.postForm<Item>(`${base}/${item.id}/image`, form, auth.token)
+      } else if (itemGambarHapus.value && itemEdit.value) {
+        await api.del<Item>(`${base}/${item.id}/image`, auth.token)
+      }
+
+      return item
+    },
     itemEdit.value ? 'Item diperbarui.' : 'Item ditambahkan.',
   )
   if (sukses) {
-    itemOpen.value = false
+    tutupItem()
     await Promise.all([loadItems(), muatKategori()])
   }
 }
@@ -468,8 +551,36 @@ onMounted(async () => {
           </template>
           <tr v-for="it in items" :key="it.id">
             <td>
-              <p class="font-medium text-ink">{{ it.name }}</p>
-              <p class="font-mono text-xs text-secondary">{{ it.code }}</p>
+              <div class="flex items-center gap-3">
+                <a
+                  v-if="it.imageUrl"
+                  :href="assetUrl(it.imageUrl)"
+                  target="_blank"
+                  rel="noopener"
+                  class="shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-2"
+                  :aria-label="`Buka gambar ${it.name}`"
+                  title="Buka gambar"
+                >
+                  <AppAvatar
+                    :src="assetUrl(it.imageUrl)"
+                    :alt="`Gambar ${it.name}`"
+                    size="lg"
+                    square
+                    fallback-icon="category"
+                  />
+                </a>
+                <AppAvatar
+                  v-else
+                  :name="it.name"
+                  size="lg"
+                  square
+                  fallback-icon="category"
+                />
+                <div class="min-w-0">
+                  <p class="font-medium text-ink">{{ it.name }}</p>
+                  <p class="font-mono text-xs text-secondary">{{ it.code }}</p>
+                </div>
+              </div>
             </td>
             <td class="text-secondary">{{ it.categoryName ?? '—' }}</td>
             <td>
@@ -593,7 +704,7 @@ onMounted(async () => {
       :title="itemEdit ? 'Ubah item' : 'Item baru'"
       description="Barang memakai stok dan satuan. Jasa bisa memakai durasi dan komisi."
       size="lg"
-      @close="itemOpen = false"
+      @close="tutupItem"
     >
       <AppBanner tone="red" :message="mutasi.error.value" />
       <form id="item-form" class="grid gap-3 sm:grid-cols-2" @submit.prevent="simpanItem">
@@ -608,6 +719,60 @@ onMounted(async () => {
         </AppField>
         <AppField label="Nama item" class="sm:col-span-2">
           <AppInput v-model="itemForm.name" maxlength="255" />
+        </AppField>
+        <AppField
+          label="Gambar item"
+          optional
+          class="sm:col-span-2"
+          hint="JPG, PNG, atau WEBP. Maksimal 2 MB. Klik gambar di daftar untuk melihat ukuran penuh."
+        >
+          <div class="flex flex-col gap-3 rounded-xl border border-outline/60 p-3 sm:flex-row sm:items-center">
+            <AppAvatar
+              :src="gambarItem"
+              :name="itemForm.name"
+              :alt="itemForm.name ? `Gambar ${itemForm.name}` : 'Pratinjau gambar item'"
+              size="xl"
+              square
+              fallback-icon="category"
+              class="ring-outline"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="text-xs text-secondary">
+                {{
+                  itemEdit?.imageUrl
+                    ? 'Gambar baru akan menggantikan gambar lama.'
+                    : 'Tambahkan foto agar item mudah dikenali.'
+                }}
+              </p>
+              <input
+                ref="berkasItem"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                class="hidden"
+                @change="pilihGambar"
+              />
+              <div class="mt-3 flex flex-wrap gap-2">
+                <AppButton size="sm" variant="secondary" @click="berkasItem?.click()">
+                  <AppIcon name="upload" :size="16" />{{ gambarItem ? 'Ganti gambar' : 'Pilih gambar' }}
+                </AppButton>
+                <AppButton
+                  v-if="gambarItem || itemGambarHapus"
+                  size="sm"
+                  variant="ghost"
+                  @click="hapusGambar"
+                >
+                  <AppIcon name="delete" :size="16" />
+                  {{
+                    itemGambar
+                      ? 'Batalkan pilihan'
+                      : itemGambarHapus
+                        ? 'Batalkan hapus'
+                        : 'Hapus gambar'
+                  }}
+                </AppButton>
+              </div>
+            </div>
+          </div>
         </AppField>
         <AppField label="Kategori">
           <AppSelect v-model="itemForm.categoryId" placeholder="Tanpa kategori" :options="opsiKategori" />
@@ -657,7 +822,7 @@ onMounted(async () => {
         </div>
       </form>
       <template #footer>
-        <AppButton variant="ghost" @click="itemOpen = false">Batal</AppButton>
+        <AppButton variant="ghost" @click="tutupItem">Batal</AppButton>
         <AppButton
           type="submit"
           form="item-form"
