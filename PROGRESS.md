@@ -23,7 +23,7 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] Transfer antar cabang (draft → diajukan → disetujui → dikirim → diterima + in transit)
 - [x] Stok opname (hitung → selisih → penyesuaian + approval)
 - [x] PO supplier: draft → diajukan → disetujui → dipesan → diterima → selesai, approval nominal ditunda
-- [x] Penerimaan barang (stok & HPP berubah saat diterima; retur supplier ditunda)
+- [x] Penerimaan barang (stok & HPP berubah saat diterima) + retur supplier per penerimaan (stok turun, tagihan supplier terkoreksi)
 - [x] Kasir: shift (buka/tutup + selisih), nota campur barang+jasa, snapshot harga, split payment, DP
 - [x] Void/retur/refund (approval langsung; PIN manajer + batas diskon per role ditunda)
 - [x] Mesin approval tunggal (inbox + eksekusi: void, diskon, refund, PO, transfer, opname)

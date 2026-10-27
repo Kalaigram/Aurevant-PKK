@@ -1,6 +1,6 @@
 # Monitoring Progress — Aurevant PKK
 
-Terakhir diperbarui: 2026-10-26
+Terakhir diperbarui: 2026-10-27
 
 Branch: `feat/ui-design-system`
 
@@ -21,6 +21,8 @@ Dokumen ini adalah papan monitoring kerja aktif. Acuan produk tetap `PROGRESS.md
 - [x] Perubahan P0 sudah di-commit (`e791673`, `2adaf5f`).
 - [x] S04 stok minimum dan alert selesai (backend, web, dashboard, notifikasi).
 - [x] Verifikasi S04: 150 tes server lolos, 1369 assertions; type-check, lint, build lolos.
+- [x] S05 retur supplier selesai (backend, web, riwayat, notifikasi, jurnal, stok, hutang).
+- [x] Verifikasi S05: 156 tes server lolos, 1460 assertions; type-check, lint, build lolos.
 - [ ] File Android masih dirty dan belum boleh di-build sebelum izin.
 
 ## Selesai — Gambar item katalog
@@ -105,12 +107,43 @@ Verifikasi:
 - [x] Migrasi dijalankan di database dev.
 - [x] QA browser: filter, tombol + modal minimum, dan widget dashboard tampil tanpa error.
 
+## Selesai — S05 retur supplier
+
+Backend:
+
+- [x] Migrasi `supplier_returns` dan `supplier_return_items`.
+- [x] Retur terikat ke satu penerimaan (`goods_receipt`), bukan langsung ke PO.
+- [x] Qty retur dibatasi `qty_received - qty_already_returned`; baris duplikat ditolak.
+- [x] Nilai retur memakai `unit_cost` saat penerimaan dan dibatasi sisa hutang supplier.
+- [x] Stok keluar memakai tipe `retur_supplier` dan HPP rata-rata berjalan.
+- [x] Jurnal retur: debit `2110`, kredit `1310`, selisih harga ke `5100`.
+- [x] Tagihan supplier berkurang; `paid_amount` tidak diubah.
+- [x] Audit `po.retur`, notifikasi `po.retur`, dan permission existing `po.setujui`.
+- [x] Endpoint daftar retur + buat retur per penerimaan.
+
+Frontend:
+
+- [x] Detail PO menampilkan riwayat retur dan qty yang sudah diretur per penerimaan.
+- [x] Tombol `Retur supplier` di kartu penerimaan dan footer detail PO.
+- [x] Modal retur: pilih penerimaan, qty per baris, alasan, catatan, dan ringkasan sisa hutang.
+- [x] Validasi qty, alasan wajib, dan total retur tidak melebihi sisa hutang.
+- [x] Notifikasi `po.retur` punya label dan grup preferensi.
+- [x] Riwayat stok menampilkan label `Retur ke supplier`.
+
+Verifikasi:
+
+- [x] `SupplierReturnTest`: 5 test, 87 assertions.
+- [x] `StockLedgerTest`: 9 test, 26 assertions.
+- [x] Migrasi dijalankan di database dev.
+- [x] QA browser desktop: retur 1 botol dari PO #10 berhasil; stok 40 -> 39, tagihan 750.000 -> 720.000, riwayat retur tampil.
+- [x] QA mobile 390px: modal retur tanpa overflow halaman dan input qty tetap terjangkau.
+
 ## Setelah P0
 
 ### Gap web
 
 - [x] Stok minimum dan alert.
-- [ ] Retur supplier.
+- [x] Retur supplier.
 - [ ] Ekspor laporan.
 - [ ] Top produk dan perbandingan cabang.
 - [ ] Customer 360.
@@ -142,14 +175,14 @@ Verifikasi:
 ## Verifikasi terakhir
 
 ```text
-php artisan test                         150 passed, 1369 assertions  (P0 + S04)
-php artisan test --filter=StockTest      4 passed, 70 assertions      (S04)
-php artisan test --filter=TransferTest   4 passed, 66 assertions      (S04)
+php artisan test                         156 passed, 1460 assertions  (P0 + S04 + S05)
+php artisan test --filter=SupplierReturnTest  5 passed, 87 assertions  (S05)
+php artisan test --filter=StockLedgerTest     9 passed, 26 assertions  (S05)
 pint targeted                            lolos
 npm run type-check                       lolos
 npm run lint                             lolos
 npm run build                            lolos
-php artisan migrate --force              migrasi min_stock berjalan
+php artisan migrate --force              migrasi supplier_returns berjalan
 ```
 
 QA katalog:
