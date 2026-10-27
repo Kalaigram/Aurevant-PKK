@@ -69,6 +69,11 @@ const JENIS: Record<string, { label: string; icon: string; hint: string }> = {
     icon: 'package_2',
     hint: 'Gudang mencatat penerimaan barang',
   },
+  'po.retur': {
+    label: 'Retur supplier',
+    icon: 'assignment_return',
+    hint: 'Barang dikembalikan ke supplier',
+  },
   'sale.void': { label: 'Nota dibatalkan', icon: 'cancel', hint: 'Pembatalan nota transaksi' },
   'sale.retur': {
     label: 'Ada retur',
@@ -113,7 +118,7 @@ const GROUPS: { title: string; types: string[] }[] = [
       'stok.menipis',
     ],
   },
-  { title: 'Pengadaan barang (PO)', types: ['po.diajukan', 'po.disetujui', 'po.diterima'] },
+  { title: 'Pengadaan barang (PO)', types: ['po.diajukan', 'po.disetujui', 'po.diterima', 'po.retur'] },
   {
     title: 'Penjualan, shift & otorisasi',
     types: ['sale.void', 'sale.retur', 'shift.selisih', 'opname.disetujui', 'approval.diajukan'],

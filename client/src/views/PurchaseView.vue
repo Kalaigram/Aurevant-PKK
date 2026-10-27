@@ -71,10 +71,12 @@ interface KatalogItem {
 }
 
 interface ReceiptItem {
+  id: number
   itemId: number
   itemName: string | null
   unit: string | null
   qtyReceived: string
+  qtyReturned: string
   unitCost: string
 }
 
@@ -84,6 +86,28 @@ interface Receipt {
   note: string | null
   createdAt: string | null
   items: ReceiptItem[]
+}
+
+interface ReturnItem {
+  id: number
+  goodsReceiptItemId: number
+  itemId: number
+  itemName: string | null
+  unit: string | null
+  qty: string
+  unitCost: string
+  subtotal: string
+}
+
+interface SupplierReturn {
+  id: number
+  purchaseOrderId: number
+  goodsReceiptId: number
+  total: string
+  reason: string
+  note: string | null
+  createdAt: string | null
+  items: ReturnItem[]
 }
 
 interface BarisBuat {
@@ -101,6 +125,15 @@ interface BarisTerima {
   unitCost: number | null
 }
 
+interface BarisRetur {
+  goodsReceiptItemId: number
+  itemName: string
+  unit: string | null
+  remaining: number
+  qty: number | null
+  unitCost: number
+}
+
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
 const toast = useToast()
@@ -112,6 +145,7 @@ const referensi = useAsync()
 const aksi = useAsync()
 const buatAsync = useAsync()
 const terimaAsync = useAsync()
+const returAsync = useAsync()
 
 const cabang = ref<Cabang[]>([])
 const suppliers = ref<Supplier[]>([])
@@ -137,6 +171,7 @@ const daftar = usePagedList<PO>((page, perPage) => {
 const detail = ref<PO | null>(null)
 const detailOpen = ref(false)
 const receipts = ref<Receipt[]>([])
+const returs = ref<SupplierReturn[]>([])
 
 const showBuat = ref(false)
 const fBranch = ref<number | null>(null)
@@ -148,6 +183,12 @@ const showTerima = ref(false)
 const tLines = ref<BarisTerima[]>([])
 const tDue = ref('')
 const tNote = ref('')
+
+const showRetur = ref(false)
+const rReceiptId = ref<number | null>(null)
+const rLines = ref<BarisRetur[]>([])
+const rReason = ref('')
+const rNote = ref('')
 
 const tabs = [
   { key: 'semua', label: 'Semua' },
@@ -267,6 +308,51 @@ const totalTerima = computed(() =>
   ),
 )
 
+const totalReturTercatat = computed(() =>
+  returs.value.reduce((total, retur) => total + Number(retur.total), 0),
+)
+const sisaHutang = computed(() => {
+  const bill = detail.value?.bill
+  return bill ? Math.max(0, Number(bill.amount) - Number(bill.paidAmount)) : 0
+})
+const opsiPenerimaan = computed(() =>
+  receipts.value
+    .filter((receipt) => receiptReturnable(receipt))
+    .map((receipt) => ({
+      value: receipt.id,
+      label: `Terima #${receipt.id} - ${waktu(receipt.createdAt)}`,
+    })),
+)
+const bolehRetur = computed(
+  () =>
+    bolehSetujui.value &&
+    detail.value !== null &&
+    ['dipesan', 'selesai'].includes(detail.value.status) &&
+    sisaHutang.value > 0 &&
+    receipts.value.some((receipt) => receiptReturnable(receipt)),
+)
+const barisRetur = computed(() =>
+  rLines.value.filter((line) => Number(line.qty ?? 0) > 0),
+)
+const totalRetur = computed(() =>
+  barisRetur.value.reduce(
+    (total, line) => total + Number(line.qty ?? 0) * line.unitCost,
+    0,
+  ),
+)
+const melebihiHutang = computed(() => totalRetur.value > sisaHutang.value + 0.0001)
+const returSah = computed(
+  () =>
+    rReceiptId.value !== null &&
+    barisRetur.value.length > 0 &&
+    rReason.value.trim().length > 0 &&
+    !melebihiHutang.value &&
+    barisRetur.value.every(
+      (line) =>
+        Number(line.qty) > 0 && Number(line.qty) <= line.remaining + 0.0001,
+    ),
+)
+
 function tone(status: string): Tone {
   if (status === 'selesai') return 'green'
   if (status === 'dibatalkan') return 'red'
@@ -296,6 +382,14 @@ function qty(value: string | number | null | undefined) {
 
 function sisa(it: POItem) {
   return Math.max(0, Number(it.qtyOrdered) - Number(it.qtyReceived))
+}
+
+function sisaRetur(it: ReceiptItem) {
+  return Math.max(0, Number(it.qtyReceived) - Number(it.qtyReturned))
+}
+
+function receiptReturnable(receipt: Receipt) {
+  return receipt.items.some((it) => sisaRetur(it) > 0)
 }
 
 function jumlahDiterima(po: PO) {
@@ -342,6 +436,8 @@ async function lihat(id: number) {
   )
   if (res) {
     detail.value = res
+    receipts.value = []
+    returs.value = []
     detailOpen.value = true
     await muatRiwayat(id)
   } else if (detailAsync.error.value) {
@@ -350,10 +446,21 @@ async function lihat(id: number) {
 }
 
 async function muatRiwayat(id: number) {
-  const res = await riwayat.run(() =>
-    api.get<Receipt[]>(`/companies/${companyId.value}/purchase-orders/${id}/receipts?per_page=50`, auth.token),
-  )
-  receipts.value = res ?? []
+  const res = await riwayat.run(async () => {
+    const [receiptList, returnList] = await Promise.all([
+      api.get<Receipt[]>(
+        `/companies/${companyId.value}/purchase-orders/${id}/receipts?per_page=50`,
+        auth.token,
+      ),
+      api.get<SupplierReturn[]>(
+        `/companies/${companyId.value}/purchase-orders/${id}/returns?per_page=50`,
+        auth.token,
+      ),
+    ])
+    return { receipts: receiptList ?? [], returns: returnList ?? [] }
+  })
+  receipts.value = res?.receipts ?? []
+  returs.value = res?.returns ?? []
 }
 
 async function transisi(kind: Aksi) {
@@ -428,6 +535,7 @@ async function buatPo() {
     showBuat.value = false
     detail.value = res
     receipts.value = []
+    returs.value = []
     detailOpen.value = true
     toast.success('PO dibuat sebagai draft.')
     await daftar.load(1)
@@ -489,6 +597,86 @@ async function terimaSekarang() {
     await muatRiwayat(id)
   } else if (terimaAsync.error.value) {
     toast.error(terimaAsync.error.value)
+  }
+}
+
+function isiBarisRetur() {
+  const receipt = receipts.value.find((item) => item.id === rReceiptId.value)
+  rLines.value = receipt
+    ? receipt.items
+        .filter((item) => sisaRetur(item) > 0)
+        .map((item) => ({
+          goodsReceiptItemId: item.id,
+          itemName: namaItem(item),
+          unit: item.unit,
+          remaining: sisaRetur(item),
+          qty: null,
+          unitCost: Number(item.unitCost),
+        }))
+    : []
+}
+
+function bukaRetur(receiptId?: number) {
+  if (!detail.value) return
+  const candidates = receipts.value.filter((receipt) => receiptReturnable(receipt))
+  const chosen =
+    receiptId !== undefined && candidates.some((receipt) => receipt.id === receiptId)
+      ? receiptId
+      : candidates[0]?.id
+  if (chosen === undefined) {
+    toast.error('Tidak ada barang yang masih bisa diretur.')
+    return
+  }
+
+  rReceiptId.value = chosen
+  rReason.value = ''
+  rNote.value = ''
+  isiBarisRetur()
+  returAsync.error.value = ''
+  detailOpen.value = false
+  showRetur.value = true
+}
+
+function gantiPenerimaan(value: string | number | null) {
+  rReceiptId.value = value === null ? null : Number(value)
+  isiBarisRetur()
+}
+
+function tutupRetur() {
+  showRetur.value = false
+  if (detail.value) detailOpen.value = true
+}
+
+async function simpanRetur() {
+  if (!detail.value || !returSah.value || rReceiptId.value === null) return
+  const id = detail.value.id
+  const receiptId = rReceiptId.value
+  const res = await returAsync.run(() =>
+    api.post<SupplierReturn>(
+      `/companies/${companyId.value}/purchase-orders/${id}/receipts/${receiptId}/returns`,
+      {
+        items: barisRetur.value.map((line) => ({
+          goods_receipt_item_id: line.goodsReceiptItemId,
+          qty: Number(line.qty),
+        })),
+        reason: rReason.value.trim(),
+        note: rNote.value.trim() || undefined,
+      },
+      auth.token,
+    ),
+  )
+  if (res) {
+    showRetur.value = false
+    toast.success('Retur supplier dicatat. Stok dan hutang sudah berkurang.')
+    const fresh = await detailAsync.run(() =>
+      api.get<PO>(`/companies/${companyId.value}/purchase-orders/${id}`, auth.token),
+    )
+    if (fresh) detail.value = fresh
+    detailOpen.value = true
+    await daftar.reload()
+    await muatRiwayat(id)
+  } else if (returAsync.error.value) {
+    toast.error(returAsync.error.value)
   }
 }
 
@@ -698,6 +886,10 @@ onMounted(async () => {
                 <span class="text-secondary">Dibayar</span>
                 <span class="tabular-nums">{{ rupiah(detail.bill.paidAmount) }}</span>
               </div>
+              <div v-if="returs.length" class="flex justify-between gap-3 py-0.5 text-sm">
+                <span class="text-secondary">Diretur</span>
+                <span class="tabular-nums text-ok">{{ rupiah(totalReturTercatat) }}</span>
+              </div>
               <div class="flex justify-between gap-3 border-t border-outline/60 pt-1.5 text-sm font-bold">
                 <span>Sisa</span>
                 <span class="tabular-nums">
@@ -731,14 +923,60 @@ onMounted(async () => {
                   <p class="text-xs text-secondary">{{ waktu(r.createdAt) }}</p>
                 </div>
                 <p v-for="(it, i) in r.items" :key="`${r.id}-${it.itemId}-${i}`" class="text-xs text-secondary">
-                  {{ namaItem(it) }} — {{ qty(it.qtyReceived) }} {{ it.unit ?? 'pcs' }} ×
+                  {{ namaItem(it) }} - {{ qty(it.qtyReceived) }} {{ it.unit ?? 'pcs' }} x
                   {{ rupiah(it.unitCost) }}
+                </p>
+                <p
+                  v-for="it in r.items.filter((line) => Number(line.qtyReturned) > 0)"
+                  :key="`${r.id}-retur-${it.id}`"
+                  class="text-xs text-warn"
+                >
+                  Diretur {{ namaItem(it) }}: {{ qty(it.qtyReturned) }} {{ it.unit ?? 'pcs' }}
                 </p>
                 <p v-if="r.dueAt" class="mt-1 text-xs text-secondary">
                   Jatuh tempo {{ tanggal(r.dueAt) }}
                 </p>
                 <p v-if="r.note" class="text-xs text-secondary">{{ r.note }}</p>
+                <div
+                  v-if="bolehRetur && receiptReturnable(r)"
+                  class="mt-1 flex justify-end"
+                >
+                  <AppButton variant="ghost" @click="bukaRetur(r.id)">Retur supplier</AppButton>
+                </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="returs.length" class="mt-4 rounded-xl border border-outline/60 p-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs font-semibold uppercase tracking-wider text-secondary">
+              Retur supplier
+            </p>
+            <p class="text-sm text-secondary">
+              Total <span class="font-semibold text-ink">{{ rupiah(totalReturTercatat) }}</span>
+            </p>
+          </div>
+          <div class="mt-2 space-y-2">
+            <div
+              v-for="retur in returs"
+              :key="retur.id"
+              class="rounded-lg bg-surface-low px-3 py-2 text-sm"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-1">
+                <p class="font-semibold">Retur #{{ retur.id }} dari Terima #{{ retur.goodsReceiptId }}</p>
+                <p class="text-xs text-secondary">{{ waktu(retur.createdAt) }}</p>
+              </div>
+              <p class="text-xs text-secondary">{{ retur.reason }}</p>
+              <p
+                v-for="item in retur.items"
+                :key="item.id"
+                class="text-xs text-secondary"
+              >
+                {{ namaItem(item) }}: {{ qty(item.qty) }} {{ item.unit ?? 'pcs' }} -
+                {{ rupiah(item.subtotal) }}
+              </p>
+              <p v-if="retur.note" class="text-xs text-secondary">{{ retur.note }}</p>
             </div>
           </div>
         </div>
@@ -774,6 +1012,13 @@ onMounted(async () => {
           @click="bukaTerima"
         >
           Terima barang
+        </AppButton>
+        <AppButton
+          v-if="bolehRetur"
+          variant="secondary"
+          @click="bukaRetur()"
+        >
+          Retur supplier
         </AppButton>
         <AppButton
           v-if="detail && ['draft', 'diajukan', 'disetujui', 'dipesan'].includes(detail.status) && bolehSetujui"
@@ -920,6 +1165,126 @@ onMounted(async () => {
         <AppButton variant="ghost" @click="tutupTerima">Batal</AppButton>
         <AppButton :loading="terimaAsync.loading.value" :disabled="!terimaSah" @click="terimaSekarang">
           Simpan penerimaan
+        </AppButton>
+      </template>
+    </AppModal>
+
+    <AppModal
+      :open="showRetur"
+      title="Retur ke supplier"
+      description="Stok berkurang dan sisa tagihan supplier ikut terkoreksi. Nilai retur memakai harga saat barang diterima."
+      size="lg"
+      @close="tutupRetur"
+    >
+      <AppBanner tone="red" :message="returAsync.error.value" />
+      <AppField label="Penerimaan" required>
+        <AppSelect
+          :model-value="rReceiptId"
+          :options="opsiPenerimaan"
+          placeholder="Pilih penerimaan"
+          @update:model-value="gantiPenerimaan"
+        />
+      </AppField>
+
+      <div class="mt-3 space-y-2 sm:hidden">
+        <div
+          v-for="line in rLines"
+          :key="`mobile-${line.goodsReceiptItemId}`"
+          class="rounded-xl border border-outline/60 p-3"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="font-medium">{{ line.itemName }}</p>
+              <p class="text-xs text-secondary">
+                {{ line.unit ?? 'pcs' }} · {{ rupiah(line.unitCost) }}
+              </p>
+            </div>
+            <p class="shrink-0 text-xs text-secondary">Sisa {{ qty(line.remaining) }}</p>
+          </div>
+          <AppField class="mt-3" label="Qty retur">
+            <AppInput
+              v-model="line.qty"
+              type="number"
+              min="0"
+              :max="line.remaining"
+              step="any"
+              placeholder="0"
+            />
+          </AppField>
+        </div>
+      </div>
+
+      <AppTable class="mt-3 hidden sm:block" :colspan="4" dense>
+        <template #head>
+          <tr>
+            <th>Item</th>
+            <th class="text-right">Sisa bisa retur</th>
+            <th class="text-right">Qty retur</th>
+            <th class="text-right">Harga</th>
+          </tr>
+        </template>
+        <tr v-for="line in rLines" :key="line.goodsReceiptItemId">
+          <td>
+            <p class="font-medium">{{ line.itemName }}</p>
+            <p class="text-xs text-secondary">{{ line.unit ?? 'pcs' }}</p>
+          </td>
+          <td class="text-right tabular-nums">{{ qty(line.remaining) }}</td>
+          <td class="w-28">
+            <AppInput
+              v-model="line.qty"
+              type="number"
+              min="0"
+              :max="line.remaining"
+              step="any"
+              placeholder="0"
+            />
+          </td>
+          <td class="text-right tabular-nums">{{ rupiah(line.unitCost) }}</td>
+        </tr>
+      </AppTable>
+      <p v-if="!barisRetur.length" class="mt-2 text-xs text-secondary">
+        Isi qty minimal satu baris untuk melanjutkan.
+      </p>
+
+      <div class="mt-3 grid gap-3 sm:grid-cols-2">
+        <AppField label="Alasan retur" required>
+          <AppTextarea
+            v-model="rReason"
+            :rows="2"
+            :maxlength="255"
+            show-count
+            placeholder="Contoh: barang rusak atau tidak sesuai pesanan"
+          />
+        </AppField>
+        <AppField label="Catatan (opsional)">
+          <AppInput v-model="rNote" :maxlength="255" placeholder="Nomor surat retur atau keterangan tambahan" />
+        </AppField>
+      </div>
+
+      <div class="mt-3 space-y-1 rounded-lg bg-surface-low px-3 py-2 text-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-secondary">Nilai retur</span>
+          <span class="font-display font-bold tabular-nums">{{ rupiah(totalRetur) }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-secondary">Sisa hutang saat ini</span>
+          <span class="tabular-nums">{{ rupiah(sisaHutang) }}</span>
+        </div>
+        <div class="flex items-center justify-between border-t border-outline/60 pt-1">
+          <span class="text-secondary">Sisa hutang setelah retur</span>
+          <span class="font-semibold tabular-nums" :class="melebihiHutang ? 'text-danger' : ''">
+            {{ rupiah(Math.max(0, sisaHutang - totalRetur)) }}
+          </span>
+        </div>
+      </div>
+      <p v-if="melebihiHutang" class="mt-2 text-xs text-danger">
+        Nilai retur melebihi sisa hutang supplier.
+      </p>
+
+      <template #footer>
+        <AppButton variant="ghost" @click="tutupRetur">Batal</AppButton>
+        <AppButton :loading="returAsync.loading.value" :disabled="!returSah" @click="simpanRetur">
+          Simpan retur
         </AppButton>
       </template>
     </AppModal>

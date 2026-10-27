@@ -162,7 +162,7 @@ const totalNilai = computed(() =>
 
 function tone(type: string): Tone {
   if (['pembelian', 'transfer_masuk', 'retur', 'void'].includes(type)) return 'green'
-  if (['penjualan', 'transfer_keluar', 'pemakaian_bahan'].includes(type)) return 'red'
+  if (['penjualan', 'transfer_keluar', 'pemakaian_bahan', 'retur_supplier'].includes(type)) return 'red'
   if (['penyesuaian', 'opname'].includes(type)) return 'amber'
   return 'blue'
 }
@@ -177,6 +177,7 @@ const tipeLabel: Record<string, string> = {
   retur: 'Retur',
   void: 'Void',
   pemakaian_bahan: 'Pemakaian bahan',
+  retur_supplier: 'Retur ke supplier',
 }
 
 function labelTipe(type: string) {
