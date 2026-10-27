@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api } from '../lib/api'
+import { api, downloadFile } from '../lib/api'
 import { rupiah, tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
+import { useToast } from '../composables/useToast'
 import { useAccessStore } from '../stores/access'
 import { useAsync } from '../composables/useAsync'
 import { usePagedList } from '../composables/usePagedList'
@@ -49,7 +50,9 @@ const SUMBER: Record<string, string> = {
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
+const toast = useToast()
 const tab = ref('jurnal')
+const exporting = ref<'' | 'xlsx' | 'pdf'>('')
 const hariIni = new Date()
 const dari = ref(
   new Date(hariIni.getFullYear(), hariIni.getMonth(), 1).toLocaleDateString('sv-SE'),
@@ -95,6 +98,28 @@ async function muatNeraca() {
     ),
   )
   if (res) neraca.value = res as typeof neraca.value
+}
+
+async function unduhNeraca(format: 'xlsx' | 'pdf') {
+  if (!neraca.value || exporting.value) return
+  exporting.value = format
+
+  try {
+    const path = `/companies/${companyId.value}/reports/trial-balance/export?from=${dari.value}&to=${sampai.value}&format=${format}`
+    await downloadFile(
+      path,
+      `neraca-saldo-${dari.value}_${sampai.value}.${format}`,
+      auth.token,
+      format === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    toast.success(`${format === 'pdf' ? 'PDF' : 'Excel'} diunduh.`)
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Gagal mengunduh neraca saldo.')
+  } finally {
+    exporting.value = ''
+  }
 }
 
 const totalBaris = (e: Entri, k: 'debit' | 'credit') =>
@@ -148,6 +173,22 @@ onMounted(async () => {
           <AppDateInput v-model="sampai" />
         </AppField>
         <AppButton :loading="memuat" @click="tampilkan">Tampilkan</AppButton>
+        <template v-if="tab === 'neraca'">
+          <AppButton
+            variant="ghost"
+            :loading="exporting === 'xlsx'"
+            :disabled="!neraca || exporting !== ''"
+            @click="unduhNeraca('xlsx')"
+            >Ekspor Excel</AppButton
+          >
+          <AppButton
+            variant="ghost"
+            :loading="exporting === 'pdf'"
+            :disabled="!neraca || exporting !== ''"
+            @click="unduhNeraca('pdf')"
+            >Ekspor PDF</AppButton
+          >
+        </template>
         <p class="text-xs text-secondary sm:ml-auto sm:pb-2.5">{{ periodeLabel }}</p>
       </div>
 

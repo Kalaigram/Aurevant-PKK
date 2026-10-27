@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { api } from '../lib/api'
+import { api, downloadFile } from '../lib/api'
 import { rupiah, tanggal } from '../lib/format'
 import { useCompany } from '../composables/useCompany'
 import { useAccessStore } from '../stores/access'
@@ -70,6 +70,7 @@ const dari = ref(
 const sampai = ref(hariIni.toLocaleDateString('sv-SE'))
 const hasil = ref<Record<string, unknown> | null>(null)
 const okMsg = ref('')
+const exporting = ref<'' | 'xlsx' | 'pdf'>('')
 
 const bolehKeuangan = computed(() => access.can('keuangan.lihat'))
 const bolehKonsolidasi = computed(() => access.can('laporan.konsolidasi'))
@@ -192,6 +193,45 @@ async function segarkan() {
 
 function cetak() {
   window.print()
+}
+
+async function unduh(format: 'xlsx' | 'pdf') {
+  if (!hasil.value || exporting.value) return
+  okMsg.value = ''
+  error.value = ''
+  exporting.value = format
+
+  const slug =
+    tab.value === 'labarugi'
+      ? 'profit-loss'
+      : tab.value === 'harian'
+        ? 'daily'
+        : tab.value === 'kas'
+          ? 'cash-flow'
+          : tab.value === 'neraca'
+            ? 'balance-sheet'
+            : 'consolidation'
+  const activeBranch = ['labarugi', 'harian', 'kas'].includes(tab.value) ? branchId.value : null
+  const branch = activeBranch ? `&branch_id=${activeBranch}` : ''
+  const suffix = activeBranch ? `-cabang-${activeBranch}` : ''
+  const path = `/companies/${companyId.value}/reports/${slug}/export?from=${dari.value}&to=${sampai.value}&format=${format}${branch}`
+  const filename = `${slug}-${dari.value}-${sampai.value}${suffix}.${format}`
+
+  try {
+    await downloadFile(
+      path,
+      filename,
+      auth.token,
+      format === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    okMsg.value = `${format === 'pdf' ? 'PDF' : 'Excel'} diunduh.`
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Gagal mengunduh laporan.'
+  } finally {
+    exporting.value = ''
+  }
 }
 
 function csvCell(value: unknown) {
@@ -326,6 +366,20 @@ onMounted(async () => {
       icon="assessment"
     >
       <template #actions>
+        <AppButton
+          variant="ghost"
+          :loading="exporting === 'xlsx'"
+          :disabled="!hasil || exporting !== ''"
+          @click="unduh('xlsx')"
+          >Ekspor Excel</AppButton
+        >
+        <AppButton
+          variant="ghost"
+          :loading="exporting === 'pdf'"
+          :disabled="!hasil || exporting !== ''"
+          @click="unduh('pdf')"
+          >Ekspor PDF</AppButton
+        >
         <AppButton variant="ghost" @click="unduhCsv">Ekspor CSV</AppButton>
         <AppButton variant="ghost" @click="cetak">Cetak</AppButton>
       </template>
