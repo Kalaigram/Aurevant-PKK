@@ -23,6 +23,8 @@ Dokumen ini adalah papan monitoring kerja aktif. Acuan produk tetap `PROGRESS.md
 - [x] Verifikasi S04: 150 tes server lolos, 1369 assertions; type-check, lint, build lolos.
 - [x] S05 retur supplier selesai (backend, web, riwayat, notifikasi, jurnal, stok, hutang).
 - [x] Verifikasi S05: 156 tes server lolos, 1460 assertions; type-check, lint, build lolos.
+- [x] S06 ekspor laporan selesai (Excel/PDF untuk laba rugi, harian, arus kas, neraca, neraca saldo, konsolidasi).
+- [x] Verifikasi S06: 161 tes server lolos, 1490 assertions; type-check, lint, build lolos.
 - [ ] File Android masih dirty dan belum boleh di-build sebelum izin.
 
 ## Selesai — Gambar item katalog
@@ -138,13 +140,39 @@ Verifikasi:
 - [x] QA browser desktop: retur 1 botol dari PO #10 berhasil; stok 40 -> 39, tagihan 750.000 -> 720.000, riwayat retur tampil.
 - [x] QA mobile 390px: modal retur tanpa overflow halaman dan input qty tetap terjangkau.
 
+## Selesai — S06 ekspor laporan
+
+Backend:
+
+- [x] Endpoint `GET /companies/{company}/reports/{report}/export` dengan format `xlsx` dan `pdf`.
+- [x] Mendukung laba rugi, laporan harian, arus kas, neraca, neraca saldo, dan konsolidasi.
+- [x] Validasi tanggal, format, dan cabang; cabang lintas perusahaan menghasilkan 404.
+- [x] Filter cabang untuk laba rugi, harian, dan arus kas; konsolidasi tetap butuh izin `laporan.konsolidasi`.
+- [x] `ReportExportDocument`, `BuildReportExport`, `ReportXlsxWriter`, dan view PDF generik.
+- [x] Excel memakai format Rupiah, header bergaya, dan auto-width; PDF otomatis landscape untuk tabel lebar.
+
+Frontend:
+
+- [x] Tombol `Ekspor Excel` dan `Ekspor PDF` di halaman laporan.
+- [x] Tombol ekspor neraca saldo di tab neraca halaman jurnal.
+- [x] State loading, disable saat data belum siap, dan notifikasi hasil unduhan.
+- [x] CSV dan cetak lama tetap tersedia.
+
+Verifikasi:
+
+- [x] `ReportExportTest`: 5 test, 30 assertions.
+- [x] Full suite: 161 test, 1490 assertions.
+- [x] `type-check`, `lint`, dan `build` lolos.
+- [x] QA API: XLSX keenam laporan dan PDF laba rugi + neraca saldo berhasil diunduh.
+- [x] Isi XLSX diperiksa: judul/periode benar, neraca saldo seimbang (Rp 30.296.000 debit = kredit).
+
 ## Setelah P0
 
 ### Gap web
 
 - [x] Stok minimum dan alert.
 - [x] Retur supplier.
-- [ ] Ekspor laporan.
+- [x] Ekspor laporan.
 - [ ] Top produk dan perbandingan cabang.
 - [ ] Customer 360.
 - [ ] Booking/agenda jasa.
@@ -175,7 +203,8 @@ Verifikasi:
 ## Verifikasi terakhir
 
 ```text
-php artisan test                         156 passed, 1460 assertions  (P0 + S04 + S05)
+php artisan test                         161 passed, 1490 assertions  (P0 + S04 + S05 + S06)
+php artisan test --filter=ReportExportTest    5 passed, 30 assertions  (S06)
 php artisan test --filter=SupplierReturnTest  5 passed, 87 assertions  (S05)
 php artisan test --filter=StockLedgerTest     9 passed, 26 assertions  (S05)
 pint targeted                            lolos

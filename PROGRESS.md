@@ -31,6 +31,7 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] Struk PDF (`GET .../sales/{sale}/receipt`, tombol di Nota + POS; Android: dibuat lokal di HP via `PdfDocument`; cetak thermal Bluetooth menyusul butuh printer fisik)
 - [x] Ekspor CSV pelanggan (`GET .../exports/customers`, izin `pelanggan.ekspor`)
 - [x] Laporan dasar + tabel ringkasan harian per cabang
+- [x] Ekspor laporan Excel/PDF (laba rugi, harian, arus kas, neraca, neraca saldo, konsolidasi; filter cabang)
 - [x] Audit log append-only (event + queue)
 - [x] Notifikasi in-app (web polling) + push FCM ke HP Android (device token otomatis; aktif setelah `google-services.json` dipasang) + email pengingat langganan
 - [x] Onboarding wizard (buat company) + impor/ekspor CSV + buat akun karyawan langsung dari web (password awal sekali-tampil + reset oleh HR; undangan email & impor Excel ditunda)
@@ -89,7 +90,7 @@ Rencana phased disetujui 2026-10-22. Fokus web dulu; Android tidak diubah pada f
 
 ### Fase 2 - P0 (selesai)
 
-- [x] Laporan: tabel/grafik/CSV/print + filter tanggal/cabang; konsolidasi mengirim rentang tanggal
+- [x] Laporan: tabel/grafik/CSV/Excel/PDF/print + filter tanggal/cabang; konsolidasi mengirim rentang tanggal
 - [x] Slip gaji: pilih periode (`/payroll-periods/me` + fallback HR) + print 80mm
 - [x] Jadwal: jadwal sendiri, grid tim 7 hari, kelola shift/pola/override/libur, print
 - [x] Approval/audit: label human-readable, payload detail, diff before → after, filter
