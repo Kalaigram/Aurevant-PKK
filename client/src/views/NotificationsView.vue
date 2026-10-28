@@ -100,6 +100,20 @@ const JENIS: Record<string, { label: string; icon: string; hint: string }> = {
     icon: 'approval',
     hint: 'Perlu respon atasan',
   },
+  'cuti.diajukan': { label: 'Pengajuan cuti', icon: 'event_note', hint: 'Menunggu persetujuan' },
+  'cuti.disetujui': { label: 'Cuti disetujui', icon: 'event_available', hint: 'Pengajuan diterima' },
+  'cuti.ditolak': { label: 'Cuti ditolak', icon: 'event_busy', hint: 'Pengajuan ditolak' },
+  'lembur.diajukan': { label: 'Pengajuan lembur', icon: 'more_time', hint: 'Menunggu persetujuan' },
+  'lembur.disetujui': { label: 'Lembur disetujui', icon: 'task_alt', hint: 'Lembur disetujui' },
+  'lembur.ditolak': { label: 'Lembur ditolak', icon: 'hourglass_disabled', hint: 'Lembur ditolak' },
+  'tukar_shift.diajukan': { label: 'Tukar shift', icon: 'swap_horiz', hint: 'Pengajuan pertukaran jadwal' },
+  'tukar_shift.disetujui': { label: 'Tukar shift disetujui', icon: 'swap_horiz', hint: 'Jadwal sudah ditukar' },
+  'tukar_shift.ditolak': { label: 'Tukar shift ditolak', icon: 'swap_horiz', hint: 'Pertukaran dibatalkan' },
+  'biaya.diajukan': { label: 'Biaya diajukan', icon: 'receipt', hint: 'Biaya menunggu persetujuan' },
+  'biaya.disetujui': { label: 'Biaya disetujui', icon: 'receipt_long', hint: 'Biaya disetujui' },
+  'biaya.ditolak': { label: 'Biaya ditolak', icon: 'receipt', hint: 'Biaya ditolak' },
+  'payroll.dibayar': { label: 'Gaji dibayar', icon: 'payments', hint: 'Payroll sudah dibayarkan' },
+  'rekonsiliasi.selesai': { label: 'Rekonsiliasi selesai', icon: 'account_balance', hint: 'Rekonsiliasi bank ditutup' },
   'langganan.jatuh_tempo': {
     label: 'Langganan',
     icon: 'workspace_premium',
@@ -122,6 +136,30 @@ const GROUPS: { title: string; types: string[] }[] = [
   {
     title: 'Penjualan, shift & otorisasi',
     types: ['sale.void', 'sale.retur', 'shift.selisih', 'opname.disetujui', 'approval.diajukan'],
+  },
+  {
+    title: 'Kepegawaian',
+    types: [
+      'cuti.diajukan',
+      'cuti.disetujui',
+      'cuti.ditolak',
+      'lembur.diajukan',
+      'lembur.disetujui',
+      'lembur.ditolak',
+      'tukar_shift.diajukan',
+      'tukar_shift.disetujui',
+      'tukar_shift.ditolak',
+    ],
+  },
+  {
+    title: 'Keuangan & penggajian',
+    types: [
+      'biaya.diajukan',
+      'biaya.disetujui',
+      'biaya.ditolak',
+      'rekonsiliasi.selesai',
+      'payroll.dibayar',
+    ],
   },
   { title: 'Langganan', types: ['langganan.jatuh_tempo'] },
 ]
@@ -178,18 +216,25 @@ async function muat(page?: number) {
   if (c) unread.value = c.unread
 }
 
+const TUJUAN: Record<string, string> = {
+  '/approvals': 'approvals',
+  '/subscription': 'subscription',
+  '/stock': 'stock',
+  '/leaves': 'leaves',
+  '/hr': 'hr',
+  '/expenses': 'expenses',
+  '/finance': 'finance',
+  '/payroll': 'payroll',
+  '/slip': 'slip',
+  '/profile': 'profile',
+}
+
 async function buka(n: Notif) {
   await run(() => api.post(`/notifications/${n.id}/read`, undefined, auth.token))
-  if (n.link?.startsWith('/approvals/')) {
-    router.push(`/c/${companyId.value}/approvals`)
-    return
-  }
-  if (n.link === '/subscription') {
-    router.push(`/c/${companyId.value}/subscription`)
-    return
-  }
-  if (n.link === '/stock') {
-    router.push(`/c/${companyId.value}/stock`)
+  const base = n.link?.startsWith('/approvals/') ? '/approvals' : n.link
+  const tujuan = base ? TUJUAN[base] : undefined
+  if (tujuan) {
+    router.push(`/c/${companyId.value}/${tujuan}`)
     return
   }
   muat()

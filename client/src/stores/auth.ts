@@ -51,8 +51,15 @@ export const useAuthStore = defineStore('auth', {
         JSON.stringify({ token: this.token, user: this.user, companyId: this.companyId, companyName: this.companyName, companyLogoUrl: this.companyLogoUrl, branchId: this.branchId, branchCode: this.branchCode }),
       )
     },
-    async login(login: string, password: string) {
-      const data = await api.post<{ user: AuthUser; token: string }>('/auth/login', { login, password })
+    async login(login: string, password: string, twoFactorCode?: string) {
+      const deviceName =
+        typeof navigator === 'undefined' ? 'Web' : `Web · ${navigator.platform || 'Browser'}`
+      const data = await api.post<{ user: AuthUser; token: string }>('/auth/login', {
+        login,
+        password,
+        device_name: deviceName,
+        ...(twoFactorCode ? { two_factor_code: twoFactorCode } : {}),
+      })
       this.token = data.token
       this.user = data.user
       this.companyId = null

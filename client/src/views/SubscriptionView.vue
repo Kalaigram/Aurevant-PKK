@@ -25,6 +25,10 @@ interface Sub {
   trialEndsAt: string | null
   endsAt: string | null
   allowsWrites: boolean
+  maxBranches: number | null
+  maxEmployees: number | null
+  branchesUsed: number
+  employeesUsed: number
 }
 interface Plan {
   id: number
@@ -65,15 +69,21 @@ const { loading, error: errorUmum, run } = useAsync()
 const sub = ref<Sub | null>(null)
 const plan = ref<Plan | null>(null)
 const plans = ref<Plan[]>([])
-const jumlahCabang = ref(0)
 const okMsg = ref('')
 
 const adminLayanan = computed(() => auth.user?.isSuperAdmin ?? false)
 const opsiPaket = computed(() => plans.value.map((p) => ({ value: String(p.id), label: p.name })))
+const maxCabang = computed(() => sub.value?.maxBranches ?? plan.value?.maxBranches ?? 0)
+const maxKaryawan = computed(() => sub.value?.maxEmployees ?? plan.value?.maxEmployees ?? 0)
 const persenCabang = computed(() => {
-  const max = plan.value?.maxBranches ?? 0
+  const max = maxCabang.value
   if (!max) return 0
-  return Math.min(100, Math.round((jumlahCabang.value / max) * 100))
+  return Math.min(100, Math.round(((sub.value?.branchesUsed ?? 0) / max) * 100))
+})
+const persenKaryawan = computed(() => {
+  const max = maxKaryawan.value
+  if (!max) return 0
+  return Math.min(100, Math.round(((sub.value?.employeesUsed ?? 0) / max) * 100))
 })
 const fKelola = ref({ status: '', plan_id: '', ends_at: '' })
 const {
@@ -150,10 +160,6 @@ async function muatAwal() {
   if (sub.value) {
     plans.value = (await run(() => api.get<Plan[]>('/plans', auth.token))) ?? []
     plan.value = plans.value.find((p) => p.id === sub.value!.planId) ?? null
-    const branches =
-      (await run(() => api.get<unknown[]>(`/companies/${companyId.value}/branches`, auth.token))) ??
-      []
-    jumlahCabang.value = branches.length
     fKelola.value = {
       status: sub.value.status,
       plan_id: sub.value.planId === null ? '' : String(sub.value.planId),
@@ -248,13 +254,13 @@ onMounted(async () => {
 
       <AppCard title="Kuota dipakai" class="mt-4">
         <div class="flex items-baseline justify-between gap-3 text-sm">
-          <p class="text-secondary">Cabang aktif</p>
+          <p class="text-secondary">Cabang terdaftar</p>
           <p class="font-semibold tabular-nums text-ink">
-            {{ jumlahCabang }}<span v-if="plan" class="font-normal text-secondary"> / {{ plan.maxBranches }}</span>
+            {{ sub.branchesUsed }}<span v-if="maxCabang" class="font-normal text-secondary"> / {{ maxCabang }}</span>
           </p>
         </div>
         <div
-          v-if="plan"
+          v-if="maxCabang"
           class="mt-2 h-2 overflow-hidden rounded-full bg-surface-low"
           role="progressbar"
           aria-label="Pemakaian kuota cabang"
@@ -265,6 +271,26 @@ onMounted(async () => {
           <div
             class="h-full rounded-full bg-primary-container transition-[width] duration-300"
             :style="{ width: `${persenCabang}%` }"
+          />
+        </div>
+        <div class="mt-4 flex items-baseline justify-between gap-3 text-sm">
+          <p class="text-secondary">Karyawan aktif</p>
+          <p class="font-semibold tabular-nums text-ink">
+            {{ sub.employeesUsed }}<span v-if="maxKaryawan" class="font-normal text-secondary"> / {{ maxKaryawan }}</span>
+          </p>
+        </div>
+        <div
+          v-if="maxKaryawan"
+          class="mt-2 h-2 overflow-hidden rounded-full bg-surface-low"
+          role="progressbar"
+          aria-label="Pemakaian kuota karyawan"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          :aria-valuenow="persenKaryawan"
+        >
+          <div
+            class="h-full rounded-full bg-primary-container transition-[width] duration-300"
+            :style="{ width: `${persenKaryawan}%` }"
           />
         </div>
         <div v-if="plan?.features?.length" class="mt-4">

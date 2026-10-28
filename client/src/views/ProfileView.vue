@@ -28,6 +28,25 @@ interface Card {
   role: string | null
 }
 
+interface Sesi {
+  id: number
+  name: string
+  createdAt: string | null
+  lastUsedAt: string | null
+  isCurrent: boolean
+}
+
+interface Status2fa {
+  enabled: boolean
+  pending: boolean
+}
+
+interface Setup2fa {
+  secret: string
+  otpauthUri: string
+  recoveryCodes: string[]
+}
+
 const { auth, companyId } = useCompany()
 const toast = useToast()
 const { confirm } = useConfirm()
@@ -35,6 +54,9 @@ const { loading, error, run } = useAsync()
 const { loading: profilLoading, error: profilError, run: runProfil } = useAsync()
 const { loading: fotoLoading, error: fotoError, run: runFoto } = useAsync()
 const { loading: pwLoading, error: pwError, run: runPw } = useAsync()
+const { loading: sesiLoading, error: sesiError, run: runSesi } = useAsync()
+const { error: sesiAksiError, run: runSesiAksi } = useAsync()
+const { loading: tfLoading, error: tfError, run: runTf } = useAsync()
 const card = ref<Card | null>(null)
 const tanyaKeluar = ref(false)
 const berkas = ref<HTMLInputElement | null>(null)
@@ -44,13 +66,107 @@ const profil = ref({
   phone: auth.user?.phone ?? '',
 })
 const okPw = ref('')
+const sesi = ref<Sesi[]>([])
+const tf = ref<Status2fa>({ enabled: false, pending: false })
+const tfSetup = ref<Setup2fa | null>(null)
+const tfCode = ref('')
+const tfPassword = ref('')
+const tfOk = ref('')
 
 onMounted(async () => {
   if (!auth.user) return
+  void muatSesi()
+  void muat2fa()
   card.value = await run(() =>
     api.get<Card>(`/companies/${companyId.value}/users/${auth.user!.id}/card`, auth.token),
   )
 })
+
+function waktu(nilai: string | null) {
+  return nilai
+    ? new Date(nilai).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
+    : '–'
+}
+
+async function muatSesi() {
+  const data = await runSesi(() => api.get<Sesi[]>('/auth/sessions', auth.token))
+  if (data) sesi.value = data
+}
+
+async function akhiriSesi(item: Sesi) {
+  const setuju = await confirm({
+    title: 'Akhiri sesi ini?',
+    message: `Perangkat "${item.name}" akan dikeluarkan dan harus masuk ulang.`,
+    confirmLabel: 'Akhiri sesi',
+    tone: 'danger',
+  })
+  if (!setuju) return
+  const ok = await runSesiAksi(() => api.del(`/auth/sessions/${item.id}`, auth.token))
+  if (ok === null) return
+  toast.success('Sesi perangkat diakhiri.')
+  await muatSesi()
+}
+
+async function akhiriSesiLain() {
+  const setuju = await confirm({
+    title: 'Akhiri semua sesi lain?',
+    message: 'Semua perangkat selain perangkat ini akan dikeluarkan.',
+    confirmLabel: 'Akhiri semua',
+    tone: 'danger',
+  })
+  if (!setuju) return
+  const ok = await runSesiAksi(() => api.del('/auth/sessions', auth.token))
+  if (ok === null) return
+  toast.success('Semua sesi lain diakhiri.')
+  await muatSesi()
+}
+
+async function muat2fa() {
+  const data = await runTf(() => api.get<Status2fa>('/auth/two-factor', auth.token))
+  if (data) tf.value = data
+}
+
+async function mulai2fa() {
+  tfOk.value = ''
+  const data = await runTf(() =>
+    api.post<Setup2fa>('/auth/two-factor/setup', undefined, auth.token),
+  )
+  if (!data) return
+  tfSetup.value = data
+  tf.value = { enabled: false, pending: true }
+}
+
+async function aktifkan2fa() {
+  tfOk.value = ''
+  const ok = await runTf(() =>
+    api.post('/auth/two-factor/enable', { code: tfCode.value.trim() }, auth.token),
+  )
+  if (ok === null) return
+  tf.value = { enabled: true, pending: false }
+  tfSetup.value = null
+  tfCode.value = ''
+  tfOk.value = '2FA aktif. Simpan kode pemulihan Anda di tempat aman.'
+  toast.success('Verifikasi dua langkah aktif.')
+}
+
+async function matikan2fa() {
+  const setuju = await confirm({
+    title: 'Nonaktifkan 2FA?',
+    message: 'Akun Anda tidak lagi meminta kode saat masuk dari perangkat baru.',
+    confirmLabel: 'Nonaktifkan',
+    tone: 'danger',
+  })
+  if (!setuju) return
+  tfOk.value = ''
+  const ok = await runTf(() =>
+    api.post('/auth/two-factor/disable', { password: tfPassword.value }, auth.token),
+  )
+  if (ok === null) return
+  tf.value = { enabled: false, pending: false }
+  tfPassword.value = ''
+  tfOk.value = '2FA dinonaktifkan.'
+  toast.success('Verifikasi dua langkah nonaktif.')
+}
 
 async function simpanProfil() {
   const data = await runProfil(() =>
@@ -240,10 +356,158 @@ async function keluar() {
     </AppCard>
 
     <AppCard title="Sesi perangkat & keamanan" class="mt-3">
-      <p class="text-sm text-secondary">Satu akun terikat satu perangkat untuk mencegah titip absen.</p>
+      <p class="text-sm text-secondary">
+        Daftar perangkat yang masih masuk. Satu akun terikat satu perangkat untuk mencegah titip absen.
+      </p>
+      <AppBanner tone="red" :message="sesiError || sesiAksiError" />
+      <div v-if="sesiLoading" class="mt-3 space-y-2" aria-busy="true">
+        <AppSkeleton v-for="i in 2" :key="i" height="2.5rem" />
+      </div>
+      <ul v-else class="mt-3 divide-y divide-outline/60">
+        <li
+          v-for="item in sesi"
+          :key="item.id"
+          class="flex flex-wrap items-center justify-between gap-2 py-2.5"
+        >
+          <div class="min-w-0">
+            <p class="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
+              {{ item.name }}
+              <AppBadge v-if="item.isCurrent" tone="green">Perangkat ini</AppBadge>
+            </p>
+            <p class="mt-0.5 text-xs text-secondary">
+              Masuk {{ waktu(item.createdAt) }} · Terakhir aktif {{ waktu(item.lastUsedAt) }}
+            </p>
+          </div>
+          <AppButton
+            v-if="!item.isCurrent"
+            size="sm"
+            variant="ghost"
+            @click="akhiriSesi(item)"
+          >
+            Akhiri
+          </AppButton>
+        </li>
+      </ul>
+      <p v-if="!sesiLoading && sesi.length === 0" class="mt-3 text-sm text-secondary">
+        Tidak ada sesi aktif.
+      </p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <AppButton size="sm" variant="secondary" :loading="sesiLoading" @click="muatSesi">
+          <AppIcon name="refresh" :size="16" />Muat ulang
+        </AppButton>
+        <AppButton
+          v-if="sesi.some((item) => !item.isCurrent)"
+          size="sm"
+          variant="danger"
+          @click="akhiriSesiLain"
+        >
+          <AppIcon name="devices_off" :size="16" />Akhiri semua sesi lain
+        </AppButton>
+      </div>
       <AppButton variant="danger" class="mt-3" @click="tanyaKeluar = true">
         <AppIcon name="logout" :size="18" />Keluar dari sesi ini
       </AppButton>
+    </AppCard>
+
+    <AppCard title="Verifikasi dua langkah" class="mt-3">
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <p class="text-sm text-secondary">
+          Minta kode dari aplikasi authenticator setiap kali masuk dari perangkat baru.
+        </p>
+        <AppBadge :tone="tf.enabled ? 'green' : 'gray'">
+          {{ tf.enabled ? 'Aktif' : tf.pending ? 'Menunggu verifikasi' : 'Nonaktif' }}
+        </AppBadge>
+      </div>
+      <AppBanner tone="green" :message="tfOk" />
+      <AppBanner tone="red" :message="tfError" />
+
+      <template v-if="!tf.enabled">
+        <AppButton
+          v-if="!tfSetup"
+          class="mt-3"
+          :loading="tfLoading"
+          @click="mulai2fa"
+        >
+          <AppIcon name="shield_lock" :size="18" />Aktifkan 2FA
+        </AppButton>
+        <div v-else class="mt-3 space-y-3 rounded-xl border border-outline/70 bg-surface-low/60 p-3">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-secondary">Kunci manual</p>
+            <code class="mt-1 block break-all rounded bg-card px-2 py-1.5 font-mono text-xs text-ink">
+              {{ tfSetup.secret }}
+            </code>
+          </div>
+          <p class="text-xs leading-relaxed text-secondary">
+            Tambahkan akun di aplikasi authenticator memakai kunci di atas, atau buka tautan
+            otpauth berikut di perangkat yang mendukung.
+          </p>
+          <a
+            :href="tfSetup.otpauthUri"
+            class="block break-all rounded bg-card px-2 py-1.5 font-mono text-2xs text-primary underline"
+          >
+            {{ tfSetup.otpauthUri }}
+          </a>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-secondary">
+              Kode pemulihan
+            </p>
+            <div class="mt-1 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              <code
+                v-for="kode in tfSetup.recoveryCodes"
+                :key="kode"
+                class="rounded bg-card px-2 py-1 font-mono text-2xs text-ink"
+              >
+                {{ kode }}
+              </code>
+            </div>
+            <p class="mt-1.5 text-2xs text-secondary">
+              Simpan kode ini sekarang. Setiap kode hanya bisa dipakai sekali.
+            </p>
+          </div>
+          <AppField label="Kode 6 digit dari authenticator" for="tf-code" required>
+            <AppInput
+              id="tf-code"
+              v-model="tfCode"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="10"
+              placeholder="123456"
+            />
+          </AppField>
+          <AppButton
+            :loading="tfLoading"
+            :disabled="!tfCode.trim()"
+            @click="aktifkan2fa"
+          >
+            <AppIcon name="verified_user" :size="18" />Verifikasi & aktifkan
+          </AppButton>
+        </div>
+      </template>
+
+      <template v-else>
+        <AppField
+          label="Kata sandi"
+          for="tf-pw"
+          hint="Konfirmasi kata sandi untuk menonaktifkan 2FA."
+          class="mt-3"
+        >
+          <AppInput
+            id="tf-pw"
+            v-model="tfPassword"
+            type="password"
+            autocomplete="current-password"
+          />
+        </AppField>
+        <AppButton
+          variant="danger"
+          class="mt-3"
+          :loading="tfLoading"
+          :disabled="!tfPassword"
+          @click="matikan2fa"
+        >
+          <AppIcon name="shield" :size="18" />Nonaktifkan 2FA
+        </AppButton>
+      </template>
     </AppCard>
 
     <AppCard title="Ganti kata sandi" class="mt-3">

@@ -69,6 +69,7 @@ const router = createRouter({
           component: () => import('../views/AttendanceView.vue'),
         },
         { path: 'leaves', name: 'leaves', component: () => import('../views/LeavesView.vue') },
+        { path: 'hr', name: 'hr', component: () => import('../views/HrExtrasView.vue') },
         { path: 'slip', name: 'slip', component: () => import('../views/SlipView.vue') },
         { path: 'card', name: 'card', component: () => import('../views/CardView.vue') },
         {
@@ -107,6 +108,11 @@ const router = createRouter({
           component: () => import('../views/ServicesView.vue'),
         },
         { path: 'catalog', name: 'catalog', component: () => import('../views/CatalogView.vue') },
+        {
+          path: 'packages',
+          name: 'packages',
+          component: () => import('../views/PackagesView.vue'),
+        },
         { path: 'stock', name: 'stock', component: () => import('../views/StockView.vue') },
         {
           path: 'transfers',
@@ -146,6 +152,7 @@ const router = createRouter({
         { path: 'journal', name: 'journal', component: () => import('../views/JournalView.vue') },
         { path: 'reports', name: 'reports', component: () => import('../views/ReportsView.vue') },
         { path: 'periods', name: 'periods', component: () => import('../views/PeriodsView.vue') },
+        { path: 'finance', name: 'finance', component: () => import('../views/FinanceAdminView.vue') },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/companies' },

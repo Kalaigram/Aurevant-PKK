@@ -150,6 +150,7 @@ const groups = computed<Group[]>(() => {
         item(`${c}/customers`, 'Pelanggan', 'group', ['pelanggan.lihat', 'pelanggan.kelola']),
         item(`${c}/services`, 'Order Jasa', 'engineering', ['transaksi.buat', 'jasa.proses']),
         item(`${c}/catalog`, 'Katalog', 'category', ['katalog.kelola', 'harga.atur']),
+        item(`${c}/packages`, 'Paket Jasa', 'inventory_2', ['katalog.kelola']),
         item(`${c}/prices`, 'Harga per Cabang', 'sell', ['katalog.kelola', 'harga.atur']),
         item(`${c}/stock`, 'Stok', 'inventory_2', ['stok.transfer', 'stok.opname', 'po.buat']),
         item(`${c}/transfers`, 'Transfer Stok', 'swap_horiz', ['stok.transfer']),
@@ -165,6 +166,11 @@ const groups = computed<Group[]>(() => {
         item(`${c}/receivables`, 'Piutang', 'arrow_downward', ['biaya.setujui', 'keuangan.lihat']),
         item(`${c}/journal`, 'Jurnal', 'menu_book', ['keuangan.lihat']),
         item(`${c}/reports`, 'Laporan', 'bar_chart', ['keuangan.lihat', 'laporan.konsolidasi']),
+        item(`${c}/finance`, 'Akun & Anggaran', 'account_balance', [
+          'keuangan.lihat',
+          'biaya.setujui',
+          'periode.tutup',
+        ]),
         item(`${c}/periods`, 'Tutup Periode', 'lock', ['periode.tutup']),
       ],
     },
@@ -173,6 +179,7 @@ const groups = computed<Group[]>(() => {
       items: [
         item(`${c}/attendance`, 'Absensi', 'fingerprint'),
         item(`${c}/leaves`, 'Cuti', 'event_note'),
+        item(`${c}/hr`, 'Saldo & Lembur', 'more_time'),
         item(`${c}/schedule`, 'Jadwal & Shift', 'calendar_month', ['jadwal.lihat', 'shift.kelola']),
         item(`${c}/hr-attendance`, 'Kehadiran Karyawan', 'how_to_reg', [
           'absensi.approve',

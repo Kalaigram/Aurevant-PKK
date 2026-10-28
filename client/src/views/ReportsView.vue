@@ -42,9 +42,22 @@ interface ConsolidationRow {
   branchName: string
   omzet: number
   transactions: number
+  avgTicket: number
   hpp: number
+  margin: number
   refunds: number
   net: number
+}
+interface TopProductRow {
+  itemId: number
+  code: string
+  name: string
+  unit: string
+  qty: number
+  revenue: number
+  transactions: number
+  hpp: number
+  margin: number
 }
 interface LedgerDetail {
   code: string
@@ -55,7 +68,16 @@ interface LedgerDetail {
   bersih?: string | number
 }
 
-type Tab = 'labarugi' | 'harian' | 'kas' | 'neraca' | 'konsolidasi'
+type Tab = 'labarugi' | 'harian' | 'kas' | 'neraca' | 'produk' | 'konsolidasi'
+
+const SLUG: Record<Tab, string> = {
+  labarugi: 'profit-loss',
+  harian: 'daily',
+  kas: 'cash-flow',
+  neraca: 'balance-sheet',
+  produk: 'top-products',
+  konsolidasi: 'consolidation',
+}
 
 const { auth, companyId } = useCompany()
 const access = useAccessStore()
@@ -79,6 +101,7 @@ const tabs = computed(() => [
   { key: 'harian', label: 'Harian' },
   { key: 'kas', label: 'Arus kas' },
   { key: 'neraca', label: 'Neraca' },
+  { key: 'produk', label: 'Top produk' },
   ...(bolehKonsolidasi.value ? [{ key: 'konsolidasi', label: 'Konsolidasi' }] : []),
 ])
 const opsiCabang = computed(() => [
@@ -102,6 +125,7 @@ const judulLaporan = computed(
       harian: 'Ringkasan harian',
       kas: 'Laporan arus kas',
       neraca: 'Neraca',
+      produk: 'Top produk & jasa',
       konsolidasi: 'Laporan konsolidasi',
     })[tab.value],
 )
@@ -115,6 +139,8 @@ const dailyRows = computed(() => daftar<DailyRow>(hasil.value?.['rows']))
 const dailyTotals = computed(() => rObj(hasil.value?.['totals']))
 const consolidationRows = computed(() => daftar<ConsolidationRow>(hasil.value?.['branches']))
 const consolidationGrand = computed(() => rObj(hasil.value?.['grand']))
+const productRows = computed(() => daftar<TopProductRow>(hasil.value?.['rows']))
+const productTotals = computed(() => rObj(hasil.value?.['totals']))
 const kasDetail = computed(() => daftar<LedgerDetail>(hasil.value?.['detail']))
 const rincianAkun = computed(() => daftar<LedgerDetail>(hasil.value?.['detail']))
 const aktiva = computed(() => rObj(hasil.value?.['aktiva']))
@@ -153,6 +179,10 @@ const grafikKonsolidasi = computed(() => ({
   labels: consolidationRows.value.map((row) => row.branchCode),
   values: consolidationRows.value.map((row) => row.net),
 }))
+const grafikProduk = computed(() => ({
+  labels: productRows.value.slice(0, 5).map((row) => row.code),
+  values: productRows.value.slice(0, 5).map((row) => row.revenue),
+}))
 
 async function tampilkan() {
   okMsg.value = ''
@@ -167,9 +197,11 @@ async function tampilkan() {
         ? `${base}/reports/daily${q}`
         : tab.value === 'kas'
           ? `${base}/reports/cash-flow${q}`
-          : tab.value === 'neraca'
-            ? `${base}/reports/balance-sheet?as_of=${sampai.value}`
-            : `${base}/reports/consolidation?from=${dari.value}&to=${sampai.value}`
+          : tab.value === 'produk'
+            ? `${base}/reports/top-products${q}&limit=10`
+            : tab.value === 'neraca'
+              ? `${base}/reports/balance-sheet?as_of=${sampai.value}`
+              : `${base}/reports/consolidation?from=${dari.value}&to=${sampai.value}`
   const res = await run(() => api.get<Record<string, unknown>>(path, auth.token))
   if (res) hasil.value = res
 }
@@ -201,17 +233,10 @@ async function unduh(format: 'xlsx' | 'pdf') {
   error.value = ''
   exporting.value = format
 
-  const slug =
-    tab.value === 'labarugi'
-      ? 'profit-loss'
-      : tab.value === 'harian'
-        ? 'daily'
-        : tab.value === 'kas'
-          ? 'cash-flow'
-          : tab.value === 'neraca'
-            ? 'balance-sheet'
-            : 'consolidation'
-  const activeBranch = ['labarugi', 'harian', 'kas'].includes(tab.value) ? branchId.value : null
+  const slug = SLUG[tab.value]
+  const activeBranch = ['labarugi', 'harian', 'kas', 'produk'].includes(tab.value)
+    ? branchId.value
+    : null
   const branch = activeBranch ? `&branch_id=${activeBranch}` : ''
   const suffix = activeBranch ? `-cabang-${activeBranch}` : ''
   const path = `/companies/${companyId.value}/reports/${slug}/export?from=${dari.value}&to=${sampai.value}&format=${format}${branch}`
@@ -256,6 +281,28 @@ function unduhCsv() {
         angka(d.credit),
         angka(d.bersih),
       ]),
+    ]
+  } else if (tab.value === 'produk') {
+    rows = [
+      ['Kode', 'Nama', 'Qty', 'Omzet', 'HPP', 'Marjin', 'Transaksi'],
+      ...productRows.value.map((r) => [
+        r.code,
+        r.name,
+        angka(r.qty),
+        r.revenue,
+        r.hpp,
+        r.margin,
+        r.transactions,
+      ]),
+      [
+        'TOTAL',
+        '',
+        angka(productTotals.value['qty']),
+        angka(productTotals.value['revenue']),
+        angka(productTotals.value['hpp']),
+        angka(productTotals.value['margin']),
+        productRows.value.reduce((sum, r) => sum + r.transactions, 0),
+      ],
     ]
   } else if (tab.value === 'harian') {
     rows = [
@@ -307,12 +354,14 @@ function unduhCsv() {
     ]
   } else {
     rows = [
-      ['Cabang', 'Omzet', 'Transaksi', 'HPP', 'Refund', 'Net'],
+      ['Cabang', 'Omzet', 'Transaksi', 'Rata-rata', 'HPP', 'Marjin', 'Refund', 'Net'],
       ...consolidationRows.value.map((r) => [
         `${r.branchCode} — ${r.branchName}`,
         r.omzet,
         r.transactions,
+        r.avgTicket,
         r.hpp,
+        r.margin,
         r.refunds,
         r.net,
       ]),
@@ -320,7 +369,9 @@ function unduhCsv() {
         'TOTAL',
         angka(consolidationGrand.value['omzet']),
         angka(consolidationGrand.value['transactions']),
+        angka(consolidationGrand.value['avgTicket']),
         angka(consolidationGrand.value['hpp']),
+        angka(consolidationGrand.value['margin']),
         angka(consolidationGrand.value['refunds']),
         angka(consolidationGrand.value['net']),
       ],
@@ -625,11 +676,99 @@ onMounted(async () => {
           </AppCard>
         </div>
 
-        <div v-if="tab === 'konsolidasi'" class="mt-4">
+        <div v-if="tab === 'produk'" class="mt-4">
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <AppStat
+              label="Qty terjual"
+              :value="angka(productTotals['qty']).toLocaleString('id-ID')"
+              icon="inventory_2"
+            />
+            <AppStat label="Omzet" :value="rupiah(angka(productTotals['revenue']))" icon="payments" />
+            <AppStat label="HPP" :value="rupiah(angka(productTotals['hpp']))" icon="receipt_long" />
+            <AppStat
+              label="Marjin"
+              :value="rupiah(angka(productTotals['margin']))"
+              icon="trending_up"
+              :tone="angka(productTotals['margin']) >= 0 ? 'positive' : 'negative'"
+            />
+          </div>
+          <AppCard class="mt-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h2 class="font-display font-semibold">Top 5 omzet produk & jasa</h2>
+              <p class="text-xs text-secondary">
+                {{ branchId ? namaCabang(Number(branchId)) : 'Semua cabang' }}
+              </p>
+            </div>
+            <AppBarChart
+              class="mt-3"
+              :values="grafikProduk.values"
+              :labels="grafikProduk.labels"
+              :format-value="rupiah"
+              label="Top 5 omzet produk dan jasa"
+            />
+          </AppCard>
+          <AppCard class="mt-4">
+            <h2 class="font-display font-semibold">Produk & jasa terlaris</h2>
+            <AppTable
+              class="mt-2"
+              :empty="!productRows.length"
+              :colspan="7"
+              empty-message="Belum ada penjualan pada periode ini."
+            >
+              <template #head>
+                <tr>
+                  <th class="w-10">#</th>
+                  <th>Kode</th>
+                  <th>Produk / jasa</th>
+                  <th class="text-right">Qty</th>
+                  <th class="text-right">Omzet</th>
+                  <th class="text-right">HPP</th>
+                  <th class="text-right">Marjin</th>
+                </tr>
+              </template>
+              <tr v-for="(r, index) in productRows" :key="r.itemId">
+                <td class="text-secondary">{{ index + 1 }}</td>
+                <td class="font-mono text-xs text-secondary">{{ r.code }}</td>
+                <td class="font-medium">{{ r.name }}</td>
+                <td class="text-right tabular-nums">
+                  {{ angka(r.qty).toLocaleString('id-ID') }}
+                  <span v-if="r.unit" class="text-xs text-secondary">{{ r.unit }}</span>
+                </td>
+                <td class="text-right tabular-nums">{{ rupiah(r.revenue) }}</td>
+                <td class="text-right tabular-nums">{{ rupiah(r.hpp) }}</td>
+                <td class="text-right font-medium tabular-nums">{{ rupiah(r.margin) }}</td>
+              </tr>
+              <template #foot>
+                <tr class="font-semibold">
+                  <td colspan="3">Total top produk</td>
+                  <td class="text-right tabular-nums">
+                    {{ angka(productTotals['qty']).toLocaleString('id-ID') }}
+                  </td>
+                  <td class="text-right tabular-nums">{{ rupiah(angka(productTotals['revenue'])) }}</td>
+                  <td class="text-right tabular-nums">{{ rupiah(angka(productTotals['hpp'])) }}</td>
+                  <td class="text-right tabular-nums">{{ rupiah(angka(productTotals['margin'])) }}</td>
+                </tr>
+              </template>
+            </AppTable>
+          </AppCard>
+        </div>
+
+        <div v-if="tab === 'konsolidasi'" class="mt-4">
+          <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <AppStat label="Omzet grup" :value="rupiah(angka(consolidationGrand['omzet']))" icon="payments" />
             <AppStat label="Transaksi" :value="angka(consolidationGrand['transactions']).toLocaleString('id-ID')" icon="receipt_long" />
+            <AppStat
+              label="Rata-rata / transaksi"
+              :value="rupiah(angka(consolidationGrand['avgTicket']))"
+              icon="calculate"
+            />
             <AppStat label="HPP" :value="rupiah(angka(consolidationGrand['hpp']))" icon="inventory_2" />
+            <AppStat
+              label="Marjin"
+              :value="rupiah(angka(consolidationGrand['margin']))"
+              icon="trending_up"
+              :tone="angka(consolidationGrand['margin']) >= 0 ? 'positive' : 'negative'"
+            />
             <AppStat label="Net omzet" :value="rupiah(angka(consolidationGrand['net']))" icon="insights" tone="positive" />
           </div>
           <AppCard class="mt-4">
@@ -644,13 +783,15 @@ onMounted(async () => {
           </AppCard>
           <AppCard class="mt-4">
             <h2 class="font-display font-semibold">Konsolidasi semua cabang</h2>
-            <AppTable class="mt-2" :empty="!consolidationRows.length" :colspan="6" empty-message="Belum ada data konsolidasi.">
+            <AppTable class="mt-2" :empty="!consolidationRows.length" :colspan="8" empty-message="Belum ada data konsolidasi.">
               <template #head>
                 <tr>
                   <th>Cabang</th>
                   <th class="text-right">Omzet</th>
                   <th class="text-right">Trx</th>
+                  <th class="text-right">Rata-rata</th>
                   <th class="text-right">HPP</th>
+                  <th class="text-right">Marjin</th>
                   <th class="text-right">Refund</th>
                   <th class="text-right">Net</th>
                 </tr>
@@ -662,7 +803,9 @@ onMounted(async () => {
                 </td>
                 <td class="text-right tabular-nums">{{ rupiah(r.omzet) }}</td>
                 <td class="text-right tabular-nums">{{ r.transactions }}</td>
+                <td class="text-right tabular-nums">{{ rupiah(r.avgTicket) }}</td>
                 <td class="text-right tabular-nums">{{ rupiah(r.hpp) }}</td>
+                <td class="text-right tabular-nums">{{ rupiah(r.margin) }}</td>
                 <td class="text-right tabular-nums">{{ rupiah(r.refunds) }}</td>
                 <td class="text-right font-medium tabular-nums">{{ rupiah(r.net) }}</td>
               </tr>
@@ -671,7 +814,9 @@ onMounted(async () => {
                   <td>Total grup</td>
                   <td class="text-right tabular-nums">{{ rupiah(angka(consolidationGrand['omzet'])) }}</td>
                   <td class="text-right tabular-nums">{{ angka(consolidationGrand['transactions']) }}</td>
+                  <td class="text-right tabular-nums">{{ rupiah(angka(consolidationGrand['avgTicket'])) }}</td>
                   <td class="text-right tabular-nums">{{ rupiah(angka(consolidationGrand['hpp'])) }}</td>
+                  <td class="text-right tabular-nums">{{ rupiah(angka(consolidationGrand['margin'])) }}</td>
                   <td class="text-right tabular-nums">{{ rupiah(angka(consolidationGrand['refunds'])) }}</td>
                   <td class="text-right tabular-nums">{{ rupiah(angka(consolidationGrand['net'])) }}</td>
                 </tr>

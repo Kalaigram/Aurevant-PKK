@@ -52,6 +52,12 @@ const status = ref('')
 const okMsg = ref('')
 const memproses = ref<number | null>(null)
 const form = ref({ type: 'izin', from_date: '', to_date: '', reason: '' })
+const bisaLihatSemua = computed(
+  () =>
+    Boolean(auth.user?.isSuperAdmin) ||
+    access.can('absensi.approve') ||
+    access.can('karyawan.kelola'),
+)
 const {
   rows: list,
   meta,
@@ -63,8 +69,11 @@ const {
 } = usePagedList<Cuti>(
   (page, perPage) => {
     const me = auth.user?.id ?? 0
+    const params = new URLSearchParams({ per_page: String(perPage), page: String(page) })
+    if (!bisaLihatSemua.value) params.set('user_id', String(me))
+    if (status.value) params.set('status', status.value)
     return api.getPage<Cuti>(
-      `/companies/${companyId.value}/leaves?user_id=${me}${status.value ? `&status=${status.value}` : ''}&per_page=${perPage}&page=${page}`,
+      `/companies/${companyId.value}/leaves?${params}`,
       auth.token,
     )
   },

@@ -16,6 +16,8 @@ const auth = useAuthStore()
 const { loading, error, run } = useAsync()
 const login = ref('')
 const password = ref('')
+const kode2fa = ref('')
+const butuh2fa = ref(false)
 const showPw = ref(false)
 const errors = ref({ login: '', password: '' })
 
@@ -54,8 +56,18 @@ async function masuk() {
     document.getElementById(errors.value.login ? 'login-id' : 'login-pw')?.focus()
     return
   }
-  const ok = await run(() => auth.login(login.value.trim(), password.value))
-  if (ok !== null) router.push('/companies')
+  const ok = await run(() =>
+    auth.login(login.value.trim(), password.value, kode2fa.value.trim() || undefined),
+  )
+  if (ok !== null) {
+    router.push('/companies')
+    return
+  }
+  if (error.value.toLowerCase().includes('2fa')) {
+    butuh2fa.value = true
+    await nextTick()
+    document.getElementById('login-2fa')?.focus()
+  }
 }
 
 function pakaiDemo(akun: (typeof akunDemo)[number]) {
@@ -136,6 +148,28 @@ function pakaiDemo(akun: (typeof akunDemo)[number]) {
               >
                 <AppIcon :name="showPw ? 'visibility_off' : 'visibility'" :size="19" />
               </button>
+            </template>
+          </AppInput>
+        </AppField>
+
+        <AppField
+          v-if="butuh2fa"
+          label="Kode 2FA"
+          for="login-2fa"
+          required
+          hint="Masukkan 6 digit dari aplikasi authenticator atau kode pemulihan."
+        >
+          <AppInput
+            id="login-2fa"
+            v-model="kode2fa"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="50"
+            placeholder="123456"
+          >
+            <template #prefix>
+              <AppIcon name="shield_lock" :size="19" class="text-secondary" />
             </template>
           </AppInput>
         </AppField>

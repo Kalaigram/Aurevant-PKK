@@ -125,10 +125,45 @@ const showForm = ref(false)
 const fBiaya = ref(formKosong())
 const namaKat = ref('')
 const galatKategori = ref('')
+const bukti = ref<HTMLInputElement | null>(null)
+const fBukti = ref<File | null>(null)
+const buktiError = ref('')
 
 function bukaForm() {
   fBiaya.value = formKosong()
+  fBukti.value = null
+  buktiError.value = ''
+  if (bukti.value) bukti.value.value = ''
   showForm.value = true
+}
+
+function pilihBukti(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] ?? null
+  buktiError.value = ''
+  if (!file) {
+    fBukti.value = null
+    return
+  }
+  if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) {
+    buktiError.value = 'Pilih file JPG, PNG, WEBP, atau PDF.'
+    input.value = ''
+    fBukti.value = null
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    buktiError.value = 'Ukuran bukti maksimal 2 MB.'
+    input.value = ''
+    fBukti.value = null
+    return
+  }
+  fBukti.value = file
+}
+
+function hapusBukti() {
+  fBukti.value = null
+  buktiError.value = ''
+  if (bukti.value) bukti.value.value = ''
 }
 
 async function muatCabang() {
@@ -158,24 +193,23 @@ async function simpanBiaya() {
   ) {
     return
   }
+  const form = new FormData()
+  form.append('branch_id', String(fBiaya.value.branch_id))
+  form.append('expense_category_id', String(fBiaya.value.expense_category_id))
+  form.append('amount', String(fBiaya.value.amount))
+  if (fBiaya.value.method) form.append('method', fBiaya.value.method)
+  form.append('date', fBiaya.value.date)
+  form.append('description', fBiaya.value.description.trim())
+  if (fBukti.value) form.append('proof', fBukti.value)
+
   const res = await run(() =>
-    api.post(
-      `/companies/${companyId.value}/expenses`,
-      {
-        branch_id: fBiaya.value.branch_id,
-        expense_category_id: fBiaya.value.expense_category_id,
-        amount: fBiaya.value.amount,
-        method: fBiaya.value.method || undefined,
-        date: fBiaya.value.date,
-        description: fBiaya.value.description.trim(),
-      },
-      auth.token,
-    ),
+    api.postForm(`/companies/${companyId.value}/expenses`, form, auth.token),
   )
   if (res) {
     showForm.value = false
     okMsg.value = 'Biaya tercatat sebagai draft. Minta persetujuan agar masuk laporan.'
     fBiaya.value = formKosong()
+    hapusBukti()
     muatBiaya(1)
   }
 }
@@ -452,6 +486,36 @@ onMounted(async () => {
               maxlength="500"
               placeholder="cth. Bayar listrik bulan ini"
             />
+          </AppField>
+          <AppField
+            label="Bukti biaya"
+            optional
+            class="sm:col-span-2"
+            hint="Nota atau faktur JPG, PNG, WEBP, atau PDF maksimal 2 MB."
+          >
+            <input
+              ref="bukti"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              class="hidden"
+              @change="pilihBukti"
+            />
+            <div class="flex flex-wrap items-center gap-2">
+              <AppButton type="button" size="sm" variant="secondary" @click="bukti?.click()">
+                Pilih file
+              </AppButton>
+              <span v-if="fBukti" class="min-w-0 truncate text-xs text-ink">{{ fBukti.name }}</span>
+              <AppButton
+                v-if="fBukti"
+                type="button"
+                size="sm"
+                variant="ghost"
+                @click="hapusBukti"
+              >
+                Hapus
+              </AppButton>
+            </div>
+            <p v-if="buktiError" class="mt-1 text-xs text-red-600">{{ buktiError }}</p>
           </AppField>
         </div>
       </form>
