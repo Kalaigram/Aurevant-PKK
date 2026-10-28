@@ -166,6 +166,189 @@ Verifikasi:
 - [x] QA API: XLSX keenam laporan dan PDF laba rugi + neraca saldo berhasil diunduh.
 - [x] Isi XLSX diperiksa: judul/periode benar, neraca saldo seimbang (Rp 30.296.000 debit = kredit).
 
+## Selesai — S13 top produk & perbandingan cabang
+
+Backend:
+
+- [x] Endpoint `GET /companies/{company}/reports/top-products` dengan filter tanggal, cabang, dan limit 1–50.
+- [x] Agregasi qty, omzet, HPP, marjin, dan jumlah transaksi dari nota `lunas`/`retur`.
+- [x] `SalesPerformanceRepositoryInterface` + implementasi Eloquent; hasil diurutkan berdasarkan omzet.
+- [x] Konsolidasi menambahkan `avgTicket` dan `margin` per cabang serta total grup.
+- [x] Ekspor `top-products` (Excel/PDF) dan kolom rata-rata/marjin pada ekspor konsolidasi.
+
+Frontend:
+
+- [x] Tab `Top produk` dengan filter tanggal/cabang, statistik, grafik top 5, tabel lengkap, dan CSV.
+- [x] Tombol ekspor Excel/PDF memakai endpoint dan slug `top-products`.
+- [x] Tabel konsolidasi menampilkan rata-rata per transaksi dan marjin.
+
+Verifikasi:
+
+- [x] `ReportTest` top produk + konsolidasi: qty/omzet/HPP/marjin/transaksi, filter cabang, izin 403.
+- [x] Full suite: 162 test, 1515 assertions.
+- [x] `type-check`, `lint`, dan `build` lolos.
+- [x] QA API: endpoint mengembalikan 8 produk demo, konsolidasi menghitung rata-rata/marjin, ekspor XLSX 200 OK.
+
+## Selesai — Customer 360
+
+Backend:
+
+- [x] Endpoint `GET /companies/{company}/customers/{customer}/profile` dengan izin `pelanggan.lihat`.
+- [x] Ringkasan transaksi, omzet kotor, refund, net belanja, rata-rata transaksi, dan pembelian terakhir.
+- [x] Piutang terbuka, total order jasa, dan order jasa aktif.
+- [x] Riwayat 10 transaksi terakhir (termasuk refund/net), order jasa, dan piutang.
+- [x] Semua query dibatasi perusahaan; pelanggan lintas perusahaan menghasilkan 404.
+
+Frontend:
+
+- [x] Nama pelanggan di daftar membuka modal profil 360.
+- [x] Statistik pelanggan, riwayat transaksi, order jasa, dan piutang dalam satu tampilan.
+- [x] Status nota/order memakai badge dan data uang diformat Rupiah.
+
+Verifikasi:
+
+- [x] `CustomerTest`: profil + refund + piutang + order, izin 403, lintas perusahaan 404.
+- [x] Full suite: 163 test, 1531 assertions.
+- [x] `type-check`, `lint`, dan `build` lolos.
+- [x] QA API demo: profil Acong Wijaya memuat 1 transaksi, net Rp76.500, piutang Rp600.000, 2 order jasa, dan 2 piutang.
+
+## Selesai - Agenda order jasa
+
+Backend:
+
+- [x] Filter daftar order jasa dengan `scheduled_from` dan `scheduled_to` (+ validasi rentang).
+- [x] Hasil agenda diurutkan berdasarkan jadwal terdekat, tetap dibatasi cabang.
+- [x] Order tanpa jadwal tidak ikut masuk agenda.
+
+Frontend:
+
+- [x] Tab `Agenda` di Order Jasa dengan rentang tanggal dan filter teknisi.
+- [x] Agenda dikelompokkan per hari, menampilkan jam, pelanggan, pekerjaan, teknisi, total, dan status.
+- [x] Order baru bisa mengisi tanggal + jam jadwal.
+- [x] Pintasan `7 hari ke depan`; agenda ikut disegarkan setelah aksi order.
+
+Verifikasi:
+
+- [x] `ServiceOrderTest`: filter rentang tanggal, urutan agenda, pengecualian order tanpa jadwal, dan rentang terbalik 422.
+- [x] Full suite: 164 test, 1541 assertions.
+- [x] `type-check`, `lint`, dan `build` lolos.
+- [x] QA API demo: 14 order terbaca; belum ada order terjadwal di data demo sehingga agenda kosong sesuai data.
+
+## Selesai - Estimasi biaya jasa
+
+Backend:
+
+- [x] Endpoint `GET /companies/{company}/branches/{branch}/service-orders/{order}/estimate` menghasilkan PDF.
+- [x] Rincian jasa, qty, harga snapshot, total, DP diterima, dan sisa estimasi.
+- [x] Memuat pelanggan, jadwal, teknisi, dan catatan; dokumen ditandai bukan nota.
+- [x] Akses dibatasi cabang dan tenant (guest 401, tenant lain 403).
+
+Frontend:
+
+- [x] Tombol `Estimasi PDF` pada detail order yang belum dibayar/dibatalkan.
+- [x] Unduhan memakai token API dan umpan balik toast.
+
+Verifikasi:
+
+- [x] `ServiceOrderTest`: PDF valid, nama file, guest 401, tenant lain 403.
+- [x] Full suite: 165 test, 1549 assertions.
+- [x] `type-check`, `lint`, dan `build` lolos.
+- [x] QA API demo: estimasi order #14 (`diproses`) terunduh sebagai PDF valid (878 KB).
+
+## Selesai - Paket jasa
+
+Backend:
+
+- [x] Migrasi `service_packages`, `service_package_items`, dan `service_orders.service_package_id`.
+- [x] CRUD `GET/POST/PUT/DELETE /companies/{company}/service-packages` dengan izin `katalog.kelola`.
+- [x] Paket hanya boleh berisi item bertipe jasa milik company yang sama.
+- [x] `CreateServiceOrder` menerima `package_id`; jasa paket diperluas menjadi baris order dengan harga paket dialokasikan proporsional terhadap harga jasa di cabang.
+- [x] Paket nonaktif, jasa duplikat dengan baris manual, dan paket lintas tenant ditolak.
+- [x] Order menyimpan `service_package_id` dan DTO mengekspos `packageId`/`packageName`.
+
+Frontend:
+
+- [x] Halaman `Paket Jasa` (`/c/:companyId/packages`) untuk daftar, cari, buat, ubah, dan hapus paket.
+- [x] Form paket berisi kode, nama, harga, status, dan baris jasa + qty.
+- [x] Selector paket pada modal order jasa; jasa paket disembunyikan dari pilihan baris tambahan.
+- [x] Detail order menampilkan nama paket.
+
+Verifikasi:
+
+- [x] `ServicePackageTest`: guest 401, CRUD scoped company, validasi jasa/barang, kode unik, paket nonaktif ditolak.
+- [x] `ServiceOrderTest`: order dari paket total sesuai harga paket, alokasi harga per jasa, dan penolakan jasa duplikat.
+- [x] `ForbiddenTest`: mutasi paket tanpa izin 403.
+- [x] Full suite: 169 test, 1594 assertions.
+- [x] `type-check`, `lint`, dan `build` lolos.
+- [x] QA API demo: paket 2 jasa harga 100.000 membuat order #15 total 100.000 (alokasi 77.272,73 + 22.727,27); data QA dibersihkan.
+
+## Selesai - HR: saldo cuti, lembur, tukar shift
+
+Backend:
+
+- [x] Tabel `leave_balances`, `overtime_requests`, `shift_swaps` + model dan DTO.
+- [x] `GET/PUT /companies/{company}/leave-balances` dan `/users/{user}/leave-balances` (HR/pengelola).
+- [x] Saldo cuti per tahun + carryover; pengajuan cuti memeriksa saldo dan persetujuan memotong saldo otomatis.
+- [x] Lembur: ajukan, daftar, putuskan; notifikasi `lembur.diajukan`/`lembur.disetujui`/`lembur.ditolak`.
+- [x] Tukar shift: ajukan, daftar, putuskan; persetujuan membuat override jadwal dan notifikasi `tukar_shift.*`.
+- [x] Semua endpoint dibatasi tenant/cabang dan izin yang sudah ada (`absensi.approve`, `shift.kelola`, `karyawan.kelola`).
+
+Frontend:
+
+- [x] Halaman `/hr` (`HrExtrasView.vue`): tab saldo cuti, lembur, dan tukar shift.
+- [x] Kelola saldo cuti karyawan, keputusan lembur/tukar shift, dan form pengajuan.
+- [x] `LeavesView.vue`: pengelola bisa memuat semua pengajuan cuti, bukan hanya milik sendiri.
+- [x] Nav `Saldo & Lembur` ditambahkan.
+
+## Selesai - Finance admin
+
+Backend:
+
+- [x] Bagan akun hierarki: parent/child, tipe, urutan, kode unik per perusahaan.
+- [x] Penghapusan akun ditolak bila masih punya anak atau baris jurnal; ubah kode ditolak bila sudah dipakai jurnal.
+- [x] Anggaran tahunan/bulanan per cabang/kategori + realisasi dari biaya disetujui.
+- [x] Biaya berulang + `run-due`: membuat biaya draft dan memajukan `next_run_at`.
+- [x] Aset tetap + penyusutan garis lurus manual (maksimal 120 bulan, berhenti di nilai residu).
+- [x] Rekonsiliasi bank: saldo buku dari jurnal, selisih, status `draft`/`selesai`, kunci setelah selesai.
+- [x] Audit dan notifikasi `rekonsiliasi.selesai`; izin baca `keuangan.lihat`, tulis `biaya.setujui`, rekonsiliasi `periode.tutup`.
+
+Frontend:
+
+- [x] Halaman `/finance` (`FinanceAdminView.vue`) dengan tab akun, anggaran, biaya berulang, aset tetap, dan rekonsiliasi.
+- [x] Form CRUD, aksi jalankan biaya berulang, susutkan aset, dan selesaikan rekonsiliasi.
+- [x] Route `/finance` + nav `Akun & Anggaran` dengan guard izin.
+
+## Selesai - Plan limits
+
+- [x] `SubscriptionLimits` menghitung cabang dan karyawan aktif.
+- [x] `CreateBranch` dan `CreateEmployee` menolak 422 saat kuota paket habis.
+- [x] Ringkasan langganan mengekspos `maxBranches`, `maxEmployees`, `branchesUsed`, dan `employeesUsed`.
+- [x] `SubscriptionView.vue` menampilkan pemakaian kuota; limit tidak aktif bila tidak ada langganan/paket.
+
+## Selesai - Sesi perangkat dan 2FA
+
+Backend:
+
+- [x] `GET /auth/sessions`, `DELETE /auth/sessions/{token}`, `DELETE /auth/sessions` (semua sesi lain).
+- [x] Login menyimpan nama perangkat (`device_name`) dan menolak sesi saat ini untuk dicabut.
+- [x] 2FA TOTP tanpa dependensi baru: setup, aktifkan, status, nonaktifkan dengan konfirmasi password.
+- [x] Delapan kode pemulihan terenkripsi + hash; kode pemulihan sekali pakai.
+- [x] Login menerima `two_factor_code` dan menolak 422 bila 2FA aktif tanpa kode yang valid.
+
+Frontend:
+
+- [x] `ProfileView.vue`: daftar sesi, cabut sesi, cabut sesi lain, dan kartu 2FA (secret manual, URI otpauth, kode pemulihan).
+- [x] `LoginView.vue`: field kode 2FA muncul otomatis saat server meminta langkah kedua.
+- [x] `stores/auth.ts`: kirim `device_name` dan `two_factor_code` opsional.
+
+## Selesai - Notifikasi dan bukti biaya
+
+- [x] `payroll.dibayar` dikirim ke setiap karyawan yang punya baris gaji saat payroll dibayar.
+- [x] `biaya.diajukan`, `biaya.disetujui`, dan `biaya.ditolak` terhubung ke penerima yang tepat.
+- [x] `cuti.*`, `lembur.*`, `tukar_shift.*`, dan `rekonsiliasi.selesai` masuk preferensi notifikasi.
+- [x] `ExpensesView.vue`: unggah bukti JPG/PNG/WEBP/PDF maksimal 2 MB, hapus bukti, kirim multipart.
+- [x] `FinanceController` menyimpan bukti ke disk `public` (`bukti-biaya/`) dan mengekspos `proofUrl`.
+
 ## Setelah P0
 
 ### Gap web
@@ -173,15 +356,16 @@ Verifikasi:
 - [x] Stok minimum dan alert.
 - [x] Retur supplier.
 - [x] Ekspor laporan.
-- [ ] Top produk dan perbandingan cabang.
-- [ ] Customer 360.
-- [ ] Booking/agenda jasa.
-- [ ] Estimasi dan paket jasa.
-- [ ] HR: saldo cuti, lembur, tukar shift.
-- [ ] Finance: budget, COA, recurring, aset, rekonsiliasi.
-- [ ] Plan limits.
-- [ ] Sesi perangkat dan 2FA.
-- [ ] Notifikasi lengkap.
+- [x] Top produk dan perbandingan cabang.
+- [x] Customer 360.
+- [x] Booking/agenda jasa.
+- [x] Estimasi jasa.
+- [x] Paket jasa (bundling beberapa jasa dengan satu harga).
+- [x] HR: saldo cuti, lembur, tukar shift.
+- [x] Finance: budget, COA, recurring, aset, rekonsiliasi.
+- [x] Plan limits.
+- [x] Sesi perangkat dan 2FA.
+- [x] Notifikasi lengkap.
 
 ### Android
 
@@ -203,15 +387,12 @@ Verifikasi:
 ## Verifikasi terakhir
 
 ```text
-php artisan test                         161 passed, 1490 assertions  (P0 + S04 + S05 + S06)
-php artisan test --filter=ReportExportTest    5 passed, 30 assertions  (S06)
-php artisan test --filter=SupplierReturnTest  5 passed, 87 assertions  (S05)
-php artisan test --filter=StockLedgerTest     9 passed, 26 assertions  (S05)
+php artisan test                         181 passed, 1731 assertions  (pasca-P0 lengkap)
 pint targeted                            lolos
 npm run type-check                       lolos
 npm run lint                             lolos
 npm run build                            lolos
-php artisan migrate --force              migrasi supplier_returns berjalan
+php artisan migrate --force              10 migrasi baru berjalan di DB demo
 ```
 
 QA katalog:
@@ -223,6 +404,24 @@ link gambar penuh: ada
 overflow mobile: tidak ada
 cleanup item: berhasil
 ```
+
+## QA API demo (pasca-P0)
+
+Login `pemilik@demo.id` di company 1, lalu GET endpoint baru:
+
+```text
+chart-of-accounts       16 akun (hierarki terbaca)
+budgets/recurring       0 data (tabel baru siap)
+fixed-assets            0 data
+bank-reconciliations    0 data
+leave-balances          7 saldo karyawan
+overtime/shift-swaps    0 data
+sessions                200 OK
+two-factor              enabled=false
+subscription            4/100 cabang, 7/1000 karyawan
+```
+
+Dua token QA `QA Web` dibersihkan setelah pengujian.
 
 ## Jangan dilakukan tanpa izin
 

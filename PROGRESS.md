@@ -27,11 +27,16 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] Kasir: shift (buka/tutup + selisih), nota campur barang+jasa, snapshot harga, split payment, DP
 - [x] Void/retur/refund (approval langsung; PIN manajer + batas diskon per role ditunda)
 - [x] Mesin approval tunggal (inbox + eksekusi: void, diskon, refund, PO, transfer, opname)
+- [x] Agenda order jasa: filter rentang tanggal, kelompok per hari, filter teknisi, dan input jam jadwal
+- [x] Estimasi biaya jasa PDF (rincian pekerjaan, jadwal/teknisi, DP, sisa; aman lintas tenant)
+- [x] Paket jasa: bundling beberapa jasa dengan satu harga paket, CRUD web, dan pemakaian saat membuat order
 - [x] Nomor nota atomik `{kode cabang}-{yyMMdd}-{urut}` + idempotency key
 - [x] Struk PDF (`GET .../sales/{sale}/receipt`, tombol di Nota + POS; Android: dibuat lokal di HP via `PdfDocument`; cetak thermal Bluetooth menyusul butuh printer fisik)
 - [x] Ekspor CSV pelanggan (`GET .../exports/customers`, izin `pelanggan.ekspor`)
+- [x] Customer 360: profil pelanggan + statistik, riwayat transaksi, order jasa, dan piutang
 - [x] Laporan dasar + tabel ringkasan harian per cabang
-- [x] Ekspor laporan Excel/PDF (laba rugi, harian, arus kas, neraca, neraca saldo, konsolidasi; filter cabang)
+- [x] Ekspor laporan Excel/PDF (laba rugi, harian, arus kas, neraca, neraca saldo, top produk, konsolidasi; filter cabang)
+- [x] Top produk & jasa + perbandingan cabang (rata-rata transaksi, marjin; filter cabang)
 - [x] Audit log append-only (event + queue)
 - [x] Notifikasi in-app (web polling) + push FCM ke HP Android (device token otomatis; aktif setelah `google-services.json` dipasang) + email pengingat langganan
 - [x] Onboarding wizard (buat company) + impor/ekspor CSV + buat akun karyawan langsung dari web (password awal sekali-tampil + reset oleh HR; undangan email & impor Excel ditunda)
@@ -48,11 +53,15 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] Kartu karyawan PDF/PNG + versi digital di mobile
 - [x] Penggajian komponen fleksibel (1/30, per-hari-hadir, komisi) + periode + kunci + slip PDF
 - [x] Dashboard per role (keuangan/penjualan/operasional/SDM/penggajian/karyawan)
+- [x] Saldo cuti per karyawan/tahun + pemakaian otomatis saat cuti disetujui
+- [x] Lembur: pengajuan, keputusan, dan notifikasi
+- [x] Tukar shift: pengajuan, keputusan, dan override jadwal
 
-## Fase 3 — Keuangan lanjutan
+## Fase 3 - Keuangan lanjutan
 
 - [x] Jurnal otomatis penuh + laba rugi per cabang & konsolidasi
 - [x] Hutang/piutang + aging + biaya operasional + tutup periode (blokir posting + buka lagi)
+- [x] Bagan akun hierarki, anggaran per cabang/kategori, biaya berulang, aset tetap, dan rekonsiliasi bank
 - [x] BPJS + PPh 21 annualisasi + PTKP per status (TER bulanan menyusul bila perlu)
 - [x] Invoice langganan manual + otomatis harian + bayar perpanjang 30 hari
 - [x] Audit log diperluas (keuangan + langganan + periode) + arus kas + neraca
@@ -64,12 +73,14 @@ Format commit yang dipakai: `feat:`, `fix:`, `chore:`.
 - [x] Pemulihan kata sandi: `forgot-password` / `reset-password` (email, throttle) + `change-password` cabut sesi lain
 - [x] Push FCM: server HTTP v1 (`PushSender` + `SendPushNotification` job) + Android daftar token otomatis (drop-in `google-services.json` di `android/app/`)
 - [x] Reminder langganan: `subscription:remind` 08:00 H-7/H-3/H-1/H-0 + auto `read_only` + email Pemilik
+- [x] Sesi perangkat (daftar/cabut) + 2FA TOTP + kode pemulihan
+- [x] Plan limits: kuota cabang dan karyawan aktif + ringkasan pemakaian di langganan
 
 ## Ditunda (di luar scope)
 
 - Mode offline kasir, payment gateway, loyalty/poin, notifikasi WhatsApp
 - Promo otomatis, face-match otomatis, jurnal manual/neraca penuh
-- Alokasi biaya pusat, tukar shift, rekonsiliasi bank otomatis, pelaporan pajak resmi
+- Alokasi biaya pusat, rekonsiliasi bank otomatis, pelaporan pajak resmi
 
 ## Upgrade UI web (calm green)
 
