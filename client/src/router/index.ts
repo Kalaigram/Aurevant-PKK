@@ -5,7 +5,7 @@ import { setOnUnauthorized } from '../lib/api'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', redirect: '/companies' },
+    { path: '/', name: 'landing', component: () => import('../views/LandingView.vue') },
     { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
     { path: '/register', name: 'register', component: () => import('../views/RegisterView.vue') },
     {
@@ -157,8 +157,9 @@ const router = createRouter({
     },
     { path: '/:pathMatch(.*)*', redirect: '/companies' },
   ],
-  scrollBehavior(_to, _from, savedPosition) {
+  scrollBehavior(to, _from, savedPosition) {
     if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash, top: 88 }
     return { top: 0 }
   },
 })
@@ -173,6 +174,7 @@ setOnUnauthorized(() => {
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
+  if (to.name === 'landing' && auth.loggedIn) return '/companies'
   if (to.meta.auth && !auth.loggedIn) return '/login'
   if ((to.name === 'login' || to.name === 'register') && auth.loggedIn) return '/companies'
   if (to.meta.superAdmin && !auth.user?.isSuperAdmin) return '/companies'

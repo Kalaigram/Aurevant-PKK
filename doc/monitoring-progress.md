@@ -379,10 +379,11 @@ Frontend:
 
 ### Landing page
 
-- [ ] Struktur marketing lengkap.
-- [ ] Copywriting dan visual.
-- [ ] Responsive + aksesibilitas.
-- [ ] CTA registrasi/demo.
+- [x] Struktur marketing lengkap: hero, alur, modul, peran, Android, kontrol akses, FAQ.
+- [x] Copywriting dan visual calm green, termasuk audit aturan no-ai-slop.
+- [x] Responsive 390/768/1440, reduced motion, focus state, dan label aksesibilitas dasar.
+- [x] CTA registrasi dan login.
+- [ ] CTA demo (belum tersedia).
 
 ## Verifikasi terakhir
 
