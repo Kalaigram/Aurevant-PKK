@@ -6,6 +6,7 @@ import { useAuthStore } from './stores/auth'
 import { useAccessStore } from './stores/access'
 import { useConfirm } from './composables/useConfirm'
 import AppIcon from './components/ui/AppIcon.vue'
+import AppLogo from './components/ui/AppLogo.vue'
 import AppAvatar from './components/ui/AppAvatar.vue'
 import AppBadge from './components/ui/AppBadge.vue'
 import AppButton from './components/ui/AppButton.vue'
@@ -327,10 +328,10 @@ onBeforeUnmount(() => {
         <div class="flex items-center gap-3 px-5 pb-3 pt-5">
           <RouterLink
             to="/companies"
-            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/[0.14] font-display text-lg font-extrabold tracking-tight text-white shadow-card ring-1 ring-white/20 transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             aria-label="Ganti perusahaan"
           >
-            A
+            <AppLogo size="md" framed />
           </RouterLink>
           <div class="min-w-0">
             <p class="font-display truncate text-[15px] font-bold leading-tight tracking-tight text-white">
@@ -443,10 +444,10 @@ onBeforeUnmount(() => {
           </button>
           <RouterLink
             to="/companies"
-            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-on-primary shadow-card md:hidden"
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl md:hidden"
             aria-label="Ganti perusahaan"
           >
-            A
+            <AppLogo size="sm" />
           </RouterLink>
           <div class="min-w-0">
             <p class="hidden text-2xs font-semibold uppercase tracking-[0.1em] text-secondary sm:block">

@@ -2,6 +2,7 @@
 import { onBeforeMount, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import AppIcon from '../components/ui/AppIcon.vue'
+import AppLogo from '../components/ui/AppLogo.vue'
 
 const root = ref<HTMLElement | null>(null)
 const menuOpen = ref(false)
@@ -277,11 +278,7 @@ onBeforeUnmount(() => {
           aria-label="Aurevant PKK, beranda"
           @click="closeMenu"
         >
-          <span
-            class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary font-display text-base font-extrabold text-on-primary shadow-card"
-          >
-            A
-          </span>
+          <AppLogo size="md" />
           <span class="min-w-0">
             <span class="block font-display text-[15px] font-bold tracking-tight text-ink"
               >Aurevant PKK</span
@@ -923,11 +920,7 @@ onBeforeUnmount(() => {
               class="flex min-h-11 w-fit items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-2"
               aria-label="Aurevant PKK, beranda"
             >
-              <span
-                class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary font-display text-base font-extrabold text-on-primary shadow-card"
-              >
-                A
-              </span>
+              <AppLogo size="md" />
               <span>
                 <span class="block font-display text-[15px] font-bold tracking-tight text-ink"
                   >Aurevant PKK</span

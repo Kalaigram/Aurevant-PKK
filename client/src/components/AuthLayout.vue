@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIcon from './ui/AppIcon.vue'
+import AppLogo from './ui/AppLogo.vue'
 
 defineProps<{ tab: 'login' | 'register' }>()
 
@@ -33,11 +34,7 @@ const keunggulan = [
           to="/login"
           class="flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
         >
-          <span
-            class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-on-primary shadow-card"
-          >
-            A
-          </span>
+          <AppLogo size="md" framed />
           <span>
             <span class="block font-display text-[15px] font-bold tracking-tight text-ink"
               >Aurevant PKK</span
@@ -63,11 +60,7 @@ const keunggulan = [
           />
           <div class="relative flex flex-1 flex-col">
             <div class="flex items-center gap-3">
-              <span
-                class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/[0.14] font-display text-lg font-extrabold tracking-tight shadow-card ring-1 ring-white/20"
-              >
-                A
-              </span>
+              <AppLogo size="lg" framed />
               <div>
                 <p class="font-display text-lg font-bold tracking-tight">Aurevant PKK</p>
                 <p class="text-2xs text-white/70">Manajemen bisnis multi-cabang</p>

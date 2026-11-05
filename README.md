@@ -1,8 +1,22 @@
-# Aurevant PKK
+<p align="center">
+  <img src="logo/logopkk-icon.png" alt="Logo Aurevant PKK" width="120" />
+</p>
 
-Aplikasi operasional multi-cabang untuk bisnis barang dan jasa. Aurevant PKK menyatukan kasir, stok, order jasa, absensi, penggajian, dan keuangan dalam satu alur data.
+<h1 align="center">Aurevant PKK</h1>
 
-Repo ini berisi tiga aplikasi yang memakai API yang sama:
+<p align="center">
+  <strong>Satu alur data untuk kasir, stok, tim, dan keuangan.</strong><br />
+  Aplikasi operasional multi-cabang untuk bisnis barang dan jasa.
+</p>
+
+<p align="center">
+  <img alt="Vue 3" src="https://img.shields.io/badge/Vue-3-42b883?logo=vuedotjs&logoColor=white" />
+  <img alt="Laravel 13" src="https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white" />
+  <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Android-7F52FF?logo=kotlin&logoColor=white" />
+  <img alt="MySQL" src="https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white" />
+</p>
+
+Aurevant PKK menyatukan kasir, stok, order jasa, absensi, penggajian, dan keuangan dalam satu alur data. Repo ini berisi tiga aplikasi yang memakai API yang sama:
 
 - `client/` - aplikasi web (Vue 3)
 - `server/` - API dan backend (Laravel)
@@ -78,6 +92,7 @@ Repo ini berisi tiga aplikasi yang memakai API yang sama:
 │   └── routes/api.php      # Endpoint /api/v1
 ├── android/                # Aplikasi Android
 │   └── app/src/main/java/com/aurevant/pkk/
+├── logo/                   # Logo dan ikon aplikasi
 ├── doc/                    # Spesifikasi, desain, dan catatan progres
 ├── PROGRESS.md             # Checklist progres fitur
 └── RULES.md                # Aturan arsitektur dan workflow
